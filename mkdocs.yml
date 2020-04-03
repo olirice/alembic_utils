@@ -5,14 +5,14 @@ theme:
     name: 'readthedocs'
 
 repo_name: olirice/alembic_utils
-repo_url: https://github.com/olirice/nebulo
+repo_url: https://github.com/olirice/alembic_utils
 
 nav:
     - Introduction: 'index.md'
     - Quickstart: 'quickstart.md'
+    - Examples: 'examples.md'
     - Roadmap: 'roadmap.md'
 
 markdown_extensions:
   - codehilite
   - admonition
-  - pymdownx.inlinehilite

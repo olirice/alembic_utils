@@ -28,6 +28,10 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     install_requires=["alembic", "psycopg2-binary", "flupy", "sqlalchemy", "parse"],
-    extras_require={"dev": DEV_REQUIRES, "nvim": ["neovim", "python-language-server"]},
+    extras_require={
+        "dev": DEV_REQUIRES,
+        "nvim": ["neovim", "python-language-server"],
+        "docs": ["mkdocs", "pygments", "pymdown-extensions"],
+    },
     include_package_data=True,
 )
