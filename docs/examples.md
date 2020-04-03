@@ -28,7 +28,7 @@ def upgrade():
             as
             $$ select upper(some_text) $$ language SQL;
             """
-        )
+    )
 
     op.create_function(public_to_upper_6fa0de)
 
@@ -72,7 +72,8 @@ def upgrade():
             as
             $$ select upper(some_text) || 'def' $$ language SQL;
         """
-        )
+    )
+
     op.replace_function(public_to_upper_6fa0de)
 
 
@@ -83,6 +84,7 @@ def downgrade():
             definition="""returns text
      LANGUAGE sql
     AS $function$ select upper(some_text) || 'abc' $function$"""
-        )
+    )
+
     op.replace_function(public_to_upper_6fa0de)
 ```
