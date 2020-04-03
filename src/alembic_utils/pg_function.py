@@ -80,13 +80,14 @@ class PGFunction(ReplaceableObject):
 
         # Create a trash schema, and generate the current function definition within it.
         cls = self.__class__
-        adjusted_target = cls("alembic_autogen", self.signature, self.definition)
-        connection.execute(f"create schema if not exists {adjusted_target.schema};")
+        alembic_autogen = "alembic_autogen"
+        adjusted_target = cls(alembic_autogen, self.signature, self.definition)
+        connection.execute(f"create schema if not exists {alembic_autogen};")
         connection.execute(
-            f"CREATE OR REPLACE FUNCTION {adjusted_target.schema}.{adjusted_target.signature} {adjusted_target.definition}"
+            f"CREATE OR REPLACE FUNCTION {alembic_autogen}.{adjusted_target.signature} {adjusted_target.definition}"
         )
         temporary_db_version = adjusted_target.get_db_definition(connection)
-        connection.execute("drop schema alembic_autogen cascade;")
+        connection.execute(f"drop schema {alembic_autogen} cascade;")
 
         # Compare the current
         if db_live.is_equal_definition(temporary_db_version):
@@ -298,7 +299,13 @@ def register_functions(pg_functions: List[PGFunction], schemas: Optional[List[st
                 )
 
         # User registered schemas + automatically registered schemas (from SQLA Metadata)
-        observed_schemas = list({schema for schema in (schemas or [] + sqla_schemas)})
+        observed_schemas: List[str] = list(
+            {
+                schema
+                for schema in (schemas or [] + sqla_schemas + [x.schema for x in pg_functions])
+                if schema is not None
+            }
+        )
 
         with engine.connect() as connection:
 
@@ -316,8 +323,8 @@ def register_functions(pg_functions: List[PGFunction], schemas: Optional[List[st
                         # No match was found locally
                         upgrade_ops.ops.append(DropFunctionOp(db_function))
 
-                # Check for new or updated functions
-                for local_function in pg_functions:
-                    maybe_op = local_function.get_required_migration_op(connection)
-                    if maybe_op is not None:
-                        upgrade_ops.ops.append(maybe_op)
+            # Check for new or updated functions
+            for local_function in pg_functions:
+                maybe_op = local_function.get_required_migration_op(connection)
+                if maybe_op is not None:
+                    upgrade_ops.ops.append(maybe_op)

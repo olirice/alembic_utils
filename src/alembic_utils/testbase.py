@@ -1,14 +1,15 @@
 # pylint: disable=unsupported-assignment-operation
+import contextlib
+from io import StringIO
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NoReturn
 
-from io import StringIO
-import contextlib
-
 from alembic import command as alem_command
+from alembic.autogenerate.compare import comparators
 from alembic.config import Config
-from alembic_utils import REPO_ROOT
 from sqlalchemy.engine import Engine
+
+from alembic_utils import REPO_ROOT
 
 ALEMBIC_COMMAND_MAP: Dict[str, Callable[..., NoReturn]] = {
     "upgrade": alem_command.upgrade,
@@ -20,22 +21,16 @@ ALEMBIC_COMMAND_MAP: Dict[str, Callable[..., NoReturn]] = {
 
 def build_alembic_config(engine: Engine) -> Config:
     """Populate alembic configuration from metadata and config file."""
-    path_to_alembic_ini = REPO_ROOT / 'alembic.ini'
+    path_to_alembic_ini = REPO_ROOT / "alembic.ini"
 
     alembic_cfg = Config(path_to_alembic_ini)
     # Make double sure alembic references the test database
     alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
-    alembic_cfg.set_main_option(
-        "script_location", str((Path("src") / "test" / "alembic_config"))
-    )
+    alembic_cfg.set_main_option("script_location", str((Path("src") / "test" / "alembic_config")))
     return alembic_cfg
 
 
-def run_alembic_command(
-    engine: Engine,
-    command: str,
-    command_kwargs: Dict[str, Any]
-) -> str:
+def run_alembic_command(engine: Engine, command: str, command_kwargs: Dict[str, Any]) -> str:
     command_func = ALEMBIC_COMMAND_MAP[command]
 
     stdout = StringIO()
@@ -46,3 +41,11 @@ def run_alembic_command(
         with contextlib.redirect_stdout(stdout):
             command_func(alembic_cfg, **command_kwargs)
     return stdout.getvalue()
+
+
+def reset_event_listener_registry() -> None:
+    """Resets event listeners watching for changes when --autogenerate is used with revisions"""
+    comparators._registry = {
+        (target, qualifier): [func for func in funcs if "pg_function" not in func.__name__]
+        for (target, qualifier), funcs in comparators._registry.items()
+    }

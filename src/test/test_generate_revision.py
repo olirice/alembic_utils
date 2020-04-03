@@ -26,6 +26,6 @@ def test_migration_create_function(engine, reset: None) -> None:
     with migration_create_path.open() as migration_file:
         migration_contents = migration_file.read()
 
-    assert "op.create_function" in migration_contents
-    assert "op.drop_function" in migration_contents
-    assert "from alembic_utils import PGFunction" in migration_contents
+    assert migration_contents.count("op.create_function") == 1
+    assert migration_contents.count("op.drop_function") == 1
+    assert migration_contents.count("from alembic_utils import PGFunction") == 1

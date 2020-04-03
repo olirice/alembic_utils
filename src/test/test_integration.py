@@ -1,6 +1,6 @@
 from alembic_utils import TEST_VERSIONS_ROOT
 from alembic_utils.pg_function import PGFunction, register_functions
-from alembic_utils.testbase import run_alembic_command
+from alembic_utils.testbase import reset_event_listener_registry, run_alembic_command
 
 TO_UPPER = PGFunction(
     schema="public",
@@ -13,7 +13,7 @@ TO_UPPER = PGFunction(
 )
 
 
-def test_create_and_revise(engine, reset: None) -> None:
+def test_create_and_revise(engine, reset) -> None:
     register_functions([TO_UPPER])
 
     output = run_alembic_command(

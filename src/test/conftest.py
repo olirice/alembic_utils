@@ -10,11 +10,11 @@ from pathlib import Path
 
 import alembic
 import pytest
-from alembic.autogenerate.compare import comparators
 from parse import parse
 from sqlalchemy import create_engine, text
 
 from alembic_utils import TEST_VERSIONS_ROOT
+from alembic_utils.testbase import reset_event_listener_registry
 
 PYTEST_DB = "postgresql://alem_user:password@localhost:5680/alem_db"
 
@@ -109,13 +109,8 @@ def reset(engine):
     """Fixture to reset between tests"""
 
     def run_cleaners():
-        comparators._registry = {
-            (target, qualifier): [func for func in funcs if "pg_function" not in func.__name__]
-            for (target, qualifier), funcs in comparators._registry.items()
-        }
-
+        reset_event_listener_registry()
         engine.execute("drop schema public cascade; create schema public;")
-
         # Remove any migrations that were left behind
         TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
         shutil.rmtree(TEST_VERSIONS_ROOT)
