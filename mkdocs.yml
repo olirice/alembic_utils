@@ -1,0 +1,18 @@
+site_name: alembic_utils
+site_description: Autogenerate Support for PostgreSQL Functions and (soon) Views
+
+theme:
+    name: 'readthedocs'
+
+repo_name: olirice/alembic_utils
+repo_url: https://github.com/olirice/nebulo
+
+nav:
+    - Introduction: 'index.md'
+    - Quickstart: 'quickstart.md'
+    - Roadmap: 'roadmap.md'
+
+markdown_extensions:
+  - codehilite
+  - admonition
+  - pymdownx.inlinehilite

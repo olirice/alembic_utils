@@ -8,6 +8,7 @@ DEV_REQUIRES = [
     "sqlalchemy-stubs",
     "pytest",
     "pytest-cov",
+    "mkdocs",
 ]
 
 setup(
@@ -26,7 +27,7 @@ setup(
     python_requires=">=3.7",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    install_requires=["alembic", "psycopg2-binary", "flupy", 'sqlalchemy', 'parse'],
+    install_requires=["alembic", "psycopg2-binary", "flupy", "sqlalchemy", "parse"],
     extras_require={"dev": DEV_REQUIRES, "nvim": ["neovim", "python-language-server"]},
     include_package_data=True,
 )

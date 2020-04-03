@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+
 from alembic_utils.pg_function import PGFunction
 
 REPO_ROOT = Path(os.path.abspath(os.path.dirname(__file__))).parent.parent.resolve()

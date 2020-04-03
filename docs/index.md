@@ -34,6 +34,6 @@
 
 Alembic Utils is an extension to alembic that adds autogeneration support for [PostgreSQL](https://www.postgresql.org/) functions and (soon) views.
 
-Visit the [quickstart guide](https://olirice.github.io/alembic_utils/quickstart/) for usage instructions.
+Visit the [quickstart guide](quickstart.md) for usage instructions.
 
 <p align="center">&mdash;&mdash;  &mdash;&mdash;</p>
