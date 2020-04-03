@@ -2,20 +2,19 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
-from parse import parse
-import shutil
 
+import alembic
 import pytest
+from alembic.autogenerate.compare import comparators
+from parse import parse
 from sqlalchemy import create_engine, text
 
 from alembic_utils import TEST_VERSIONS_ROOT
-import alembic
-from alembic.autogenerate.compare import comparators
-
 
 PYTEST_DB = "postgresql://alem_user:password@localhost:5680/alem_db"
 
@@ -93,7 +92,7 @@ def maybe_start_pg() -> None:
     else:
         raise Exception("Could not reach postgres comtainer. Check docker installation")
     yield
-    #subprocess.call(["docker", "stop", container_name])
+    # subprocess.call(["docker", "stop", container_name])
     return
 
 
@@ -111,20 +110,17 @@ def reset(engine):
 
     def run_cleaners():
         comparators._registry = {
-            (target, qualifier): [
-                func for func in funcs if "pg_function" not in func.__name__
-            ]
+            (target, qualifier): [func for func in funcs if "pg_function" not in func.__name__]
             for (target, qualifier), funcs in comparators._registry.items()
         }
 
-
-        # Delete the public.alembic_version table
-        #engine.execute("drop table if exists public.alembic_version;")
         engine.execute("drop schema public cascade; create schema public;")
+
         # Remove any migrations that were left behind
+        TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
         shutil.rmtree(TEST_VERSIONS_ROOT)
-        TEST_VERSIONS_ROOT.mkdir()
-        #engine.execute(DROP_ALL_FUNCTIONS_SQL)
+        TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
+        # engine.execute(DROP_ALL_FUNCTIONS_SQL)
 
     run_cleaners()
 
