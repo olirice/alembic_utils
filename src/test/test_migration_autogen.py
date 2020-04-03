@@ -1,7 +1,6 @@
-from alembic_utils.testbase import run_alembic_command
-from alembic_utils.pg_function import PGFunction, register_functions
 from alembic_utils import TEST_VERSIONS_ROOT
-
+from alembic_utils.pg_function import PGFunction, register_functions
+from alembic_utils.testbase import run_alembic_command
 
 TO_UPPER = PGFunction(
     schema="public",
@@ -29,6 +28,7 @@ def test_migration_create_function(engine, reset: None) -> None:
 
     assert "op.create_function" in migration_contents
     assert "op.drop_function" in migration_contents
+    assert "from alembic_utils import PGFunction" in migration_contents
 
 
 def test_migration_replace_function(engine, reset: None) -> None:
@@ -47,11 +47,10 @@ def test_migration_replace_function(engine, reset: None) -> None:
 
     assert "op.create_function" in migration_contents
     assert "op.drop_function" in migration_contents
+    assert "from alembic_utils import PGFunction" in migration_contents
 
     # Apply the first imgration
-    run_alembic_command(
-        engine=engine, command="upgrade", command_kwargs={"revision": "head"}
-    )
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
 
     # Update definition of TO_UPPER
     TO_UPPER.definition = """
@@ -72,14 +71,13 @@ def test_migration_replace_function(engine, reset: None) -> None:
 
     with migration_replace_path.open() as migration_file:
         migration_contents = migration_file.read()
-    
+
     assert "op.replace_function" in migration_contents
+    assert "from alembic_utils import PGFunction" in migration_contents
 
     # Create a third migration without making changes.
     # This should result in no create, drop or replace statements
-    run_alembic_command(
-        engine=engine, command="upgrade", command_kwargs={"revision": "head"}
-    )
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
 
     output = run_alembic_command(
         engine=engine,
@@ -94,10 +92,7 @@ def test_migration_replace_function(engine, reset: None) -> None:
     assert "op.create_function" not in migration_contents
     assert "op.drop_function" not in migration_contents
     assert "op.replace_function" not in migration_contents
+    assert "from alembic_utils import PGFunction" not in migration_contents
 
     # Execute the downgrades
-    run_alembic_command(
-        engine=engine, command="downgrade", command_kwargs={"revision": "base"}
-    )
-
-    assert True
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})

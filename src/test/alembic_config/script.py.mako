@@ -6,7 +6,6 @@ Create Date: ${create_date}
 
 """
 from alembic import op
-from alembic_utils.pg_function import PGFunction
 import sqlalchemy as sa
 ${imports if imports else ""}
 

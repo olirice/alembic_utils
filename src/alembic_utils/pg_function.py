@@ -3,16 +3,15 @@ from __future__ import annotations
 
 from hashlib import md5
 from pathlib import Path
-
-from typing import Optional, List
+from typing import List, Optional
 
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
+from parse import parse
+from sqlalchemy import text as sql_text
+
 from alembic_utils.replaceable_object import ReplaceableObject
 from alembic_utils.reversible_op import ReversibleOp
-from sqlalchemy import text as sql_text
-from flupy import walk_files
-from parse import parse
 
 
 class PGFunction(ReplaceableObject):
@@ -28,7 +27,9 @@ class PGFunction(ReplaceableObject):
     @classmethod
     def from_sql(cls, sql: str) -> Optional[PGFunction]:
         """ Create an instance of PGFunction from a blob of sql """
-        template = "create{:s}or{:s}replace{:s}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
+        template = (
+            "create{:s}or{:s}replace{:s}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
+        )
 
         result = parse(template, sql.strip(), case_sensitive=False)
         if result is not None:
@@ -212,6 +213,7 @@ def replace_or_revert_function(operations, operation):
 
 @renderers.dispatch_for(CreateFunctionOp)
 def render_create_function(autogen_context, op):
+    autogen_context.imports.add("from alembic_utils import PGFunction")
     var_name = op.target.to_variable_name()
     return f"""{var_name} = PGFunction(
         schema="{op.target.schema}",
@@ -225,6 +227,7 @@ op.create_function({var_name})
 
 @renderers.dispatch_for(DropFunctionOp)
 def render_drop_function(autogen_context, op):
+    autogen_context.imports.add("from alembic_utils import PGFunction")
     var_name = op.target.to_variable_name()
     return f"""{var_name} = PGFunction(
         schema="{op.target.schema}",
@@ -238,6 +241,7 @@ op.drop_function({var_name})
 
 @renderers.dispatch_for(ReplaceFunctionOp)
 def render_replace_function(autogen_context, op):
+    autogen_context.imports.add("from alembic_utils import PGFunction")
     var_name = op.target.to_variable_name()
     return f"""{var_name} = PGFunction(
         schema="{op.target.schema}",
@@ -252,6 +256,7 @@ op.replace_function({var_name})
 def render_revert_function(autogen_context, op):
     """ Collect the function definition currently live in the database and use its definition
     as the downgrade revert target """
+    autogen_context.imports.add("from alembic_utils import PGFunction")
     context = autogen_context
     engine = context.connection.engine
 
@@ -274,8 +279,7 @@ op.replace_function({var_name})
 def register_functions(pg_functions: List[PGFunction]) -> None:
     @comparators.dispatch_for("schema")
     def compare_registered_pg_functions(autogen_context, upgrade_ops, schemas):
-        context = autogen_context
-        engine = context.connection.engine
+        engine = autogen_context.connection.engine
 
         with engine.connect() as connection:
             for function in pg_functions:
