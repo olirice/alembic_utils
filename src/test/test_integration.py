@@ -13,25 +13,7 @@ TO_UPPER = PGFunction(
 )
 
 
-def test_migration_create_function(engine, reset: None) -> None:
-    register_functions([TO_UPPER])
-    output = run_alembic_command(
-        engine=engine,
-        command="revision",
-        command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
-    )
-
-    migration_create_path = TEST_VERSIONS_ROOT / "1_create.py"
-
-    with migration_create_path.open() as migration_file:
-        migration_contents = migration_file.read()
-
-    assert "op.create_function" in migration_contents
-    assert "op.drop_function" in migration_contents
-    assert "from alembic_utils import PGFunction" in migration_contents
-
-
-def test_migration_replace_function(engine, reset: None) -> None:
+def test_create_and_revise(engine, reset: None) -> None:
     register_functions([TO_UPPER])
 
     output = run_alembic_command(
@@ -96,3 +78,36 @@ def test_migration_replace_function(engine, reset: None) -> None:
 
     # Execute the downgrades
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
+def test_drop(engine, reset: None) -> None:
+    # Register no functions locally
+    register_functions([], schemas=["public"])
+
+    # Manually create a SQL function
+    engine.execute(TO_UPPER.to_sql_statement_create())
+
+    output = run_alembic_command(
+        engine=engine,
+        command="revision",
+        command_kwargs={"autogenerate": True, "rev_id": "1", "message": "drop"},
+    )
+
+    migration_create_path = TEST_VERSIONS_ROOT / "1_drop.py"
+
+    with migration_create_path.open() as migration_file:
+        migration_contents = migration_file.read()
+
+    assert "op.drop_function" in migration_contents
+    assert "op.create_function" in migration_contents
+    assert "from alembic_utils import PGFunction" in migration_contents
+    assert migration_contents.index("op.drop_function") < migration_contents.index(
+        "op.create_function"
+    )
+
+    # Apply the first imgration
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+
+    # Make sure function no longer exists
+    with engine.connect() as connection:
+        assert TO_UPPER.get_db_definition(connection) is None
