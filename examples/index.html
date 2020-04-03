@@ -131,7 +131,7 @@
 <span class="s2">            as</span>
 <span class="s2">            $$ select upper(some_text) $$ language SQL;</span>
 <span class="s2">            &quot;&quot;&quot;</span>
-        <span class="p">)</span>
+    <span class="p">)</span>
 
     <span class="n">op</span><span class="o">.</span><span class="n">create_function</span><span class="p">(</span><span class="n">public_to_upper_6fa0de</span><span class="p">)</span>
 
@@ -174,7 +174,8 @@
 <span class="s2">            as</span>
 <span class="s2">            $$ select upper(some_text) || &#39;def&#39; $$ language SQL;</span>
 <span class="s2">        &quot;&quot;&quot;</span>
-        <span class="p">)</span>
+    <span class="p">)</span>
+
     <span class="n">op</span><span class="o">.</span><span class="n">replace_function</span><span class="p">(</span><span class="n">public_to_upper_6fa0de</span><span class="p">)</span>
 
 
@@ -185,7 +186,8 @@
             <span class="n">definition</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;returns text</span>
 <span class="s2">     LANGUAGE sql</span>
 <span class="s2">    AS $function$ select upper(some_text) || &#39;abc&#39; $function$&quot;&quot;&quot;</span>
-        <span class="p">)</span>
+    <span class="p">)</span>
+
     <span class="n">op</span><span class="o">.</span><span class="n">replace_function</span><span class="p">(</span><span class="n">public_to_upper_6fa0de</span><span class="p">)</span>
 </code></pre></div>
               
