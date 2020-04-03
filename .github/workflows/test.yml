@@ -13,7 +13,7 @@ jobs:
         env:
           POSTGRES_DB: alem_db
           POSTGRES_HOST: localhost
-          POSTGRES_USER: alem_test
+          POSTGRES_USER: alem_user
           POSTGRES_PASSWORD: password
 
         ports:
