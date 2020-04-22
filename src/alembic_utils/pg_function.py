@@ -299,13 +299,20 @@ def register_functions(pg_functions: List[PGFunction], schemas: Optional[List[st
                 )
 
         # User registered schemas + automatically registered schemas (from SQLA Metadata)
-        observed_schemas: List[str] = list(
-            {
-                schema
-                for schema in (schemas or [] + sqla_schemas + [x.schema for x in pg_functions])
-                if schema is not None
-            }
-        )
+        # User registered schemas + automatically registered schemas (from SQLA Metadata)
+        observed_schemas: List[str] = []
+        if schemas is not None:
+            for schema in schemas:
+                observed_schemas.append(schema)
+
+        if sqla_schemas is not None and sqla_schemas != [None]:
+            for schema in sqla_schemas:
+                observed_schemas.append(schema)
+
+        for function in pg_functions:
+            observed_schemas.append(function.schema)
+
+        observed_schemas = list(set(observed_schemas))
 
         with engine.connect() as connection:
 
