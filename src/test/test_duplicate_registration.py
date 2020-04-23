@@ -1,6 +1,5 @@
 import pytest
 
-from alembic_utils import TEST_VERSIONS_ROOT
 from alembic_utils.exceptions import DuplicateRegistration
 from alembic_utils.pg_function import PGFunction, register_functions
 from alembic_utils.testbase import run_alembic_command

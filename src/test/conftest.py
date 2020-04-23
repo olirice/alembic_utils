@@ -4,17 +4,13 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import time
-from pathlib import Path
 
-import alembic
 import pytest
 from parse import parse
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 
-from alembic_utils import TEST_VERSIONS_ROOT
-from alembic_utils.testbase import reset_event_listener_registry
+from alembic_utils.testbase import TEST_VERSIONS_ROOT, reset_event_listener_registry
 
 PYTEST_DB = "postgresql://alem_user:password@localhost:5680/alem_db"
 

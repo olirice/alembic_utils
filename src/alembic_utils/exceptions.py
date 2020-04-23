@@ -4,3 +4,7 @@ class AlembicUtilsException(Exception):
 
 class DuplicateRegistration(AlembicUtilsException):
     """An entity was registered multiple times"""
+
+
+class SQLParseFailure(AlembicUtilsException):
+    """An entity could not be parsed"""

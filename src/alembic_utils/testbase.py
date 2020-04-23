@@ -1,15 +1,19 @@
 # pylint: disable=unsupported-assignment-operation
 import contextlib
+import os
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NoReturn
+from typing import Any, Callable, Dict, NoReturn
 
 from alembic import command as alem_command
 from alembic.autogenerate.compare import comparators
 from alembic.config import Config
 from sqlalchemy.engine import Engine
 
-from alembic_utils import REPO_ROOT
+REPO_ROOT = Path(os.path.abspath(os.path.dirname(__file__))).parent.parent.resolve()
+TEST_RESOURCE_ROOT = REPO_ROOT / "src" / "test" / "resources"
+TEST_VERSIONS_ROOT = REPO_ROOT / "src" / "test" / "alembic_config" / "versions"
+
 
 ALEMBIC_COMMAND_MAP: Dict[str, Callable[..., NoReturn]] = {
     "upgrade": alem_command.upgrade,

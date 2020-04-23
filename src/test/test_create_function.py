@@ -1,5 +1,4 @@
-from alembic_utils import PGFunction
-from alembic_utils.testbase import run_alembic_command
+from alembic_utils.pg_function import PGFunction
 
 to_upper = PGFunction(
     schema="public",
@@ -22,5 +21,5 @@ def test_create_and_drop(engine, reset) -> None:
     engine.execute(up_sql)
     result = engine.execute("select public.to_upper('hello');").fetchone()
     assert result[0] == "HELLO"
-    # engine.execute(down_sql)
+    engine.execute(down_sql)
     assert True

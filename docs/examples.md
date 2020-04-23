@@ -10,7 +10,7 @@ Create Date: 2020-04-22 09:24:25.556995
 """
 from alembic import op
 import sqlalchemy as sa
-from alembic_utils import PGFunction
+from alembic_utils.pg_function import PGFunction
 
 # revision identifiers, used by Alembic.
 revision = '1'
@@ -54,7 +54,7 @@ Create Date: 2020-04-22 09:24:25.679031
 """
 from alembic import op
 import sqlalchemy as sa
-from alembic_utils import PGFunction
+from alembic_utils.pg_function import PGFunction
 
 # revision identifiers, used by Alembic.
 revision = '2'

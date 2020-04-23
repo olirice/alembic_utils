@@ -1,5 +1,4 @@
 from alembic.operations import MigrateOperation
-from alembic.script.base import ScriptDirectory
 
 
 class ReversibleOp(MigrateOperation):

@@ -1,5 +1,5 @@
-from alembic_utils import TEST_RESOURCE_ROOT, PGFunction
-from alembic_utils.testbase import run_alembic_command
+from alembic_utils.pg_function import PGFunction
+from alembic_utils.testbase import TEST_RESOURCE_ROOT
 
 
 def test_pg_function_from_file() -> None:

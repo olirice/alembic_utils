@@ -1,6 +1,5 @@
-from alembic_utils import TEST_VERSIONS_ROOT
 from alembic_utils.pg_function import PGFunction, register_functions
-from alembic_utils.testbase import run_alembic_command
+from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TO_UPPER = PGFunction(
     schema="public",
@@ -26,6 +25,6 @@ def test_migration_create_function(engine, reset: None) -> None:
     with migration_create_path.open() as migration_file:
         migration_contents = migration_file.read()
 
-    assert migration_contents.count("op.create_function") == 1
-    assert migration_contents.count("op.drop_function") == 1
-    assert migration_contents.count("from alembic_utils import PGFunction") == 1
+    assert migration_contents.count("op.create_entity") == 1
+    assert migration_contents.count("op.drop_entity") == 1
+    assert migration_contents.count("from alembic_utils") == 1
