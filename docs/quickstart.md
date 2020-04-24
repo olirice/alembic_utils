@@ -27,6 +27,21 @@ to_upper = PGFunction(
 )
 ```
 
+and/or a view
+```python
+# my_view.py
+from alembic_utils.pg_view import PGView
+
+first_view = PGView(
+    schema="public",
+    signature="first_view",
+    definition="select * from information_schema.tables",
+)
+
+```
+
+
+
 Finally, update your `<migrations_folder>/env.py` to import the function and register it with alembic_utils.
 
 ```python
@@ -34,9 +49,11 @@ Finally, update your `<migrations_folder>/env.py` to import the function and reg
 
 # Add these lines
 from alembic_utils.replaceable_entity import register_entities
-from my_function import to_upper
 
-register_entities([to_upper])
+from my_function import to_upper
+from my_view import first_view
+
+register_entities([to_upper, first_view])
 ```
 
 You're done!
