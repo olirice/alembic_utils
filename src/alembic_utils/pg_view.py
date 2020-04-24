@@ -39,9 +39,12 @@ class PGView(ReplaceableEntity):
         select
             schemaname schema_name,
             viewname view_name,
-            definition
+            pg_get_viewdef(view_oid, true) as definition_pretty
         from
-            pg_views
+            pg_views,
+            lateral (
+                select (schemaname || '.' || viewname)::regclass::oid view_oid
+            ) abc
         where
             schemaname not in ('pg_catalog', 'information_schema')
             and schemaname like '{schema}';
