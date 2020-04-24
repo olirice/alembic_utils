@@ -129,14 +129,27 @@
 </code></pre></div>
 
 
+<p>and/or a view</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># my_view.py</span>
+<span class="kn">from</span> <span class="nn">alembic_utils.pg_view</span> <span class="kn">import</span> <span class="n">PGView</span>
+
+<span class="n">first_view</span> <span class="o">=</span> <span class="n">PGView</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span>
+    <span class="n">signature</span><span class="o">=</span><span class="s2">&quot;first_view&quot;</span><span class="p">,</span>
+    <span class="n">definition</span><span class="o">=</span><span class="s2">&quot;select * from information_schema.tables&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+
 <p>Finally, update your <code>&lt;migrations_folder&gt;/env.py</code> to import the function and register it with alembic_utils.</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># &lt;migrations_folder&gt;/env.py</span>
 
 <span class="c1"># Add these lines</span>
-<span class="kn">from</span> <span class="nn">alembic_utils.pg_function</span> <span class="kn">import</span> <span class="n">register_functions</span>
+<span class="kn">from</span> <span class="nn">alembic_utils.replaceable_entity</span> <span class="kn">import</span> <span class="n">register_entities</span>
 <span class="kn">from</span> <span class="nn">my_function</span> <span class="kn">import</span> <span class="n">to_upper</span>
+<span class="kn">from</span> <span class="nn">my_view</span> <span class="kn">import</span> <span class="n">first_view</span>
 
-<span class="n">register_functions</span><span class="p">([</span><span class="n">to_upper</span><span class="p">])</span>
+<span class="n">register_entities</span><span class="p">([</span><span class="n">to_upper</span><span class="p">,</span> <span class="n">first_view</span><span class="p">])</span>
 </code></pre></div>
 
 
