@@ -1,8 +1,9 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Type, TypeVar
+from typing import List, Optional, Tuple, Type, TypeVar
 
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
@@ -17,6 +18,22 @@ T = TypeVar("T", bound="ReplaceableEntity")
 def normalize_whitespace(text, base_whitespace: str = " ") -> str:
     """ Convert all whitespace to *base_whitespace* """
     return base_whitespace.join(text.split()).strip()
+
+
+@contextmanager
+def simulate_entity(connection, entity):
+    """Creates *entity* in the *dummy_schema* and self would be transformed into if it were created in the database"""
+    dummy_schema = "alembic_utils"
+    assert entity.schema == dummy_schema
+    cls = entity.__class__
+    adj_target = cls(dummy_schema, entity.signature, entity.definition)
+    connection.execute(f"drop schema if exists {dummy_schema} cascade")
+    connection.execute(f"create schema if not exists {dummy_schema}")
+    try:
+        connection.execute(adj_target.to_sql_statement_create())
+        yield
+    finally:
+        connection.execute(f"drop schema if exists {dummy_schema} cascade")
 
 
 class ReplaceableEntity:
@@ -37,6 +54,36 @@ class ReplaceableEntity:
         """Collect existing entities from the database for given schema"""
         raise NotImplementedError()
 
+    def get_compare_identity_query(self) -> str:
+        """Return SQL string that returns 1 row for existing DB object"""
+        raise NotImplementedError()
+
+    def get_compare_definition_query(self) -> str:
+        """Return SQL string that returns 1 row for existing DB object"""
+        raise NotImplementedError()
+
+    def get_identity_comparable(self, connection) -> Tuple:
+        """ Generates a SQL "create function" statement for PGFunction """
+        # Create other in a dummy schema
+        cls = self.__class__
+        adj_self = cls("alembic_utils", self.signature, self.definition)
+        identity_query = adj_self.get_compare_identity_query()
+        with simulate_entity(connection, adj_self):
+            # Collect the definition_comparable for dummy schema self
+            row = (self.schema,) + tuple(connection.execute(identity_query).fetchone())
+        return row
+
+    def get_definition_comparable(self, connection) -> Tuple:
+        """ Generates a SQL "create function" statement for PGFunction """
+        # Create self in a dummy schema
+        cls = self.__class__
+        adj_self = cls("alembic_utils", self.signature, self.definition)
+        definition_query = adj_self.get_compare_definition_query()
+        with simulate_entity(connection, adj_self):
+            # Collect the definition_comparable for dummy schema self
+            row = (self.schema,) + tuple(connection.execute(definition_query).fetchone())
+        return row
+
     def to_sql_statement_create(self) -> str:
         """ Generates a SQL "create function" statement for PGFunction """
         raise NotImplementedError()
@@ -49,32 +96,22 @@ class ReplaceableEntity:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         raise NotImplementedError()
 
-    def simulate_database_entity(self, connection) -> T:
-        """Simulates what self would be transformed into if it were created in the database"""
-        cls = self.__class__
-        temp_schema = "alembic_utils"
-        adj_target = cls(temp_schema, self.signature, self.definition)
-        connection.execute(f"drop schema if exists {temp_schema} cascade")
-        connection.execute(f"create schema if not exists {temp_schema}")
-        try:
-            connection.execute(adj_target.to_sql_statement_create())
-            adj_db_target = adj_target.get_database_definition(connection)
-        except Exception:
-            raise
-        finally:
-            connection.execute(f"drop schema if exists {temp_schema} cascade")
-        return adj_db_target
-
-    def is_equal_definition(self, other: T, connection=None) -> bool:
+    def is_equal_definition(self, other: T, connection) -> bool:
         """Is the definition within self and other the same"""
-        adj_db_target = self.simulate_database_entity(connection)
-        return adj_db_target.definition == other.definition
+        self_comparable = self.get_definition_comparable(connection)
+        other_comparable = other.get_definition_comparable(connection)
+        return self_comparable == other_comparable
+
+    def is_equal_identity(self, other: T, connection) -> bool:
+        """Is the definition within self and other the same"""
+        self_comparable = self.get_identity_comparable(connection)
+        other_comparable = other.get_identity_comparable(connection)
+        return self_comparable == other_comparable
 
     def get_database_definition(self: T, connection) -> Optional[T]:
         """ Looks up self and return the copy existing in the database (maybe)the"""
         all_entities = self.from_database(connection, schema=self.schema)
-
-        matches = [x for x in all_entities if self.is_equal_identity(x)]
+        matches = [x for x in all_entities if self.is_equal_identity(x, connection)]
         if len(matches) == 0:
             return None
         db_match = matches[0]
@@ -115,10 +152,6 @@ class ReplaceableEntity:
         object_name = self.signature.split("(")[0].strip().lower()
         return f"{schema_name}_{object_name}"
 
-    def is_equal_identity(self, other: T) -> bool:
-        """ Is the signature of self and other the same """
-        return self.identity == other.identity
-
     def get_required_migration_op(self, connection) -> Optional[ReversibleOp]:
         """Get the migration operation required for autogenerate"""
         # All entities in the database for self's schema
@@ -128,7 +161,7 @@ class ReplaceableEntity:
             [self.is_equal_definition(x, connection) for x in entities_in_database]
         )
 
-        found_signature = any([self.is_equal_identity(x) for x in entities_in_database])
+        found_signature = any([self.is_equal_identity(x, connection) for x in entities_in_database])
 
         if found_identical:
             return None
@@ -291,7 +324,7 @@ def register_entities(entities: List[T], schemas: Optional[List[str]] = None) ->
                     # Check for functions that were deleted locally
                     for db_entity in db_entities:
                         for local_entity in entities:
-                            if db_entity.is_equal_identity(local_entity):
+                            if db_entity.is_equal_identity(local_entity, connection):
                                 break
                         else:
                             # No match was found locally

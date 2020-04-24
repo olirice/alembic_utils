@@ -1,12 +1,11 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 from __future__ import annotations
 
-from typing import List, Optional, Set
+from typing import List, Optional
 
 from parse import parse
 from sqlalchemy import text as sql_text
 
-from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
@@ -27,6 +26,18 @@ class PGFunction(ReplaceableEntity):
                 definition="returns " + result["definition"],
             )
         return None
+
+    def to_sql_statement_create(self) -> str:
+        """ Generates a SQL "create function" statement for PGFunction """
+        return f"CREATE FUNCTION {self.schema}.{self.signature} {self.definition}"
+
+    def to_sql_statement_drop(self) -> str:
+        """ Generates a SQL "drop function" statement for PGFunction """
+        return f"DROP FUNCTION {self.schema}.{self.signature}"
+
+    def to_sql_statement_create_or_replace(self) -> str:
+        """ Generates a SQL "create or replace function" statement for PGFunction """
+        return f"CREATE OR REPLACE FUNCTION {self.schema}.{self.signature} {self.definition}"
 
     @classmethod
     def from_database(cls, connection, schema="%") -> List[PGFunction]:
@@ -61,53 +72,50 @@ class PGFunction(ReplaceableEntity):
 
         return db_functions
 
-    def to_sql_statement_create(self) -> str:
-        """ Generates a SQL "create function" statement for PGFunction """
-        return f"CREATE FUNCTION {self.schema}.{self.signature} {self.definition}"
+    def get_compare_identity_query(self):
+        """Only called in simulation. alembic_util schema will onle have 1 record"""
+        return f"""
+        select
+            proname,
+            pronargs,
+            proargtypes
+        from
+            pg_proc proc
+        where
+            pronamespace::regnamespace = '{self.schema}'::regnamespace
+        """
 
-    def to_sql_statement_drop(self) -> str:
-        """ Generates a SQL "drop function" statement for PGFunction """
-        return f"DROP FUNCTION {self.schema}.{self.signature}"
-
-    def to_sql_statement_create_or_replace(self) -> str:
-        """ Generates a SQL "create or replace function" statement for PGFunction """
-        return f"CREATE OR REPLACE FUNCTION {self.schema}.{self.signature} {self.definition}"
-
-    def get_definition_body(self) -> str:
-        templates = ["{}$${body}$${}", "{}${}${body}${}$", "{}${}${body}${}${}"]
-        for template in templates:
-            result = parse(template, self.definition, case_sensitive=False)
-            if result is not None:
-                return result["body"]
-        raise SQLParseFailure(self.definition)
-
-    def get_definition_qualifiers(self) -> Set[str]:
-        all_qualifiers = [
-            "window",
-            "immutable",
-            "stable",
-            "volatile",
-            "called on null input",
-            "returns null on null input",
-            "strict",
-            "external security invoker",
-            "security invoker",
-            "external security definer",
-            "security definer",
-        ]
-
-        lower_def = self.definition.lower()
-
-        found_qualifiers = set()
-        for qualifier in all_qualifiers:
-            if qualifier in lower_def:
-                found_qualifiers.add(qualifier)
-        return found_qualifiers
-
-    def is_equal_definition(self, other: PGFunction, connection) -> bool:
-        """ Is the definition within self and other the same """
-        self_body = self.get_definition_body().strip()
-        other_body = other.get_definition_body().strip()
-        self_qualifiers = self.get_definition_qualifiers()
-        other_qualifiers = other.get_definition_qualifiers()
-        return self_body == other_body and self_qualifiers == other_qualifiers
+    def get_compare_definition_query(self):
+        """Only called in simulation. alembic_util schema will onle have 1 record"""
+        return f"""
+        select
+            /*
+                Body of the function (between $function$
+                trim is required becasue functions may get rendered with
+                inconsistent leading and trailing whitespace depending
+            */
+            trim(trim('\n', trim(trim('\t' from trim('\n' from trim(trim('\n' from trim(prosrc))))))))
+            -- Other things that impact exact equality
+            proname,
+            procost,
+            prorows,
+            provariadic,
+            prokind,
+            proleakproof,
+            proisstrict,
+            proretset,
+            provolatile,
+            proparallel,
+            pronargs,
+            pronargdefaults,
+            prorettype,
+            proargtypes,
+            proallargtypes,
+            proargmodes,
+            proargnames,
+            proargdefaults
+        from
+            pg_proc proc
+        where
+            pronamespace::regnamespace = '{self.schema}'::regnamespace
+        """

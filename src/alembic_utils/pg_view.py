@@ -31,6 +31,18 @@ class PGView(ReplaceableEntity):
 
         raise SQLParseFailure(sql)
 
+    def to_sql_statement_create(self) -> str:
+        """Generates a SQL "create view" statement"""
+        return f"CREATE VIEW {self.schema}.{self.signature} AS {self.definition}"
+
+    def to_sql_statement_drop(self) -> str:
+        """Generates a SQL "drop view" statement"""
+        return f"DROP VIEW {self.schema}.{self.signature}"
+
+    def to_sql_statement_create_or_replace(self) -> str:
+        """Generates a SQL "create or replace view" statement"""
+        return f"CREATE OR REPLACE VIEW {self.schema}.{self.signature} AS {self.definition}"
+
     @classmethod
     def from_database(cls, connection, schema="%") -> List[PGView]:
         """Get a list of all functions defined in the db"""
@@ -58,14 +70,27 @@ class PGView(ReplaceableEntity):
 
         return db_views
 
-    def to_sql_statement_create(self) -> str:
-        """Generates a SQL "create view" statement"""
-        return f"CREATE VIEW {self.schema}.{self.signature} AS {self.definition}"
+    def get_compare_identity_query(self) -> str:
+        """Return SQL string that returns 1 row for existing DB object"""
+        return f"""
+        select
+            -- Schema is appended in python
+            viewname view_name
+        from
+            pg_views
+        where
+            schemaname like '{self.schema}';
+        """
 
-    def to_sql_statement_drop(self) -> str:
-        """Generates a SQL "drop view" statement"""
-        return f"DROP VIEW {self.schema}.{self.signature}"
-
-    def to_sql_statement_create_or_replace(self) -> str:
-        """Generates a SQL "create or replace view" statement"""
-        return f"CREATE OR REPLACE VIEW {self.schema}.{self.signature} AS {self.definition}"
+    def get_compare_definition_query(self) -> str:
+        """Return SQL string that returns 1 row for existing DB object"""
+        return f"""
+        select
+            -- Schema is appended in python
+            viewname view_name,
+            pg_get_viewdef((schemaname || '.' || viewname)::regclass::oid, true) definition
+        from
+	    pg_views
+	where
+            schemaname like '{self.schema}';
+        """
