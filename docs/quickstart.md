@@ -33,10 +33,10 @@ Finally, update your `<migrations_folder>/env.py` to import the function and reg
 # <migrations_folder>/env.py
 
 # Add these lines
-from alembic_utils.pg_function import register_functions
+from alembic_utils.replaceable_entity import register_entities
 from my_function import to_upper
 
-register_functions([to_upper])
+register_entities([to_upper])
 ```
 
 You're done!

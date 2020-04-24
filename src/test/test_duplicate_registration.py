@@ -1,7 +1,8 @@
 import pytest
 
 from alembic_utils.exceptions import DuplicateRegistration
-from alembic_utils.pg_function import PGFunction, register_functions
+from alembic_utils.pg_function import PGFunction
+from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import run_alembic_command
 
 TO_UPPER = PGFunction(
@@ -16,7 +17,7 @@ TO_UPPER = PGFunction(
 
 
 def test_migration_create_function(engine, reset: None) -> None:
-    register_functions([TO_UPPER, TO_UPPER])
+    register_entities([TO_UPPER, TO_UPPER])
 
     with pytest.raises(DuplicateRegistration):
         run_alembic_command(

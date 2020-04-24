@@ -30,7 +30,7 @@
 
 [Alembic](https://alembic.sqlalchemy.org/en/latest/) is the defacto migration tool for usage with [SQLAlchemy](https://www.sqlalchemy.org/). Without extensions, alembic can detect local changes to SQLAlchemy models and autogenerate a database migration or "revision" script. That revision can be applied to update the database's schema to match the SQLAlchemy model definitions.
 
-Alembic Utils is an extension to alembic that adds autogeneration support for [PostgreSQL](https://www.postgresql.org/) functions and (soon) views.
+Alembic Utils is an extension to alembic that adds autogeneration support for [PostgreSQL](https://www.postgresql.org/) functions and views.
 
 Visit the [quickstart guide](quickstart.md) for usage instructions.
 

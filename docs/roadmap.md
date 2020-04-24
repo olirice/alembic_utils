@@ -1,5 +1,8 @@
 ## Roadmap
 
-**Requirements for Stable Release:**
+**Additional Requirements for 1.0 Release:**
 
-* Autogenerate support for views + materialized views
+* Feedback from external users
+* Autogenerate support for PostgreSQL Materialized Views
+
+

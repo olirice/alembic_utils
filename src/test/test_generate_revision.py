@@ -1,4 +1,5 @@
-from alembic_utils.pg_function import PGFunction, register_functions
+from alembic_utils.pg_function import PGFunction
+from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TO_UPPER = PGFunction(
@@ -13,7 +14,7 @@ TO_UPPER = PGFunction(
 
 
 def test_migration_create_function(engine, reset: None) -> None:
-    register_functions([TO_UPPER])
+    register_entities([TO_UPPER])
     output = run_alembic_command(
         engine=engine,
         command="revision",

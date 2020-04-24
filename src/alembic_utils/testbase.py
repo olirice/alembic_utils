@@ -50,6 +50,6 @@ def run_alembic_command(engine: Engine, command: str, command_kwargs: Dict[str, 
 def reset_event_listener_registry() -> None:
     """Resets event listeners watching for changes when --autogenerate is used with revisions"""
     comparators._registry = {
-        (target, qualifier): [func for func in funcs if "pg_function" not in func.__name__]
+        (target, qualifier): [func for func in funcs if "entities" not in func.__name__]
         for (target, qualifier), funcs in comparators._registry.items()
     }

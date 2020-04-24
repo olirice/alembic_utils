@@ -111,7 +111,6 @@ def reset(engine):
         TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
         shutil.rmtree(TEST_VERSIONS_ROOT)
         TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
-        # engine.execute(DROP_ALL_FUNCTIONS_SQL)
 
     run_cleaners()
 

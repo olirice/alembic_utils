@@ -3,16 +3,14 @@ from __future__ import annotations
 
 from typing import List, Optional, Set
 
-from alembic.autogenerate import comparators
-from flupy import flu
 from parse import parse
 from sqlalchemy import text as sql_text
 
-from alembic_utils.exceptions import DuplicateRegistration, SQLParseFailure
-from alembic_utils.replaceable_object import DropOp, ReplaceableObject
+from alembic_utils.exceptions import SQLParseFailure
+from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
-class PGFunction(ReplaceableObject):
+class PGFunction(ReplaceableEntity):
     """ A PostgreSQL Function that can be versioned and replaced """
 
     @classmethod
@@ -106,67 +104,10 @@ class PGFunction(ReplaceableObject):
                 found_qualifiers.add(qualifier)
         return found_qualifiers
 
-    def is_equal_definition(self, other: PGFunction) -> bool:
+    def is_equal_definition(self, other: PGFunction, connection) -> bool:
         """ Is the definition within self and other the same """
         self_body = self.get_definition_body().strip()
         other_body = other.get_definition_body().strip()
         self_qualifiers = self.get_definition_qualifiers()
         other_qualifiers = other.get_definition_qualifiers()
         return self_body == other_body and self_qualifiers == other_qualifiers
-
-
-##################
-# Event Listener #
-##################
-def register_functions(pg_functions: List[PGFunction], schemas: Optional[List[str]] = None) -> None:
-    """ Creates an event listener to watch for changes in *pg_functions* and functions in *schemas*
-    to populate migrations when using --autogenerate """
-
-    @comparators.dispatch_for("schema")
-    def compare_registered_pg_functions(
-        autogen_context, upgrade_ops, sqla_schemas: List[Optional[str]]
-    ):
-        engine = autogen_context.connection.engine
-
-        # Ensure pg_functions have unique identities (not registered twice)
-        for ident, function_group in flu(pg_functions).group_by(key=lambda x: x.identity):
-            if len(function_group.collect()) > 1:
-                raise DuplicateRegistration(
-                    f"PGFunction with identity {ident} was registered multiple times"
-                )
-
-        # User registered schemas + automatically registered schemas (from SQLA Metadata)
-        observed_schemas: List[str] = []
-        if schemas is not None:
-            for schema in schemas:
-                observed_schemas.append(schema)
-
-        sqla_schemas = [schema for schema in sqla_schemas or [] if schema is not None]
-        observed_schemas.extend(sqla_schemas)
-
-        for function in pg_functions:
-            observed_schemas.append(function.schema)
-
-        observed_schemas = list(set(observed_schemas))
-
-        with engine.connect() as connection:
-
-            for schema in observed_schemas:
-
-                # Functions within the schemas live on PostgreSQL
-                db_functions = PGFunction.from_database(connection, schema=schema)
-
-                # Check for functions that were deleted locally
-                for db_function in db_functions:
-                    for local_function in pg_functions:
-                        if db_function.is_equal_identity(local_function):
-                            break
-                    else:
-                        # No match was found locally
-                        upgrade_ops.ops.append(DropOp(db_function))
-
-            # Check for new or updated functions
-            for local_function in pg_functions:
-                maybe_op = local_function.get_required_migration_op(connection)
-                if maybe_op is not None:
-                    upgrade_ops.ops.append(maybe_op)
