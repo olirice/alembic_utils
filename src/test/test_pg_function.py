@@ -1,18 +1,22 @@
-from alembic_utils.pg_view import PGView
+from alembic_utils.pg_function import PGFunction
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
-TEST_VIEW = PGView(
+TO_UPPER = PGFunction(
     schema="public",
-    signature="test_example",
-    definition="select *, FALSE as is_updated from pg_views",
+    signature="to_upper(some_text text)",
+    definition="""
+        returns text
+        as
+        $$ select upper(some_text) || 'abc' $$ language SQL;
+        """,
 )
 
 
-def test_create_and_revise(engine, reset) -> None:
-    register_entities([TEST_VIEW])
+def test_create_revision(engine, reset) -> None:
+    register_entities([TO_UPPER])
 
-    output = run_alembic_command(
+    run_alembic_command(
         engine=engine,
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
@@ -26,17 +30,32 @@ def test_create_and_revise(engine, reset) -> None:
     assert "op.create_entity" in migration_contents
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
-    assert "from alembic_utils.pg_view import PGView" in migration_contents
+    assert "from alembic_utils.pg_function import PGFunction" in migration_contents
 
-    # Apply the first imgration
+    # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    # Execute Downgrade
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
+def test_updaet_revision(engine, reset) -> None:
+    engine.execute(TO_UPPER.to_sql_statement_create())
 
     # Update definition of TO_UPPER
-    TEST_VIEW.definition = """select *, TRUE as is_updated from pg_views"""
+    UPDATED_TO_UPPER = PGFunction(
+        TO_UPPER.schema,
+        TO_UPPER.signature,
+        """returns text as
+    $$
+    select upper(some_text) || 'def'
+    $$ language SQL immutable strict;""",
+    )
+
+    register_entities([UPDATED_TO_UPPER])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
-    output = run_alembic_command(
+    run_alembic_command(
         engine=engine,
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "2", "message": "replace"},
@@ -50,11 +69,18 @@ def test_create_and_revise(engine, reset) -> None:
     assert "op.replace_entity" in migration_contents
     assert "op.create_entity" not in migration_contents
     assert "op.drop_entity" not in migration_contents
-    assert "from alembic_utils.pg_view import PGView" in migration_contents
+    assert "from alembic_utils.pg_function import PGFunction" in migration_contents
 
-    # Create a third migration without making changes.
-    # This should result in no create, drop or replace statements
+    # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    # Execute Downgrade
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
+def test_noop_revision(engine, reset) -> None:
+    engine.execute(TO_UPPER.to_sql_statement_create())
+
+    register_entities([TO_UPPER])
 
     output = run_alembic_command(
         engine=engine,
@@ -71,19 +97,20 @@ def test_create_and_revise(engine, reset) -> None:
     assert "op.replace_entity" not in migration_contents
     assert "from alembic_utils" not in migration_contents
 
-    # Execute the downgrades
+    # Execute upgrade
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    # Execute Downgrade
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
 def test_drop(engine, reset: None) -> None:
+    # Manually create a SQL function
+    engine.execute(TO_UPPER.to_sql_statement_create())
 
     # Register no functions locally
     register_entities([], schemas=["public"])
 
-    # Manually create a SQL function
-    engine.execute(TEST_VIEW.to_sql_statement_create())
-
-    output = run_alembic_command(
+    run_alembic_command(
         engine=engine,
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "1", "message": "drop"},
@@ -99,9 +126,7 @@ def test_drop(engine, reset: None) -> None:
     assert "from alembic_utils" in migration_contents
     assert migration_contents.index("op.drop_entity") < migration_contents.index("op.create_entity")
 
-    # Apply the first imgration
+    # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
-
-    # Make sure function no longer exists
-    with engine.connect() as connection:
-        assert TEST_VIEW.get_database_definition(connection) is None
+    # Execute Downgrade
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
