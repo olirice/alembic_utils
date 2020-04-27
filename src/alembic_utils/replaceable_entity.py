@@ -273,7 +273,11 @@ def render_revert_function(autogen_context, op):
 ##################
 
 
-def register_entities(entities: List[T], schemas: Optional[List[str]] = None) -> None:
+def register_entities(
+    entities: List[T],
+    schemas: Optional[List[str]] = None,
+    exclude_schemas: Optional[List[str]] = None,
+) -> None:
     """Creates an event listener to watch for changes in entities to populate migrations
     when using --autogenerate"""
 
@@ -302,7 +306,8 @@ def register_entities(entities: List[T], schemas: Optional[List[str]] = None) ->
         for entity in entities:
             observed_schemas.append(entity.schema)
 
-        observed_schemas = list(set(observed_schemas))
+        # Remove excluded schemas
+        observed_schemas = [x for x in set(observed_schemas) if x not in exclude_schemas or []]
 
         with engine.connect() as connection:
 
