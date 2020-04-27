@@ -26,7 +26,7 @@
 
 ---
 
-**Autogenerate Support for PostgreSQL Functions and (soon) Views**
+**Autogenerate Support for PostgreSQL Functions and Views**
 
 [Alembic](https://alembic.sqlalchemy.org/en/latest/) is the defacto migration tool for usage with [SQLAlchemy](https://www.sqlalchemy.org/). Without extensions, alembic can detect local changes to SQLAlchemy models and autogenerate a database migration or "revision" script. That revision can be applied to update the database's schema to match the SQLAlchemy model definitions.
 
