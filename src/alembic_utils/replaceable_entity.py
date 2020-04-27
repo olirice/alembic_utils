@@ -9,6 +9,7 @@ from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
 from flupy import flu
 
+from alembic_utils.cache import cachedmethod
 from alembic_utils.exceptions import DuplicateRegistration
 from alembic_utils.reversible_op import ReversibleOp
 
@@ -39,6 +40,8 @@ def simulate_entity(connection, entity):
 class ReplaceableEntity:
     """A SQL Entity that can be replaced"""
 
+    _CACHE = {}
+
     def __init__(self, schema: str, signature: str, definition: str):
         self.schema: str = normalize_whitespace(schema)
         self.signature: str = normalize_whitespace(signature)
@@ -62,6 +65,16 @@ class ReplaceableEntity:
         """Return SQL string that returns 1 row for existing DB object"""
         raise NotImplementedError()
 
+    @cachedmethod(
+        lambda self: self._CACHE,
+        key=lambda self, _: (
+            self.__class__.__name__,
+            "identity",
+            self.schema,
+            self.signature,
+            self.definition,
+        ),
+    )
     def get_identity_comparable(self, connection) -> Tuple:
         """ Generates a SQL "create function" statement for PGFunction """
         # Create other in a dummy schema
@@ -73,6 +86,16 @@ class ReplaceableEntity:
             row = (self.schema,) + tuple(connection.execute(identity_query).fetchone())
         return row
 
+    @cachedmethod(
+        lambda self: self._CACHE,
+        key=lambda self, _: (
+            self.__class__.__name__,
+            "definition",
+            self.schema,
+            self.signature,
+            self.definition,
+        ),
+    )
     def get_definition_comparable(self, connection) -> Tuple:
         """ Generates a SQL "create function" statement for PGFunction """
         # Create self in a dummy schema
