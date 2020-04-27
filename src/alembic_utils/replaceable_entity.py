@@ -307,7 +307,7 @@ def register_entities(
             observed_schemas.append(entity.schema)
 
         # Remove excluded schemas
-        observed_schemas = [x for x in set(observed_schemas) if x not in exclude_schemas or []]
+        observed_schemas = [x for x in set(observed_schemas) if x not in (exclude_schemas or [])]
 
         with engine.connect() as connection:
 
