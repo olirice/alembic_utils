@@ -313,7 +313,7 @@ def register_entities(entities: List[T], schemas: Optional[List[str]] = None) ->
                     upgrade_ops.ops.append(maybe_op)
 
             # Entities grouped by class (e.g. PGFunction, PGView, etc)
-            entity_groups = flu(entities).group_by(lambda x: x.__class__)
+            entity_groups = flu(entities).group_by(lambda x: x.__class__, sort=False)
 
             # Check if anything needs to drop
             for schema in observed_schemas:
