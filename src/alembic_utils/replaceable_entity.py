@@ -140,14 +140,19 @@ class ReplaceableEntity:
         db_match = matches[0]
         return db_match
 
-    def render_self_for_migration(self) -> str:
+    def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
+        escaped_definition = (
+            self.definition.replace('"""', '\\"\\"\\"')
+            if not omit_definition
+            else "# not required for op"
+        )
         return f"""{var_name} = {class_name}(
             schema="{self.schema}",
             signature="{self.signature}",
-            definition=\"\"\"{self.definition}\"\"\"
+            definition=\"\"\"{escaped_definition}\"\"\"
         )\n\n"""
 
     @classmethod
@@ -155,7 +160,7 @@ class ReplaceableEntity:
         """Render a string that is valid python code to import current class"""
         module_path = cls.__module__
         class_name = cls.__name__
-        return f"from {module_path} import {class_name}"
+        return f"from {module_path} import {class_name}\nfrom sqlalchemy import text as sql_text"
 
     @property
     def identity(self) -> str:
@@ -263,7 +268,9 @@ def render_drop_function(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
-    return target.render_self_for_migration() + f"op.drop_entity({variable_name})"
+    return (
+        target.render_self_for_migration(omit_definition=True) + f"op.drop_entity({variable_name})"
+    )
 
 
 @renderers.dispatch_for(ReplaceOp)

@@ -45,10 +45,10 @@ def test_updaet_revision(engine, reset) -> None:
     UPDATED_TO_UPPER = PGFunction(
         TO_UPPER.schema,
         TO_UPPER.signature,
-        """returns text as
+        '''returns text as
     $$
-    select upper(some_text) || 'def'
-    $$ language SQL immutable strict;""",
+    select upper(some_text) || 'def'  -- """
+    $$ language SQL immutable strict;''',
     )
 
     register_entities([UPDATED_TO_UPPER])

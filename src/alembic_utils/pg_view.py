@@ -16,10 +16,7 @@ class PGView(ReplaceableEntity):
     @classmethod
     def from_sql(cls, sql: str) -> Optional[PGView]:
         """Create an instance of PGFunction from a blob of sql"""
-        templates = [
-            "create{:s}or{:s}replace{:s}view{:s}{schema}.{signature}{:s}as{:s}{definition}",
-            "",
-        ]
+        templates = ["create{}view{:s}{schema}.{signature}{:s}as{:s}{definition}"]
         for template in templates:
             result = parse(template, sql, case_sensitive=False)
             if result is not None:
@@ -33,15 +30,17 @@ class PGView(ReplaceableEntity):
 
     def to_sql_statement_create(self) -> str:
         """Generates a SQL "create view" statement"""
-        return f"CREATE VIEW {self.schema}.{self.signature} AS {self.definition}"
+        return sql_text(f"CREATE VIEW {self.schema}.{self.signature} AS {self.definition}")
 
     def to_sql_statement_drop(self) -> str:
         """Generates a SQL "drop view" statement"""
-        return f"DROP VIEW {self.schema}.{self.signature}"
+        return sql_text(f"DROP VIEW {self.schema}.{self.signature}")
 
     def to_sql_statement_create_or_replace(self) -> str:
         """Generates a SQL "create or replace view" statement"""
-        return f"CREATE OR REPLACE VIEW {self.schema}.{self.signature} AS {self.definition}"
+        return sql_text(
+            f"CREATE OR REPLACE VIEW {self.schema}.{self.signature} AS {self.definition}"
+        )
 
     @classmethod
     def from_database(cls, connection, schema="%") -> List[PGView]:

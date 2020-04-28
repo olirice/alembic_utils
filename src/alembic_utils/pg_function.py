@@ -15,9 +15,7 @@ class PGFunction(ReplaceableEntity):
     @classmethod
     def from_sql(cls, sql: str) -> Optional[PGFunction]:
         """ Create an instance of PGFunction from a blob of sql """
-        template = (
-            "create{:s}or{:s}replace{:s}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
-        )
+        template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
         result = parse(template, sql.strip(), case_sensitive=False)
         if result is not None:
             return cls(
@@ -29,15 +27,17 @@ class PGFunction(ReplaceableEntity):
 
     def to_sql_statement_create(self) -> str:
         """ Generates a SQL "create function" statement for PGFunction """
-        return f"CREATE FUNCTION {self.schema}.{self.signature} {self.definition}"
+        return sql_text(f"CREATE FUNCTION {self.schema}.{self.signature} {self.definition}")
 
     def to_sql_statement_drop(self) -> str:
         """ Generates a SQL "drop function" statement for PGFunction """
-        return f"DROP FUNCTION {self.schema}.{self.signature}"
+        return sql_text(f"DROP FUNCTION {self.schema}.{self.signature}")
 
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """
-        return f"CREATE OR REPLACE FUNCTION {self.schema}.{self.signature} {self.definition}"
+        return sql_text(
+            f"CREATE OR REPLACE FUNCTION {self.schema}.{self.signature} {self.definition}"
+        )
 
     @classmethod
     def from_database(cls, connection, schema="%") -> List[PGFunction]:
