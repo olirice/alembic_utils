@@ -1,11 +1,12 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from parse import parse
 from sqlalchemy import text as sql_text
 
+from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
@@ -13,7 +14,7 @@ class PGFunction(ReplaceableEntity):
     """ A PostgreSQL Function that can be versioned and replaced """
 
     @classmethod
-    def from_sql(cls, sql: str) -> Optional[PGFunction]:
+    def from_sql(cls, sql: str) -> PGFunction:
         """ Create an instance of PGFunction from a blob of sql """
         template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
         result = parse(template, sql.strip(), case_sensitive=False)
@@ -23,7 +24,7 @@ class PGFunction(ReplaceableEntity):
                 signature=result["signature"],
                 definition="returns " + result["definition"],
             )
-        return None
+        raise SQLParseFailure(f'Failed to parse SQL into PGFunction """{sql}"""')
 
     def to_sql_statement_create(self) -> str:
         """ Generates a SQL "create function" statement for PGFunction """

@@ -48,9 +48,16 @@ class ReplaceableEntity:
         self.definition: str = definition.strip()
 
     @classmethod
-    def from_sql(cls: Type[T], sql: str) -> Optional[T]:
+    def from_sql(cls: Type[T], sql: str) -> T:
         """Create an instance from a SQL string"""
         raise NotImplementedError()
+
+    @classmethod
+    def from_path(cls: Type[T], path: Path) -> T:
+        """Create an instance from a sql file path"""
+        with path.open() as sql_file:
+            sql = sql_file.read()
+        return cls.from_sql(sql)
 
     @classmethod
     def from_database(cls, connection, schema="%") -> List[T]:
@@ -166,13 +173,6 @@ class ReplaceableEntity:
     def identity(self) -> str:
         """A string that consistently and globally identifies a function"""
         return f"{self.schema}.{self.signature}"
-
-    @classmethod
-    def from_path(cls: Type[T], path: Path) -> Optional[T]:
-        """Create an instance from a sql file path"""
-        with path.open() as sql_file:
-            sql = sql_file.read()
-        return cls.from_sql(sql)
 
     def to_variable_name(self):
         """A deterministic variable name based on PGFunction's contents """

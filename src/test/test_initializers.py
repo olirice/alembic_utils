@@ -1,3 +1,6 @@
+import pytest
+
+from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.testbase import TEST_RESOURCE_ROOT
 
@@ -27,5 +30,5 @@ def test_pg_function_from_sql_file_invalid() -> None:
     SQL = """
     NO VALID SQL TO BE FOUND HERE
     """
-    func = PGFunction.from_sql(SQL)
-    assert func is None
+    with pytest.raises(SQLParseFailure):
+        PGFunction.from_sql(SQL)

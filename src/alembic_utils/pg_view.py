@@ -1,7 +1,7 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 from parse import parse
 from sqlalchemy import text as sql_text
@@ -14,7 +14,7 @@ class PGView(ReplaceableEntity):
     """ A PostgreSQL View that can be versioned and replaced """
 
     @classmethod
-    def from_sql(cls, sql: str) -> Optional[PGView]:
+    def from_sql(cls, sql: str) -> PGView:
         """Create an instance of PGFunction from a blob of sql"""
         templates = ["create{}view{:s}{schema}.{signature}{:s}as{:s}{definition}"]
         for template in templates:
@@ -26,7 +26,7 @@ class PGView(ReplaceableEntity):
                     definition=result["definition"],
                 )
 
-        raise SQLParseFailure(sql)
+        raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
 
     def to_sql_statement_create(self) -> str:
         """Generates a SQL "create view" statement"""
