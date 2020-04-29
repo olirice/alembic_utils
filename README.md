@@ -58,16 +58,16 @@ You're done!
 
 The next time you autogenerate a revision with
 ```shell
-alembic revision --autogenerate -m 'some message'
+alembic revision --autogenerate -m 'create to_upper'
 ```
 Alembic will detect if your entities are new, updated, or removed & populate the revison's `upgrade` and `downgrade` sections automatically.
 
 For example:
 
 ```python
-"""create
+"""create to_upper
 
-Revision ID: 1
+Revision ID: 8efi0da3a4
 Revises:
 Create Date: 2020-04-22 09:24:25.556995
 """
@@ -76,7 +76,7 @@ import sqlalchemy as sa
 from alembic_utils.pg_function import PGFunction
 
 # revision identifiers, used by Alembic.
-revision = '1'
+revision = '8efi0da3a4'
 down_revision = None
 branch_labels = None
 depends_on = None
