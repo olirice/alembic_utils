@@ -107,7 +107,6 @@ def downgrade():
 ```
 
 
-
 Visit the [quickstart guide](https://olirice.github.io/alembic_utils/quickstart/) for usage instructions.
 
 <p align="center">&mdash;&mdash;  &mdash;&mdash;</p>
