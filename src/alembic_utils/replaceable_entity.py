@@ -54,7 +54,7 @@ class ReplaceableEntity:
 
     @classmethod
     def from_path(cls: Type[T], path: Path) -> T:
-        """Create an instance from a sql file path"""
+        """Create an instance instance from a SQL file path"""
         with path.open() as sql_file:
             sql = sql_file.read()
         return cls.from_sql(sql)
@@ -308,8 +308,15 @@ def register_entities(
     schemas: Optional[List[str]] = None,
     exclude_schemas: Optional[List[str]] = None,
 ) -> None:
-    """Creates an event listener to watch for changes in entities to populate migrations
-    when using --autogenerate"""
+    """Create an event listener to watch for changes in registered entities when migrations are created using
+    `alembic revision --autogenerate`
+
+    **Parameters:**
+
+    * **entities** - *List[ReplaceableEntity]*: A list of entities (PGFunction, PGView, etc) to monitor for revisions
+    * **schemas** - *Optional[List[str]]*: A list of SQL schema names to monitor. Note, schemas referenced in registered entities are automatically monitored.
+    * **exclude_schemas** - *Optional[List[str]]*: A list of SQL schemas to ignore. Note, explicitly registered entities will still be monitored.
+    """
 
     @comparators.dispatch_for("schema")
     def compare_registered_entities(

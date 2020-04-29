@@ -4,15 +4,20 @@ site_description: Autogenerate Support for PostgreSQL Functions and (soon) Views
 theme:
     name: 'readthedocs'
 
+extra_css:
+    - css/custom.css
+
 repo_name: olirice/alembic_utils
 repo_url: https://github.com/olirice/alembic_utils
 
 nav:
     - Introduction: 'index.md'
     - Quickstart: 'quickstart.md'
+    - API Reference: 'api.md'
     - Examples: 'examples.md'
     - Roadmap: 'roadmap.md'
 
 markdown_extensions:
   - codehilite
   - admonition
+  - mkautodoc

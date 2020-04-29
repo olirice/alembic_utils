@@ -11,11 +11,19 @@ from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
 class PGFunction(ReplaceableEntity):
-    """ A PostgreSQL Function that can be versioned and replaced """
+    """A PostgreSQL Function compatible with `alembic revision --autogenerate`
+
+    **Parameters:**
+
+    * **schema** - *str*: A SQL schema name
+    * **signature** - *str*: A SQL function's call signature
+    * **definition** - *str*:  The remainig function body and identifiers
+
+    """
 
     @classmethod
     def from_sql(cls, sql: str) -> PGFunction:
-        """ Create an instance of PGFunction from a blob of sql """
+        """Create an instance instance from a SQL string"""
         template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
         result = parse(template, sql.strip(), case_sensitive=False)
         if result is not None:

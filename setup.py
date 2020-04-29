@@ -49,7 +49,7 @@ setup(
     extras_require={
         "dev": DEV_REQUIRES,
         "nvim": ["neovim", "python-language-server"],
-        "docs": ["mkdocs", "pygments", "pymdown-extensions"],
+        "docs": ["mkdocs", "pygments", "pymdown-extensions", "mkautodoc"],
     },
     include_package_data=True,
     classifiers=[

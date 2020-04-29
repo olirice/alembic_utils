@@ -11,20 +11,26 @@ from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
 class PGView(ReplaceableEntity):
-    """ A PostgreSQL View that can be versioned and replaced """
+    """A PostgreSQL View compatible with `alembic revision --autogenerate`
+
+    **Parameters:**
+
+    * **schema** - *str*: A SQL schema name
+    * **signature** - *str*: A SQL view's call signature
+    * **definition** - *str*: The SQL select statement body of the view
+    """
 
     @classmethod
     def from_sql(cls, sql: str) -> PGView:
-        """Create an instance of PGFunction from a blob of sql"""
-        templates = ["create{}view{:s}{schema}.{signature}{:s}as{:s}{definition}"]
-        for template in templates:
-            result = parse(template, sql, case_sensitive=False)
-            if result is not None:
-                return cls(
-                    schema=result["schema"],
-                    signature=result["signature"],
-                    definition=result["definition"],
-                )
+        """Create an instance from a SQL string"""
+        template = "create{}view{:s}{schema}.{signature}{:s}as{:s}{definition}"
+        result = parse(template, sql, case_sensitive=False)
+        if result is not None:
+            return cls(
+                schema=result["schema"],
+                signature=result["signature"],
+                definition=result["definition"],
+            )
 
         raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
 
