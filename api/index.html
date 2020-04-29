@@ -131,9 +131,9 @@
 <div class="autodoc-docstring"><p>A PostgreSQL Function compatible with <code>alembic revision --autogenerate</code></p>
 <p><strong>Parameters:</strong></p>
 <ul>
-<li><strong>schema</strong> - <em>str</em>: A SQL schema e.g. 'public'</li>
-<li><strong>signature</strong> - <em>str</em>: A SQL function's call signature e.g. 'to_upper(some_text text)'</li>
-<li><strong>definition</strong> - <em>str</em>:  The remainig function body and identifiers e.g. 'returns text $$ select upper(some_text) $$ language sql;'</li>
+<li><strong>schema</strong> - <em>str</em>: A SQL schema name</li>
+<li><strong>signature</strong> - <em>str</em>: A SQL function's call signature</li>
+<li><strong>definition</strong> - <em>str</em>:  The remainig function body and identifiers</li>
 </ul></div>
 <div class="autodoc-members">
 <div class="autodoc-signature"><code><strong>from_sql</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">sql</em><span class="autodoc-punctuation">)</span></div>
@@ -154,7 +154,13 @@
 
 <div class="autodoc">
 <div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_view.<strong>PGView</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">)</span></div>
-<div class="autodoc-docstring"><p>A PostgreSQL View that can be versioned and replaced</p></div>
+<div class="autodoc-docstring"><p>A PostgreSQL View compatible with <code>alembic revision --autogenerate</code></p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><strong>schema</strong> - <em>str</em>: A SQL schema name</li>
+<li><strong>signature</strong> - <em>str</em>: A SQL view's call signature</li>
+<li><strong>definition</strong> - <em>str</em>: The SQL select statement body of the view</li>
+</ul></div>
 <div class="autodoc-members">
 <div class="autodoc-signature"><code><strong>from_sql</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">sql</em><span class="autodoc-punctuation">)</span></div>
 <div class="autodoc-docstring"><p>Create an instance from a SQL string</p></div>
