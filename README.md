@@ -28,9 +28,85 @@
 
 **Autogenerate Support for PostgreSQL Functions and Views**
 
-[Alembic](https://alembic.sqlalchemy.org/en/latest/) is the defacto migration tool for usage with [SQLAlchemy](https://www.sqlalchemy.org/). Without extensions, alembic can detect local changes to SQLAlchemy models and autogenerate a database migration or "revision" script. That revision can be applied to update the database's schema to match the SQLAlchemy model definitions.
+[Alembic](https://alembic.sqlalchemy.org/en/latest/) is the defacto migration tool for use with [SQLAlchemy](https://www.sqlalchemy.org/). Without extensions, alembic can detect local changes to SQLAlchemy models and autogenerate a database migration or "revision" script. That revision can be applied to update the database's schema to match the SQLAlchemy model definitions.
 
-Alembic Utils is an extension to alembic that adds autogeneration support for [PostgreSQL](https://www.postgresql.org/) functions and (soon) views.
+Alembic Utils is an extension to alembic that adds autogeneration support for [PostgreSQL](https://www.postgresql.org/) functions and views.
+
+### TL;DR
+
+```python
+# migrations/env.py
+from alembic_utils.pg_function import PGFunction
+from alembic_utils.replaceable_entity import register_entities
+
+
+to_upper = PGFunction(
+  schema='public',
+  signature='to_upper(some_text text)'
+  definition="""
+  RETURNS text as
+  $$
+    SELECT upper(some_text)
+  $$ language SQL;
+  """
+)
+
+register_entities([to_upper])
+```
+
+You're done!
+
+The next time you autogenerate a revision with
+```shell
+alembic revision --autogenerate -m 'some message'
+```
+Alembic will detect if your entities are new, updated, or removed & populate the revison's `upgrade` and `downgrade` sections automatically.
+
+For example:
+
+```python
+"""create
+
+Revision ID: 1
+Revises:
+Create Date: 2020-04-22 09:24:25.556995
+"""
+from alembic import op
+import sqlalchemy as sa
+from alembic_utils.pg_function import PGFunction
+
+# revision identifiers, used by Alembic.
+revision = '1'
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    public_to_upper_6fa0de = PGFunction(
+            schema="public",
+            signature="to_upper(some_text text)",
+            definition="""
+            returns text
+            as
+            $$ select upper(some_text) $$ language SQL;
+            """
+    )
+
+    op.create_function(public_to_upper_6fa0de)
+
+
+def downgrade():
+    public_to_upper_6fa0de = PGFunction(
+            schema="public",
+            signature="to_upper(some_text text)",
+            definition="# Not Used"
+        )
+
+    op.drop_function(public_to_upper_6fa0de)
+```
+
+
 
 Visit the [quickstart guide](https://olirice.github.io/alembic_utils/quickstart/) for usage instructions.
 
