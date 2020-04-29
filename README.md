@@ -34,6 +34,8 @@ Alembic Utils is an extension to alembic that adds autogeneration support for [P
 
 ### TL;DR
 
+Update alembic's `env.py` to register a function or view:
+
 ```python
 # migrations/env.py
 from alembic_utils.pg_function import PGFunction
