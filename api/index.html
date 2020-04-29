@@ -170,7 +170,7 @@
 </div>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">alembic_utils.pg_view</span> <span class="kn">import</span> <span class="n">PGView</span>
 
-<span class="n">to_lower</span> <span class="o">=</span> <span class="n">PGView</span><span class="p">(</span>
+<span class="n">scifi_books</span> <span class="o">=</span> <span class="n">PGView</span><span class="p">(</span>
     <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span>
     <span class="n">signature</span><span class="o">=</span><span class="s2">&quot;scifi_books&quot;</span><span class="p">,</span>
     <span class="n">definition</span><span class="o">=</span><span class="s2">&quot;select * from books where genre=&#39;scifi&#39;&quot;</span>
