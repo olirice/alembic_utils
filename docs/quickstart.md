@@ -42,7 +42,7 @@ first_view = PGView(
 
 
 
-Finally, update your `<migrations_folder>/env.py` to import the function and register it with alembic_utils.
+Finally, update your `<migrations_folder>/env.py` to register your entities with alembic_utils.
 
 ```python
 # <migrations_folder>/env.py
