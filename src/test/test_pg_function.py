@@ -4,7 +4,7 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TO_UPPER = PGFunction(
     schema="public",
-    signature="to_upper(some_text text)",
+    signature="to_upper(some_text text default 'my text!')",
     definition="""
         returns text
         as

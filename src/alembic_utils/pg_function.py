@@ -40,7 +40,17 @@ class PGFunction(ReplaceableEntity):
 
     def to_sql_statement_drop(self) -> str:
         """ Generates a SQL "drop function" statement for PGFunction """
-        return sql_text(f"DROP FUNCTION {self.schema}.{self.signature}")
+        template = "{function_name}({parameters})"
+        # Rmove default clause from drop statements because they don't parse
+        result = parse(template, self.signature, case_sensitive=False)
+        function_name = result["function_name"]
+        parameters_str = result["parameters"].strip()
+        # NOTE: Will fail if a text field has a default and that deafult contains a comma...
+        parameters: List[str] = parameters_str.split(",")
+        parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
+        parameters = [x.strip() for x in parameters]
+        drop_params = ", ".join(parameters)
+        return sql_text(f"DROP FUNCTION {self.schema}.{function_name}({drop_params})")
 
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """
