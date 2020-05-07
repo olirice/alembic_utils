@@ -131,10 +131,10 @@ class PGFunction(ReplaceableEntity):
         select
             /*
                 Body of the function (between $function$
-                trim is required becasue functions may get rendered with
-                inconsistent leading and trailing whitespace depending
+                with leading and trailing whitespace removed
+                because it is inconsistent
             */
-            trim(trim('\n', trim(trim('\t' from trim('\n' from trim(trim('\n' from trim(prosrc))))))))
+            regexp_replace(regexp_replace(prosrc, '\s+$', ''),'^\s+', '')
             -- Other things that impact exact equality
             proname,
             procost,
