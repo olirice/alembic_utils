@@ -69,6 +69,18 @@ class PGFunction(ReplaceableEntity):
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
+        with extension_functions as (
+            select
+                objid as extension_function_oid
+            from
+                pg_depend
+            where
+                -- depends on an extension
+                deptype='e'
+                -- is a proc/function
+                and classid = 'pg_proc'::regclass
+        )
+
         select
             n.nspname as function_schema,
             p.proname as function_name,
@@ -84,8 +96,11 @@ class PGFunction(ReplaceableEntity):
             left join pg_namespace n on p.pronamespace = n.oid
             left join pg_language l on p.prolang = l.oid
             left join pg_type t on t.oid = p.prorettype
+            left join extension_functions ef on p.oid = ef.extension_function_oid
         where
             n.nspname not in ('pg_catalog', 'information_schema')
+            -- Filter out functions from extensions
+            and ef.extension_function_oid is null
             and n.nspname like '{schema}';
         """
         )

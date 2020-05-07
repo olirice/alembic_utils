@@ -167,3 +167,26 @@ def test_has_no_parameters(engine, reset: None) -> None:
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
     # Execute Downgrade
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
+def test_ignores_extension_functions(engine, reset: None) -> None:
+    # Extensions contain functions and don't have local representations
+    # Unless they are excluded, every autogenerate migration will produce
+    # drop statements for those functions
+    try:
+        engine.execute("create extension if not exists unaccent;")
+        register_entities([], schemas=["public"])
+        run_alembic_command(
+            engine=engine,
+            command="revision",
+            command_kwargs={"autogenerate": True, "rev_id": "1", "message": "no_drops"},
+        )
+
+        migration_create_path = TEST_VERSIONS_ROOT / "1_no_drops.py"
+
+        with migration_create_path.open() as migration_file:
+            migration_contents = migration_file.read()
+
+        assert "op.drop_entity" not in migration_contents
+    finally:
+        engine.execute("drop extension if exists unaccent;")
