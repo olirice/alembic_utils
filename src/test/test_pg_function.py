@@ -38,16 +38,16 @@ def test_create_revision(engine, reset) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_updaet_revision(engine, reset) -> None:
+def test_update_revision(engine, reset) -> None:
     engine.execute(TO_UPPER.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TO_UPPER = PGFunction(
         TO_UPPER.schema,
         TO_UPPER.signature,
-        '''returns text as
+        r'''returns text as
     $$
-    select upper(some_text) || 'def'  -- """
+    select upper(some_text) || 'def'  -- """ \n \\
     $$ language SQL immutable strict;''',
     )
 
@@ -73,6 +73,7 @@ def test_updaet_revision(engine, reset) -> None:
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+
     # Execute Downgrade
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
@@ -125,6 +126,42 @@ def test_drop(engine, reset: None) -> None:
     assert "op.create_entity" in migration_contents
     assert "from alembic_utils" in migration_contents
     assert migration_contents.index("op.drop_entity") < migration_contents.index("op.create_entity")
+
+    # Execute upgrade
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    # Execute Downgrade
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
+def test_has_no_parameters(engine, reset: None) -> None:
+    # Error was occuring in drop statement when function had no parameters
+    # related to parameter parsing to drop default statements
+
+    SIDE_EFFECT = PGFunction(
+        schema="public",
+        signature="side_effect()",
+        definition="""
+            returns integer
+            as
+            $$ select 1; $$ language SQL;
+            """,
+    )
+
+    # Register no functions locally
+    register_entities([SIDE_EFFECT], schemas=["public"])
+
+    run_alembic_command(
+        engine=engine,
+        command="revision",
+        command_kwargs={"autogenerate": True, "rev_id": "1", "message": "no_arguments"},
+    )
+
+    migration_create_path = TEST_VERSIONS_ROOT / "1_no_arguments.py"
+
+    with migration_create_path.open() as migration_file:
+        migration_contents = migration_file.read()
+
+    assert "op.drop_entity" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})

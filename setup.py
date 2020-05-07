@@ -4,16 +4,6 @@ import re
 from setuptools import find_packages, setup
 
 
-def readme_to_long_description():
-    """Convert README.md to long description for PYPI"""
-    with open("README.md", encoding="UTF-8") as readme_file:
-        readme = readme_file.readlines()
-
-    readme = [line for ix, line in enumerate(readme) if ix not in range(2, 19)]
-    long_description = "".join(readme)
-    return long_description
-
-
 def get_version(package):
     """
     Return package version as listed in `__version__` in `init.py`.
@@ -40,8 +30,6 @@ setup(
     author_email="oliver@oliverrice.com",
     license="MIT",
     description="A sqlalchemy/alembic extension for migrating procedures and views ",
-    long_description=readme_to_long_description(),
-    long_description_content_type="text/markdown",
     python_requires=">=3.7",
     packages=find_packages("src"),
     package_dir={"": "src"},

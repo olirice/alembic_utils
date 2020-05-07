@@ -151,15 +151,11 @@ class ReplaceableEntity:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
-        escaped_definition = (
-            self.definition.replace('"""', '\\"\\"\\"')
-            if not omit_definition
-            else "# not required for op"
-        )
+        escaped_definition = self.definition if not omit_definition else "# not required for op"
         return f"""{var_name} = {class_name}(
             schema="{self.schema}",
             signature="{self.signature}",
-            definition=\"\"\"{escaped_definition}\"\"\"
+            definition={repr(escaped_definition)}
         )\n\n"""
 
     @classmethod

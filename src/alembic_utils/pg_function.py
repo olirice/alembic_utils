@@ -41,10 +41,16 @@ class PGFunction(ReplaceableEntity):
     def to_sql_statement_drop(self) -> str:
         """ Generates a SQL "drop function" statement for PGFunction """
         template = "{function_name}({parameters})"
-        # Rmove default clause from drop statements because they don't parse
         result = parse(template, self.signature, case_sensitive=False)
-        function_name = result["function_name"]
-        parameters_str = result["parameters"].strip()
+        try:
+            function_name = result["function_name"]
+            parameters_str = result["parameters"].strip()
+        except TypeError:
+            # Did not match, NoneType is not scriptable
+            result = parse("{function_name}()", self.signature, case_sensitive=False)
+            function_name = result["function_name"]
+            parameters_str = ""
+
         # NOTE: Will fail if a text field has a default and that deafult contains a comma...
         parameters: List[str] = parameters_str.split(",")
         parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
