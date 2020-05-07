@@ -86,13 +86,13 @@ depends_on = None
 
 def upgrade():
     public_to_upper_6fa0de = PGFunction(
-            schema="public",
-            signature="to_upper(some_text text)",
-            definition="""
-            returns text
-            as
-            $$ select upper(some_text) $$ language SQL;
-            """
+        schema="public",
+        signature="to_upper(some_text text)",
+        definition="""
+        returns text
+        as
+        $$ select upper(some_text) $$ language SQL;
+        """
     )
 
     op.create_function(public_to_upper_6fa0de)
@@ -100,10 +100,10 @@ def upgrade():
 
 def downgrade():
     public_to_upper_6fa0de = PGFunction(
-            schema="public",
-            signature="to_upper(some_text text)",
-            definition="# Not Used"
-        )
+        schema="public",
+        signature="to_upper(some_text text)",
+        definition="# Not Used"
+    )
 
     op.drop_function(public_to_upper_6fa0de)
 ```
