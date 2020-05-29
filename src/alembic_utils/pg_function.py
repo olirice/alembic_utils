@@ -129,31 +129,12 @@ class PGFunction(ReplaceableEntity):
         """Only called in simulation. alembic_util schema will onle have 1 record"""
         return f"""
         select
-            /*
-                Body of the function (between $function$
-                with leading and trailing whitespace removed
-                because it is inconsistent
-            */
-            regexp_replace(regexp_replace(prosrc, '\s+$', ''),'^\s+', '')
-            -- Other things that impact exact equality
-            proname,
-            procost,
-            prorows,
-            provariadic,
-            prokind,
-            proleakproof,
-            proisstrict,
-            proretset,
-            provolatile,
-            proparallel,
-            pronargs,
-            pronargdefaults,
-            prorettype,
-            proargtypes,
-            proallargtypes,
-            proargmodes,
-            proargnames,
-            proargdefaults
+            regexp_replace(
+                pg_get_functiondef(proc.oid),
+                '^\s+',
+                '',
+                'igm'
+            )
         from
             pg_proc proc
         where

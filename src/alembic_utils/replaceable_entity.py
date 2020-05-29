@@ -1,6 +1,7 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Tuple, Type, TypeVar
@@ -12,6 +13,8 @@ from flupy import flu
 from alembic_utils.cache import cachedmethod
 from alembic_utils.exceptions import DuplicateRegistration
 from alembic_utils.reversible_op import ReversibleOp
+
+log = logging.getLogger(__name__)
 
 T = TypeVar("T", bound="ReplaceableEntity")
 
@@ -348,6 +351,18 @@ def register_entities(
             for local_entity in entities:
                 maybe_op = local_entity.get_required_migration_op(connection)
                 if maybe_op is not None:
+                    if isinstance(maybe_op, CreateOp):
+                        log.warning(
+                            "Detected added entity %r.%r",
+                            local_entity.schema,
+                            local_entity.signature,
+                        )
+                    elif isinstance(maybe_op, ReplaceOp):
+                        log.info(
+                            "Detected updated entity %r.%r",
+                            local_entity.schema,
+                            local_entity.signature,
+                        )
                     upgrade_ops.ops.append(maybe_op)
 
             # Entities grouped by class (e.g. PGFunction, PGView, etc)

@@ -8,7 +8,7 @@ TO_UPPER = PGFunction(
     definition="""
         returns text
         as
-        $$ select upper(some_text) || 'abc' $$ language SQL;
+        $$ begin return upper(some_text) || 'abc'; end; $$ language PLPGSQL;
         """,
 )
 
