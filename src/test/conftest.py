@@ -93,7 +93,7 @@ def maybe_start_pg() -> None:
 
 
 @pytest.fixture(scope="session")
-def engine(maybe_start_pg: None):
+def raw_engine(maybe_start_pg: None):
     """sqlalchemy engine fixture"""
     eng = create_engine(PYTEST_DB)
     yield eng
@@ -101,12 +101,13 @@ def engine(maybe_start_pg: None):
 
 
 @pytest.fixture(scope="function")
-def reset(engine):
-    """Fixture to reset between tests"""
+def engine(raw_engine):
+    """Engine that has been reset between tests"""
 
     def run_cleaners():
         reset_event_listener_registry()
-        engine.execute("drop schema public cascade; create schema public;")
+        raw_engine.execute("drop schema public cascade; create schema public;")
+        raw_engine.execute('drop schema if exists "DEV" cascade; create schema "DEV";')
         # Remove any migrations that were left behind
         TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
         shutil.rmtree(TEST_VERSIONS_ROOT)
@@ -114,6 +115,6 @@ def reset(engine):
 
     run_cleaners()
 
-    yield
+    yield raw_engine
 
     run_cleaners()

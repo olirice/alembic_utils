@@ -27,19 +27,39 @@ class PGFunction(ReplaceableEntity):
         template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
         result = parse(template, sql.strip(), case_sensitive=False)
         if result is not None:
+            # remove possible quotes from signature
+            raw_signature = result["signature"]
+            signature = (
+                "".join(raw_signature.split('"', 2))
+                if raw_signature.startswith('"')
+                else raw_signature
+            )
             return cls(
                 schema=result["schema"],
-                signature=result["signature"],
+                signature=signature,
                 definition="returns " + result["definition"],
             )
         raise SQLParseFailure(f'Failed to parse SQL into PGFunction """{sql}"""')
 
+    @property
+    def literal_signature(self) -> str:
+        """Adds quoting around the functions name when emitting SQL statements
+
+        e.g.
+        'toUpper(text) returns text' -> '"toUpper"(text) returns text'
+        """
+        # May already be quoted if loading from database or SQL file
+        name, remainder = self.signature.split("(", 1)
+        return '"' + name + '"(' + remainder
+
     def to_sql_statement_create(self) -> str:
         """ Generates a SQL "create function" statement for PGFunction """
-        return sql_text(f"CREATE FUNCTION {self.schema}.{self.signature} {self.definition}")
+        return sql_text(
+            f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+        )
 
     def to_sql_statement_drop(self) -> str:
-        """ Generates a SQL "drop function" statement for PGFunction """
+        """Generates a SQL "drop function" statement for PGFunction"""
         template = "{function_name}({parameters})"
         result = parse(template, self.signature, case_sensitive=False)
         try:
@@ -56,16 +76,16 @@ class PGFunction(ReplaceableEntity):
         parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
-        return sql_text(f"DROP FUNCTION {self.schema}.{function_name}({drop_params})")
+        return sql_text(f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params})')
 
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         return sql_text(
-            f"CREATE OR REPLACE FUNCTION {self.schema}.{self.signature} {self.definition}"
+            f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
     @classmethod
-    def from_database(cls, connection, schema="%") -> List[PGFunction]:
+    def from_database(cls, connection, schema) -> List[PGFunction]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
@@ -101,7 +121,7 @@ class PGFunction(ReplaceableEntity):
             n.nspname not in ('pg_catalog', 'information_schema')
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
-            and n.nspname like '{schema}';
+            and n.nspname::text = '{schema}';
         """
         )
         rows = connection.execute(sql).fetchall()
@@ -122,7 +142,7 @@ class PGFunction(ReplaceableEntity):
         from
             pg_proc proc
         where
-            pronamespace::regnamespace = '{self.schema}'::regnamespace
+            pronamespace::regnamespace::text = '{self.schema}'
         """
 
     def get_compare_definition_query(self):
@@ -138,5 +158,5 @@ class PGFunction(ReplaceableEntity):
         from
             pg_proc proc
         where
-            pronamespace::regnamespace = '{self.schema}'::regnamespace
+            pronamespace::regnamespace::text = '{self.schema}'
         """

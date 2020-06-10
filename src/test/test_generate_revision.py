@@ -13,7 +13,7 @@ TO_UPPER = PGFunction(
 )
 
 
-def test_migration_create_function(engine, reset: None) -> None:
+def test_migration_create_function(engine) -> None:
     register_entities([TO_UPPER])
     output = run_alembic_command(
         engine=engine,

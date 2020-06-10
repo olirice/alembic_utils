@@ -55,6 +55,13 @@ class ReplaceableEntity:
         """Create an instance from a SQL string"""
         raise NotImplementedError()
 
+    @property
+    def literal_schema(self) -> str:
+        """Wrap a schema name in literal quotes
+        Useful for emitting SQL statements
+        """
+        return f'"{self.schema}"'
+
     @classmethod
     def from_path(cls: Type[T], path: Path) -> T:
         """Create an instance instance from a SQL file path"""

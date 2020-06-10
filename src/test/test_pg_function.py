@@ -4,7 +4,7 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TO_UPPER = PGFunction(
     schema="public",
-    signature="to_upper(some_text text default 'my text!')",
+    signature="toUpper(some_text text default 'my text!')",
     definition="""
         returns text
         as
@@ -13,7 +13,7 @@ TO_UPPER = PGFunction(
 )
 
 
-def test_create_revision(engine, reset) -> None:
+def test_create_revision(engine) -> None:
     register_entities([TO_UPPER])
 
     run_alembic_command(
@@ -38,7 +38,7 @@ def test_create_revision(engine, reset) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine, reset) -> None:
+def test_update_revision(engine) -> None:
     engine.execute(TO_UPPER.to_sql_statement_create())
 
     # Update definition of TO_UPPER
@@ -78,7 +78,7 @@ def test_update_revision(engine, reset) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_noop_revision(engine, reset) -> None:
+def test_noop_revision(engine) -> None:
     engine.execute(TO_UPPER.to_sql_statement_create())
 
     register_entities([TO_UPPER])
@@ -104,7 +104,7 @@ def test_noop_revision(engine, reset) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop(engine, reset: None) -> None:
+def test_drop(engine) -> None:
     # Manually create a SQL function
     engine.execute(TO_UPPER.to_sql_statement_create())
 
@@ -133,7 +133,7 @@ def test_drop(engine, reset: None) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_has_no_parameters(engine, reset: None) -> None:
+def test_has_no_parameters(engine) -> None:
     # Error was occuring in drop statement when function had no parameters
     # related to parameter parsing to drop default statements
 
@@ -169,7 +169,7 @@ def test_has_no_parameters(engine, reset: None) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_ignores_extension_functions(engine, reset: None) -> None:
+def test_ignores_extension_functions(engine) -> None:
     # Extensions contain functions and don't have local representations
     # Unless they are excluded, every autogenerate migration will produce
     # drop statements for those functions

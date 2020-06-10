@@ -36,35 +36,34 @@ class PGView(ReplaceableEntity):
 
     def to_sql_statement_create(self) -> str:
         """Generates a SQL "create view" statement"""
-        return sql_text(f"CREATE VIEW {self.schema}.{self.signature} AS {self.definition}")
+        return sql_text(
+            f'CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition}'
+        )
 
     def to_sql_statement_drop(self) -> str:
         """Generates a SQL "drop view" statement"""
-        return sql_text(f"DROP VIEW {self.schema}.{self.signature}")
+        return sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}"')
 
     def to_sql_statement_create_or_replace(self) -> str:
         """Generates a SQL "create or replace view" statement"""
         return sql_text(
-            f"CREATE OR REPLACE VIEW {self.schema}.{self.signature} AS {self.definition}"
+            f'CREATE OR REPLACE VIEW {self.literal_schema}."{self.signature}" AS {self.definition}'
         )
 
     @classmethod
-    def from_database(cls, connection, schema="%") -> List[PGView]:
+    def from_database(cls, connection, schema) -> List[PGView]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
         select
             schemaname schema_name,
             viewname view_name,
-            pg_get_viewdef(view_oid, true) as definition_pretty
+            definition
         from
-            pg_views,
-            lateral (
-                select (schemaname || '.' || viewname)::regclass::oid view_oid
-            ) abc
+            pg_views
         where
             schemaname not in ('pg_catalog', 'information_schema')
-            and schemaname like '{schema}';
+            and schemaname::text = '{schema}';
         """
         )
         rows = connection.execute(sql).fetchall()
@@ -84,7 +83,7 @@ class PGView(ReplaceableEntity):
         from
             pg_views
         where
-            schemaname like '{self.schema}';
+            schemaname::text = '{self.schema}';
         """
 
     def get_compare_definition_query(self) -> str:
@@ -93,9 +92,9 @@ class PGView(ReplaceableEntity):
         select
             -- Schema is appended in python
             viewname view_name,
-            pg_get_viewdef((schemaname || '.' || viewname)::regclass::oid, true) definition
+            definition
         from
 	    pg_views
 	where
-            schemaname like '{self.schema}';
+            schemaname::text = '{self.schema}';
         """

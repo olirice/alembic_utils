@@ -6,9 +6,7 @@ from alembic_utils.replaceable_entity import register_entities, simulate_entity
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TEST_VIEW = PGView(
-    schema="public",
-    signature="test_example",
-    definition="select *, FALSE as is_updated from pg_views",
+    schema="DEV", signature="testExample", definition="select *, FALSE as is_updated from pg_views"
 )
 
 
@@ -26,14 +24,14 @@ def test_parsable_body() -> None:
         pytest.fail(f"Unexpected SQLParseFailure for view {SQL}")
 
 
-def test_find_no_match(engine, reset) -> None:
+def test_find_no_match(engine) -> None:
     with engine.connect() as connection:
         maybe_found = TEST_VIEW.get_database_definition(connection)
 
     assert maybe_found is None
 
 
-def test_teardown_temp_schema_on_error(engine, reset) -> None:
+def test_teardown_temp_schema_on_error(engine) -> None:
     """Make sure the temporary schema gets town down when the simulated entity fails"""
     SQL = "create or replace view public.some_view as INVALID SQL!;"
     view = PGView.from_sql(SQL)
@@ -49,7 +47,7 @@ def test_teardown_temp_schema_on_error(engine, reset) -> None:
         assert maybe_schema is None
 
 
-def test_create_revision(engine, reset) -> None:
+def test_create_revision(engine) -> None:
     register_entities([TEST_VIEW])
 
     output = run_alembic_command(
@@ -74,7 +72,7 @@ def test_create_revision(engine, reset) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine, reset) -> None:
+def test_update_revision(engine) -> None:
     # Create the view outside of a revision
     engine.execute(TEST_VIEW.to_sql_statement_create())
 
@@ -109,7 +107,7 @@ def test_update_revision(engine, reset) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_noop_revision(engine, reset) -> None:
+def test_noop_revision(engine) -> None:
     # Create the view outside of a revision
     engine.execute(TEST_VIEW.to_sql_statement_create())
 
@@ -140,10 +138,10 @@ def test_noop_revision(engine, reset) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop_revision(engine, reset: None) -> None:
+def test_drop_revision(engine) -> None:
 
     # Register no functions locally
-    register_entities([], schemas=["public"])
+    register_entities([], schemas=["DEV"])
 
     # Manually create a SQL function
     engine.execute(TEST_VIEW.to_sql_statement_create())
@@ -158,6 +156,8 @@ def test_drop_revision(engine, reset: None) -> None:
 
     with migration_create_path.open() as migration_file:
         migration_contents = migration_file.read()
+
+    # import pdb; pdb.set_trace()
 
     assert "op.drop_entity" in migration_contents
     assert "op.create_entity" in migration_contents
