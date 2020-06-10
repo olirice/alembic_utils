@@ -28,7 +28,8 @@ class PGView(ReplaceableEntity):
         if result is not None:
             return cls(
                 schema=result["schema"],
-                signature=result["signature"],
+                # strip quote characters
+                signature=result["signature"].replace('"', ""),
                 definition=result["definition"],
             )
 
