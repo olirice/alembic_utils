@@ -26,10 +26,12 @@ class PGView(ReplaceableEntity):
         template = "create{}view{:s}{schema}.{signature}{:s}as{:s}{definition}"
         result = parse(template, sql, case_sensitive=False)
         if result is not None:
+            # If the signature includes column e.g. my_view (col1, col2, col3) remove them
+            signature = result["signature"].split("(")[0]
             return cls(
                 schema=result["schema"],
                 # strip quote characters
-                signature=result["signature"].replace('"', ""),
+                signature=signature.replace('"', ""),
                 definition=result["definition"],
             )
 
