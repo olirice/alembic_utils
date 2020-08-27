@@ -25,7 +25,7 @@ def normalize_whitespace(text, base_whitespace: str = " ") -> str:
 
 
 @contextmanager
-def simulate_entity(connection, entity):
+def simulate_entity(connection, entity, setup=None):
     """Creates *entity* in the *dummy_schema* and self would be transformed into if it were created in the database"""
     dummy_schema = "alembic_utils"
     assert entity.schema == dummy_schema
@@ -33,6 +33,9 @@ def simulate_entity(connection, entity):
     adj_target = cls(dummy_schema, entity.signature, entity.definition)
     connection.execute(f"drop schema if exists {dummy_schema} cascade")
     connection.execute(f"create schema if not exists {dummy_schema}")
+    # E.g. Postgres policy is applied to a table
+    if setup is not None:
+        connection.execute(setup)
     try:
         connection.execute(adj_target.to_sql_statement_create())
         yield
@@ -107,10 +110,13 @@ class ReplaceableEntity:
         cls = self.__class__
         adj_self = cls("alembic_utils", self.signature, self.definition)
         identity_query = adj_self.get_compare_identity_query()
-        with simulate_entity(connection, adj_self):
+        with simulate_entity(connection, adj_self, self.get_definition_setup()):
             # Collect the definition_comparable for dummy schema self
             row = (self.schema,) + tuple(connection.execute(identity_query).fetchone())
         return row
+
+    def get_definition_setup(self) -> str:
+        return None
 
     @cachedmethod(
         lambda self: self._CACHE,
@@ -128,7 +134,7 @@ class ReplaceableEntity:
         cls = self.__class__
         adj_self = cls("alembic_utils", self.signature, self.definition)
         definition_query = adj_self.get_compare_definition_query()
-        with simulate_entity(connection, adj_self):
+        with simulate_entity(connection, adj_self, self.get_definition_setup()):
             # Collect the definition_comparable for dummy schema self
             row = (self.schema,) + tuple(connection.execute(definition_query).fetchone())
         return row

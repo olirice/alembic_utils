@@ -7,7 +7,7 @@ from parse import parse
 from sqlalchemy import text as sql_text
 
 from alembic_utils.exceptions import SQLParseFailure
-from alembic_utils.replaceable_entity import ReplaceableEntity
+from alembic_utils.replaceable_entity import ReplaceableEntity, normalize_whitespace
 
 
 class PGPolicy(ReplaceableEntity):
@@ -50,13 +50,13 @@ class PGPolicy(ReplaceableEntity):
         """ Generates a SQL "create poicy" statement for PGPolicy """
 
         return sql_text(
-            f"CREATE POLICY {self.policyname} on {self.schema}.{self.tablename} {self.definition}"
+            f"CREATE POLICY {self.policyname} on {self.literal_schema}.{self.tablename} {self.definition}"
         )
 
     def to_sql_statement_drop(self) -> str:
         """Generates a SQL "drop policy" statement for PGPolicy"""
 
-        return sql_text(f"DROP POLICY {self.policyname} on {self.schema}.{self.tablename}")
+        return sql_text(f"DROP POLICY {self.policyname} on {self.literal_schema}.{self.tablename}")
 
     def to_sql_statement_create_or_replace(self) -> str:
         """Not implemented, postgres policies do not support replace."""
@@ -84,18 +84,19 @@ class PGPolicy(ReplaceableEntity):
         )
         rows = connection.execute(sql).fetchall()
 
-        def get_definition(permissive, cmd, roles, qual, with_check):
+        def get_definition(permissive, roles, cmd, qual, with_check):
             definition = ""
             if permissive is not None:
-                definition += f"as {permissive}"
+                definition += f"as {permissive} "
             if cmd is not None:
-                definition += f"for {cmd}"
+                definition += f"for {cmd} "
             if roles is not None:
-                definition += f"to {','.join(roles)}"
+                definition += f"to {', '.join(roles)} "
             if qual is not None:
-                definition += f"using {qual}"
+                definition += f"using {qual} "
             if with_check is not None:
-                definition += f"with check {with_check}"
+                definition += f"with check {with_check} "
+            return normalize_whitespace(definition)
 
         db_policies = [PGPolicy(x[0], f"{x[2]}.{x[1]}", get_definition(*x[3:])) for x in rows]
 
@@ -103,6 +104,12 @@ class PGPolicy(ReplaceableEntity):
             assert policy is not None
 
         return db_policies
+
+    def get_definition_setup(self):
+        """Create an empty table for the policy to apply in simulation"""
+        return f"""
+        create table alembic_utils.{self.tablename} (like {self.literal_schema}.{self.tablename} including all);
+        """
 
     def get_compare_identity_query(self):
         """Only called in simulation. alembic_util schema will only have 1 record"""
@@ -131,3 +138,9 @@ class PGPolicy(ReplaceableEntity):
         where
             schemaname = '{self.schema}'
         """
+
+    def to_variable_name(self):
+        """A deterministic variable name based on PGFunction's contents """
+        schema_name = self.schema.lower()
+        object_name = self.signature.replace(".", "_").lower()
+        return f"{schema_name}_{object_name}"
