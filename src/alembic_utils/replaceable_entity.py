@@ -41,9 +41,18 @@ def simulate_entity(connection, entity):
 
 
 class ReplaceableEntity:
-    """A SQL Entity that can be replaced"""
+    """A SQL Entity that can be replaced
+
+    **Parameters:**
+
+    * **schema** - *str*: The schema to create this entity in
+    * **signature** - *str*: A unique identifier for the entity, e.g. a function signature
+    * **definition** - *str*:  The definition of the entity, e.g. a function definition
+    """
 
     _CACHE = {}
+    # Not all Postgres schema entities support the "CREATE OR REPLACE" operation
+    is_replaceable = True
 
     def __init__(self, schema: str, signature: str, definition: str):
         self.schema: str = normalize_whitespace(schema)
@@ -254,7 +263,11 @@ def drop_function(operations, operation):
 @Operations.implementation_for(RevertOp)
 def replace_or_revert_function(operations, operation):
     target: ReplaceableEntity = operation.target
-    operations.execute(target.to_sql_statement_create_or_replace())
+    if target.is_replaceable:
+        operations.execute(target.to_sql_statement_create_or_replace())
+    else:
+        operations.execute(target.to_sql_statement_drop())
+        operations.execute(target.to_sql_statement_create())
 
 
 ##########
@@ -290,8 +303,8 @@ def render_replace_function(autogen_context, op):
 
 @renderers.dispatch_for(RevertOp)
 def render_revert_function(autogen_context, op):
-    """ Collect the function definition currently live in the database and use its definition
-    as the downgrade revert target """
+    """Collect the function definition currently live in the database and use its definition
+    as the downgrade revert target"""
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
 
