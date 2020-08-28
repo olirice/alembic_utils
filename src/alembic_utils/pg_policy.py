@@ -93,9 +93,9 @@ class PGPolicy(ReplaceableEntity):
             if roles is not None:
                 definition += f"to {', '.join(roles)} "
             if qual is not None:
-                definition += f"using {qual} "
+                definition += f"using ({qual}) "
             if with_check is not None:
-                definition += f"with check {with_check} "
+                definition += f"with check ({with_check}) "
             return normalize_whitespace(definition)
 
         db_policies = [PGPolicy(x[0], f"{x[2]}.{x[1]}", get_definition(*x[3:])) for x in rows]
