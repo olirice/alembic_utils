@@ -85,6 +85,7 @@ class PGPolicy(ReplaceableEntity):
         rows = connection.execute(sql).fetchall()
 
         def get_definition(permissive, roles, cmd, qual, with_check):
+
             definition = ""
             if permissive is not None:
                 definition += f"as {permissive} "
@@ -93,9 +94,13 @@ class PGPolicy(ReplaceableEntity):
             if roles is not None:
                 definition += f"to {', '.join(roles)} "
             if qual is not None:
-                definition += f"using ({qual}) "
+                if qual[0] != "(":
+                    qual = f"({qual})"
+                definition += f"using {qual} "
             if with_check is not None:
-                definition += f"with check ({with_check}) "
+                if with_check[0] != "(":
+                    with_check = f"({with_check})"
+                definition += f"with check {with_check} "
             return normalize_whitespace(definition)
 
         db_policies = [PGPolicy(x[0], f"{x[2]}.{x[1]}", get_definition(*x[3:])) for x in rows]
@@ -128,6 +133,8 @@ class PGPolicy(ReplaceableEntity):
 
         return f"""
         select
+            tablename,
+            policyname,
             permissive,
             roles,
             cmd,
