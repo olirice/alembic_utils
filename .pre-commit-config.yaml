@@ -1,7 +1,7 @@
 repos:
 
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v3.2.0
     hooks:
     - id: check-ast
     - id: check-added-large-files
@@ -12,7 +12,7 @@ repos:
     - id: trailing-whitespace
 
 -   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v4.3.21
+    rev: v5.5.2
     hooks:
     - id: isort
       args: ['--multi-line=3', '--trailing-comma', '--force-grid-wrap=0', '--use-parentheses', '--line-width=100']
@@ -25,7 +25,7 @@ repos:
         args: ['--in-place', '--remove-all-unused-imports']
 
 -   repo: https://github.com/ambv/black
-    rev: stable
+    rev: 20.8b1
     hooks:
     - id: black
       language_version: python3.7

@@ -290,8 +290,8 @@ def render_replace_function(autogen_context, op):
 
 @renderers.dispatch_for(RevertOp)
 def render_revert_function(autogen_context, op):
-    """ Collect the function definition currently live in the database and use its definition
-    as the downgrade revert target """
+    """Collect the function definition currently live in the database and use its definition
+    as the downgrade revert target"""
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
 
