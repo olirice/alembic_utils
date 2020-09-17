@@ -16,6 +16,7 @@
     <a href="https://github.com/psf/black">
         <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Codestyle Black" height="18">
     </a>
+    <a href="https://pypi.org/project/alembic_utils/"><img src="https://img.shields.io/pypi/dm/alembic_utils.svg" alt="Download count" height="18"></a>
 </p>
 
 ---
