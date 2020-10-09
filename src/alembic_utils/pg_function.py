@@ -121,6 +121,7 @@ class PGFunction(ReplaceableEntity):
             n.nspname not in ('pg_catalog', 'information_schema')
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
+            and p.prokind = 'f'
             and n.nspname::text = '{schema}';
         """
         )
