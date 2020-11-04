@@ -30,7 +30,7 @@ setup(
     author_email="oliver@oliverrice.com",
     license="MIT",
     description="A sqlalchemy/alembic extension for migrating procedures and views ",
-    python_requires=">=3.7",
+    python_requires=">=3.6",
     packages=find_packages("src"),
     package_dir={"": "src"},
     install_requires=["alembic", "psycopg2-binary", "flupy", "sqlalchemy", "parse"],

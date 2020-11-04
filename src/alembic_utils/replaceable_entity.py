@@ -1,5 +1,4 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from __future__ import annotations
 
 import logging
 from contextlib import contextmanager

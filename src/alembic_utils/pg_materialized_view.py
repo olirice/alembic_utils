@@ -1,5 +1,4 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from __future__ import annotations
 
 from typing import List
 
@@ -26,7 +25,7 @@ class PGMaterializedView(ReplaceableEntity):
         self.with_data = with_data
 
     @classmethod
-    def from_sql(cls, sql: str) -> PGMaterializedView:
+    def from_sql(cls, sql: str) -> "PGMaterializedView":
         """Create an instance from a SQL string"""
 
         # Strip optional semicolon and all whitespace from end of definition
@@ -89,7 +88,7 @@ class PGMaterializedView(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List[PGMaterializedView]:
+    def from_database(cls, connection, schema) -> List["PGMaterializedView"]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""

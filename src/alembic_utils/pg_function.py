@@ -1,6 +1,4 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from __future__ import annotations
-
 from typing import List
 
 from parse import parse
@@ -22,7 +20,7 @@ class PGFunction(ReplaceableEntity):
     """
 
     @classmethod
-    def from_sql(cls, sql: str) -> PGFunction:
+    def from_sql(cls, sql: str) -> "PGFunction":
         """Create an instance instance from a SQL string"""
         template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
         result = parse(template, sql.strip(), case_sensitive=False)
@@ -85,7 +83,7 @@ class PGFunction(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List[PGFunction]:
+    def from_database(cls, connection, schema) -> List["PGFunction"]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""

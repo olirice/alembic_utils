@@ -1,7 +1,7 @@
 ## Quickstart
 
 ### Installation
-*Requirements* Python 3.7+
+*Requirements* Python 3.6+
 
 First, install alembic_utils
 ```shell
