@@ -125,7 +125,6 @@
 <span class="n">register_entities</span><span class="p">(</span><span class="n">entities</span><span class="o">=</span><span class="p">[</span><span class="n">my_function</span><span class="p">,</span> <span class="n">my_view</span><span class="p">],</span> <span class="n">exclude_schema</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;audit&#39;</span><span class="p">])</span>
 </code></pre></div>
 
-
 <div class="autodoc">
 <div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_function.<strong>PGFunction</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">)</span></div>
 <div class="autodoc-docstring"><p>A PostgreSQL Function compatible with <code>alembic revision --autogenerate</code></p>
@@ -150,7 +149,6 @@
     <span class="n">definition</span><span class="o">=</span><span class="s2">&quot;returns text as $$ lower(some_text) $$ language sql&quot;</span>
 <span class="p">)</span>
 </code></pre></div>
-
 
 <div class="autodoc">
 <div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_view.<strong>PGView</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">)</span></div>

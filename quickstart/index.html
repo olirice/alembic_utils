@@ -110,11 +110,10 @@
               
                 <h2 id="quickstart">Quickstart</h2>
 <h3 id="installation">Installation</h3>
-<p><em>Requirements</em> Python 3.7+</p>
+<p><em>Requirements</em> Python 3.6+</p>
 <p>First, install alembic_utils</p>
 <div class="codehilite"><pre><span></span><code>$ pip install alembic_utils
 </code></pre></div>
-
 
 <h3 id="reference">Reference</h3>
 <p>Then add a function to your project</p>
@@ -133,7 +132,6 @@
 <span class="p">)</span>
 </code></pre></div>
 
-
 <p>and/or a view</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># my_view.py</span>
 <span class="kn">from</span> <span class="nn">alembic_utils.pg_view</span> <span class="kn">import</span> <span class="n">PGView</span>
@@ -144,7 +142,6 @@
     <span class="n">definition</span><span class="o">=</span><span class="s2">&quot;select * from information_schema.tables&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
-
 
 <p>Finally, update your <code>&lt;migrations_folder&gt;/env.py</code> to register your entities with alembic_utils.</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># &lt;migrations_folder&gt;/env.py</span>
@@ -158,12 +155,10 @@
 <span class="n">register_entities</span><span class="p">([</span><span class="n">to_upper</span><span class="p">,</span> <span class="n">first_view</span><span class="p">])</span>
 </code></pre></div>
 
-
 <p>You're done!</p>
 <p>The next time you autogenerate a revision with</p>
 <div class="codehilite"><pre><span></span><code>alembic revision --autogenerate -m <span class="s1">&#39;some message&#39;</span>
 </code></pre></div>
-
 
 <p>Alembic will detect if your entities are new, updated, or removed &amp; populate the revison's <code>upgrade</code> and <code>downgrade</code> sections automatically.</p>
 <p>For example outputs, check the <a href="../examples/">examples</a>.</p>
