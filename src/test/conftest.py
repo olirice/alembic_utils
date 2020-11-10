@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, reset_event_listener_registry
 
-PYTEST_DB = "postgresql://alem_user:password@localhost:5680/alem_db"
+PYTEST_DB = "postgresql://alem_user:password@localhost:5610/alem_db"
 
 
 @pytest.fixture(scope="session")
@@ -21,7 +21,7 @@ def maybe_start_pg() -> None:
     to using the PYTEST_DB connection string"""
 
     container_name = "alembic_utils_pg"
-    image = "postgres:12"
+    image = "postgres:13"
 
     connection_template = "postgresql://{user}:{pw}@{host}:{port:d}/{db}"
     conn_args = parse(connection_template, PYTEST_DB)

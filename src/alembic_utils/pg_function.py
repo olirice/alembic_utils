@@ -85,6 +85,22 @@ class PGFunction(ReplaceableEntity):
     @classmethod
     def from_database(cls, connection, schema) -> List["PGFunction"]:
         """Get a list of all functions defined in the db"""
+
+        # Prior to postgres 11, pg_proc had different columns
+        # https://github.com/olirice/alembic_utils/issues/12
+        PG_GTE_11 = """
+            and p.prokind = 'f'
+        """
+
+        PG_LT_11 = """
+            and not p.proisagg
+            and not p.proiswindow
+        """
+
+        # Retrieve the postgres server version e.g. 90603 for 9.6.3 or 120003 for 12.3
+        pg_version_str = connection.execute(sql_text("show server_version_num")).fetchone()[0]
+        pg_version = int(pg_version_str)
+
         sql = sql_text(
             f"""
         with extension_functions as (
@@ -119,11 +135,11 @@ class PGFunction(ReplaceableEntity):
             n.nspname not in ('pg_catalog', 'information_schema')
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
-            and p.prokind = 'f'
-            and n.nspname::text = '{schema}';
         """
+            + (PG_GTE_11 if pg_version >= 110000 else PG_LT_11)
         )
-        rows = connection.execute(sql).fetchall()
+
+        rows = connection.execute(sql, schema=schema).fetchall()
         db_functions = [PGFunction.from_sql(x[3]) for x in rows]
 
         for func in db_functions:

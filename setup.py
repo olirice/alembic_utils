@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 def get_version(package):
     """
-    Return package version as listed in `__version__` in `init.py`.
+    Return package version as listed in `__version__` in `__init__.py`.
     """
     with open(os.path.join("src", package, "__init__.py")) as f:
         return re.search("__version__ = ['\"]([^'\"]+)['\"]", f.read()).group(1)
