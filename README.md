@@ -99,7 +99,7 @@ def upgrade():
         """
     )
 
-    op.create_function(public_to_upper_6fa0de)
+    op.create_entity(public_to_upper_6fa0de)
 
 
 def downgrade():
@@ -109,7 +109,7 @@ def downgrade():
         definition="# Not Used"
     )
 
-    op.drop_function(public_to_upper_6fa0de)
+    op.drop_entity(public_to_upper_6fa0de)
 ```
 
 
