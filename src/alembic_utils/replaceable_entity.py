@@ -238,20 +238,20 @@ class RevertOp(ReversibleOp):
 
 
 @Operations.implementation_for(CreateOp)
-def create_function(operations, operation):
+def create_entity(operations, operation):
     target: ReplaceableEntity = operation.target
     operations.execute(target.to_sql_statement_create())
 
 
 @Operations.implementation_for(DropOp)
-def drop_function(operations, operation):
+def drop_entity(operations, operation):
     target: ReplaceableEntity = operation.target
     operations.execute(target.to_sql_statement_drop())
 
 
 @Operations.implementation_for(ReplaceOp)
 @Operations.implementation_for(RevertOp)
-def replace_or_revert_function(operations, operation):
+def replace_or_revert_entity(operations, operation):
     target: ReplaceableEntity = operation.target
     operations.execute(target.to_sql_statement_create_or_replace())
 
@@ -262,7 +262,7 @@ def replace_or_revert_function(operations, operation):
 
 
 @renderers.dispatch_for(CreateOp)
-def render_create_function(autogen_context, op):
+def render_create_entity(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
@@ -270,7 +270,7 @@ def render_create_function(autogen_context, op):
 
 
 @renderers.dispatch_for(DropOp)
-def render_drop_function(autogen_context, op):
+def render_drop_entity(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
@@ -280,7 +280,7 @@ def render_drop_function(autogen_context, op):
 
 
 @renderers.dispatch_for(ReplaceOp)
-def render_replace_function(autogen_context, op):
+def render_replace_entity(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
@@ -288,8 +288,8 @@ def render_replace_function(autogen_context, op):
 
 
 @renderers.dispatch_for(RevertOp)
-def render_revert_function(autogen_context, op):
-    """Collect the function definition currently live in the database and use its definition
+def render_revert_entity(autogen_context, op):
+    """Collect the entity definition currently live in the database and use its definition
     as the downgrade revert target"""
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
