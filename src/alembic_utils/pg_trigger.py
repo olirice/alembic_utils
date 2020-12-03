@@ -1,5 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List, Optional
+from typing import List, Tuple
 
 from parse import parse
 from sqlalchemy import text as sql_text
@@ -30,20 +30,14 @@ class PGTrigger(ReplaceableEntity):
     Limitations:
         - "table" must be qualified with a schema name e.g. public.account vs account
         - trigger schema must match table schema
-
     """
 
     _template = "create{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}"
 
     @classmethod
-    def _parse_result(cls, sql: str) -> Optional:
-        result = parse(cls._template, sql.strip(), case_sensitive=False)
-        return result
-
-    @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
         """Create an instance instance from a SQL string"""
-        result = parse(cls._template, sql.strip(), case_sensitive=False)
+        result = parse(cls._template, sql, case_sensitive=False)
         if result is not None:
             # remove possible quotes from signature
             signature = result["signature"]
@@ -73,7 +67,7 @@ class PGTrigger(ReplaceableEntity):
 
         # We need to parse and replace the schema qualifier on the table for simulate_entity to
         # operate
-        _def = self.definition.strip()
+        _def = self.definition
         _template = "{event}{:s}ON{:s}{on_entity}{:s}{action}"
         match = parse(_template, _def)
         if not match:
@@ -98,17 +92,60 @@ class PGTrigger(ReplaceableEntity):
     @property
     def on_entity(self) -> str:
         """Get the fully qualified name of the table/view the trigger is applied to"""
-        create_statement = self.to_sql_statement_create()
-        result = parse(self._template, create_statement.strip(), case_sensitive=False)
+        create_statement = str(self.to_sql_statement_create())
+        result = parse(self._template, create_statement, case_sensitive=False)
         return result["on_entity"]
 
     def to_sql_statement_drop(self) -> str:
         """Generates a SQL "drop function" statement for PGFunction"""
-        return sql_text(f"DROP TRIGGER {self.signature} ON {self.schema}.{self.on_entity};")
+        return sql_text(f"DROP TRIGGER {self.signature} ON {self.on_entity};")
 
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """
-        return self.to_sql_statement_drop() + sql_text(" ") + self.to_sql_statement_create()
+        return f"""
+        {self.to_sql_statement_drop()}
+        {self.to_sql_statement_create()}
+        """
+
+    def get_definition_comparable(self, connection) -> Tuple:
+        """Generates a SQL "create function" statement for PGTrigger
+
+        Had to override create_entity because triggers inherit their schema from
+        the table they're applied to
+        """
+        # First try a plain create
+        definition_query = self.get_compare_definition_query()
+
+        try:
+            connection.execute("begin")
+            connection.execute(self.to_sql_statement_create())
+
+            return (self.schema,) + tuple(connection.execute(definition_query).fetchone())
+        except Exception as exc:
+            pass
+        finally:
+            connection.execute("rollback")
+
+        # If  that fails, try a drop and then a create
+        try:
+            connection.execute("begin")
+            connection.execute(self.to_sql_statement_drop())
+            connection.execute(self.to_sql_statement_create())
+            return (self.schema,) + tuple(connection.execute(definition_query).fetchone())
+        except Exception as exc:
+            pass
+        finally:
+            connection.execute("rollback")
+
+        raise Exception("Could not simulate entity to get definition comparable")
+
+    def get_identity_comparable(self, connection) -> Tuple:
+        """Generates a SQL "create function" statement for PGTrigger
+
+        Had to override create_entity because triggers inherit their schema from
+        the table they're applied to
+        """
+        return (self.schema, self.identity)
 
     @classmethod
     def from_database(cls, connection, schema) -> List["PGFunction"]:
@@ -160,7 +197,7 @@ class PGTrigger(ReplaceableEntity):
         """Only called in simulation. alembic_util schema will only have 1 record"""
         return f"""
         select
-            pg_get_triggerdef(oid) definition,
+            pg_get_triggerdef(oid) definition
         from
             pg_trigger pgt
             inner join information_schema.triggers itr
@@ -168,4 +205,5 @@ class PGTrigger(ReplaceableEntity):
         where
             not tgisinternal
             and itr.event_object_schema = '{self.schema}'
+            and tgname = '{self.signature}'
         """

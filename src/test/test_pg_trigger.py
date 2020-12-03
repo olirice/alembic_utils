@@ -1,5 +1,7 @@
 import pytest
 
+from alembic_utils.exceptions import SQLParseFailure
+from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
@@ -15,17 +17,22 @@ def sql_setup(engine):
         email text not null
     );
 
-    create function public.downcase_email() returns trigger as $$
-    begin
-        return new;
-    end;
-    $$ language plpgsql;
+
     """
     )
 
     yield
     conn.execute("drop table public.account cascade")
 
+
+FUNC = PGFunction.from_sql(
+    """create function public.downcase_email() returns trigger as $$
+begin
+    return new;
+end;
+$$ language plpgsql;
+"""
+)
 
 TRIG = PGTrigger(
     schema="public",
@@ -38,7 +45,7 @@ TRIG = PGTrigger(
 
 
 def test_create_revision(sql_setup, engine) -> None:
-    register_entities([TRIG])
+    register_entities([FUNC, TRIG])
     run_alembic_command(
         engine=engine,
         command="revision",
@@ -62,6 +69,7 @@ def test_create_revision(sql_setup, engine) -> None:
 
 
 def test_trig_update_revision(sql_setup, engine) -> None:
+    engine.execute(FUNC.to_sql_statement_create())
     engine.execute(TRIG.to_sql_statement_create())
 
     UPDATED_TRIG = PGTrigger(
@@ -73,7 +81,7 @@ def test_trig_update_revision(sql_setup, engine) -> None:
         """,
     )
 
-    register_entities([UPDATED_TRIG])
+    register_entities([FUNC, UPDATED_TRIG])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -88,8 +96,6 @@ def test_trig_update_revision(sql_setup, engine) -> None:
     with migration_replace_path.open() as migration_file:
         migration_contents = migration_file.read()
 
-    assert False
-
     assert "op.replace_entity" in migration_contents
     assert "op.create_entity" not in migration_contents
     assert "op.drop_entity" not in migration_contents
@@ -103,9 +109,10 @@ def test_trig_update_revision(sql_setup, engine) -> None:
 
 
 def test_noop_revision(sql_setup, engine) -> None:
+    engine.execute(FUNC.to_sql_statement_create())
     engine.execute(TRIG.to_sql_statement_create())
 
-    register_entities([TRIG])
+    register_entities([FUNC, TRIG])
 
     output = run_alembic_command(
         engine=engine,
@@ -130,6 +137,7 @@ def test_noop_revision(sql_setup, engine) -> None:
 
 def test_drop(sql_setup, engine) -> None:
     # Manually create a SQL function
+    engine.execute(FUNC.to_sql_statement_create())
     engine.execute(TRIG.to_sql_statement_create())
 
     # Register no functions locally
@@ -151,7 +159,17 @@ def test_drop(sql_setup, engine) -> None:
     assert "from alembic_utils" in migration_contents
     assert migration_contents.index("op.drop_entity") < migration_contents.index("op.create_entity")
 
-    # Execute upgrade
-    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
-    # Execute Downgrade
-    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+def test_unparsable() -> None:
+    SQL = "create trigger lower_account_email faile fail fail"
+    with pytest.raises(SQLParseFailure):
+        trigger = PGTrigger.from_sql(SQL)
+
+    TRIG = PGTrigger(
+        schema="public",
+        signature="lower_account_email",
+        definition="""
+        BEFORE INSERT ON public.account
+        FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
+    """,
+    )
