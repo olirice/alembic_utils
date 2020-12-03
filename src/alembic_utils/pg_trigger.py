@@ -4,7 +4,7 @@ from typing import List, Tuple
 from parse import parse
 from sqlalchemy import text as sql_text
 
-from alembic_utils.exceptions import SQLParseFailure
+from alembic_utils.exceptions import FailedToGenerateComparable, SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
@@ -137,7 +137,7 @@ class PGTrigger(ReplaceableEntity):
         finally:
             connection.execute("rollback")
 
-        raise Exception("Could not simulate entity to get definition comparable")
+        raise FailedToGenerateComparable("Could not simulate entity to get definition comparable")
 
     def get_identity_comparable(self, connection) -> Tuple:
         """Generates a SQL "create function" statement for PGTrigger
@@ -177,21 +177,6 @@ class PGTrigger(ReplaceableEntity):
             assert trig is not None
 
         return db_triggers
-
-    def get_compare_identity_query(self):
-        """Only called in simulation. alembic_util schema will only have 1 record"""
-        return f"""
-        select
-            tgname trigger_name,
-            itr.trigger_schema as table_schema
-        from
-            pg_trigger pgt
-            inner join information_schema.triggers itr
-                on lower(pgt.tgname) = lower(itr.trigger_name)
-        where
-            not tgisinternal
-            and itr.event_object_schema = '{self.schema}'
-        """
 
     def get_compare_definition_query(self):
         """Only called in simulation. alembic_util schema will only have 1 record"""

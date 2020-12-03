@@ -1,6 +1,6 @@
 import pytest
 
-from alembic_utils.exceptions import SQLParseFailure
+from alembic_utils.exceptions import FailedToGenerateComparable, SQLParseFailure
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
 from alembic_utils.replaceable_entity import register_entities
@@ -163,13 +163,32 @@ def test_drop(sql_setup, engine) -> None:
 def test_unparsable() -> None:
     SQL = "create trigger lower_account_email faile fail fail"
     with pytest.raises(SQLParseFailure):
-        trigger = PGTrigger.from_sql(SQL)
+        PGTrigger.from_sql(SQL)
 
-    TRIG = PGTrigger(
-        schema="public",
-        signature="lower_account_email",
-        definition="""
-        BEFORE INSERT ON public.account
-        FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
-    """,
-    )
+
+def test_on_entity_schema_not_qualified() -> None:
+    SQL = """create trigger lower_account_email
+    AFTER INSERT ON account
+    FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
+    """
+    with pytest.raises(SQLParseFailure):
+        PGTrigger.from_sql(SQL)
+
+
+def test_fail_create_sql_statement_create():
+    trig = PGTrigger(schema="public", signature="lower_account_email", definition="INVALID DEF")
+
+    with pytest.raises(SQLParseFailure):
+        trig.to_sql_statement_create()
+
+
+def test_get_definition_comparable_does_not_exist_yet(sql_setup, engine):
+    engine.execute(FUNC.to_sql_statement_create())
+    # for coverage
+    assert TRIG.get_definition_comparable(engine) is not None
+
+
+def test_get_definition_comparable_invalid_sql(sql_setup, engine):
+    trig = PGTrigger(schema="public", signature="lower_account_email", definition="INVALID DEF")
+    with pytest.raises(FailedToGenerateComparable):
+        assert TRIG.get_definition_comparable(engine) is not None
