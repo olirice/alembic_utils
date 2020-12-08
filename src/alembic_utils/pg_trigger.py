@@ -113,6 +113,9 @@ class PGTrigger(ReplaceableEntity):
         Had to override create_entity because triggers inherit their schema from
         the table they're applied to
         """
+        pg_version_str = connection.execute(sql_text("show server_version_num")).fetchone()[0]
+        pg_version = int(pg_version_str)
+
         # First try a plain create
         definition_query = self.get_compare_definition_query()
 
@@ -152,12 +155,11 @@ class PGTrigger(ReplaceableEntity):
         """Get a list of all functions defined in the db"""
 
         # NOTE(OR): Schema is looked up by unqualified trigger name. Mismatches possible
-
         sql = sql_text(
             f"""
         select
             tgname trigger_name,
-            pg_get_triggerdef(oid) definition,
+            pg_get_triggerdef(pgt.oid) definition,
             itr.trigger_schema as table_schema
         from
             pg_trigger pgt
@@ -170,6 +172,7 @@ class PGTrigger(ReplaceableEntity):
         )
 
         rows = connection.execute(sql, schema=schema).fetchall()
+        print(rows)
 
         db_triggers = [PGTrigger.from_sql(x[1]) for x in rows]
 
@@ -179,10 +182,9 @@ class PGTrigger(ReplaceableEntity):
         return db_triggers
 
     def get_compare_definition_query(self):
-        """Only called in simulation. alembic_util schema will only have 1 record"""
         return f"""
         select
-            pg_get_triggerdef(oid) definition
+            pg_get_triggerdef(pgt.oid) definition
         from
             pg_trigger pgt
             inner join information_schema.triggers itr

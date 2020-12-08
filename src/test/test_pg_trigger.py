@@ -39,7 +39,7 @@ TRIG = PGTrigger(
     signature="lower_account_email",
     definition="""
         BEFORE INSERT ON public.account
-        FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
+        FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
     """,
 )
 
@@ -77,7 +77,7 @@ def test_trig_update_revision(sql_setup, engine) -> None:
         signature="lower_account_email",
         definition="""
             AFTER INSERT ON public.account
-            FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
+            FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
         """,
     )
 
@@ -169,7 +169,7 @@ def test_unparsable() -> None:
 def test_on_entity_schema_not_qualified() -> None:
     SQL = """create trigger lower_account_email
     AFTER INSERT ON account
-    FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
+    FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
     """
     with pytest.raises(SQLParseFailure):
         PGTrigger.from_sql(SQL)
