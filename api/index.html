@@ -174,6 +174,47 @@
     <span class="n">definition</span><span class="o">=</span><span class="s2">&quot;select * from books where genre=&#39;scifi&#39;&quot;</span>
 <span class="p">)</span>
 </code></pre></div>
+
+<div class="autodoc">
+<div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_trigger.<strong>PGTrigger</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-docstring"><p>A PostgreSQL Trigger compatible with <code>alembic revision --autogenerate</code></p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><strong>schema</strong> - <em>str</em>: A SQL schema name</li>
+<li><strong>signature</strong> - <em>str</em>: A SQL function's call signature</li>
+<li><strong>definition</strong> - <em>str</em>:  The remainig function body and identifiers</li>
+</ul>
+<p>Postgres Create Trigger Specification:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">CREATE</span> <span class="p">[</span> <span class="n">CONSTRAINT</span> <span class="p">]</span> <span class="n">TRIGGER</span> <span class="n">name</span> <span class="p">{</span> <span class="n">BEFORE</span> <span class="o">|</span> <span class="n">AFTER</span> <span class="o">|</span> <span class="n">INSTEAD</span> <span class="n">OF</span> <span class="p">}</span> <span class="p">{</span> <span class="n">event</span> <span class="p">[</span> <span class="n">OR</span> <span class="p">...</span> <span class="p">]</span> <span class="p">}</span>
+<span class="n">ON</span> <span class="n">table</span>
+<span class="p">[</span> <span class="n">FROM</span> <span class="n">referenced_table_name</span> <span class="p">]</span>
+<span class="p">[</span> <span class="n">NOT</span> <span class="n">DEFERRABLE</span> <span class="o">|</span> <span class="p">[</span> <span class="n">DEFERRABLE</span> <span class="p">]</span> <span class="p">{</span> <span class="n">INITIALLY</span> <span class="n">IMMEDIATE</span> <span class="o">|</span> <span class="n">INITIALLY</span> <span class="n">DEFERRED</span> <span class="p">}</span> <span class="p">]</span>
+<span class="p">[</span> <span class="n">FOR</span> <span class="p">[</span> <span class="n">EACH</span> <span class="p">]</span> <span class="p">{</span> <span class="n">ROW</span> <span class="o">|</span> <span class="n">STATEMENT</span> <span class="p">}</span> <span class="p">]</span>
+<span class="p">[</span> <span class="n">WHEN</span> <span class="p">(</span> <span class="n">condition</span> <span class="p">)</span> <span class="p">]</span>
+<span class="n">EXECUTE</span> <span class="n">PROCEDURE</span> <span class="n">function_name</span> <span class="p">(</span> <span class="n">arguments</span> <span class="p">)</span>
+</code></pre></div>
+
+<p>Limitations:
+    - "table" must be qualified with a schema name e.g. public.account vs account
+    - trigger schema must match table schema</p></div>
+<div class="autodoc-members">
+<div class="autodoc-signature"><code><strong>from_sql</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">sql</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-docstring"><p>Create an instance instance from a SQL string</p></div>
+<div class="autodoc-signature"><code><strong>from_path</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">path</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-docstring"><p>Create an instance instance from a SQL file path</p></div>
+</div>
+</div>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">alembic_utils.pg_trigger</span> <span class="kn">import</span> <span class="n">PGTrigger</span>
+
+<span class="n">trigger</span> <span class="o">=</span> <span class="n">PGTrigger</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span>
+    <span class="n">signature</span><span class="o">=</span><span class="s2">&quot;lower_account_email&quot;</span><span class="p">,</span>
+    <span class="n">definition</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        BEFORE INSERT ON public.account</span>
+<span class="s2">        FOR EACH ROW EXECUTE FUNCTION public.downcase_email()</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
               
             </div>
           </div>
