@@ -8,3 +8,7 @@ class DuplicateRegistration(AlembicUtilsException):
 
 class SQLParseFailure(AlembicUtilsException):
     """An entity could not be parsed"""
+
+
+class FailedToGenerateComparable(AlembicUtilsException):
+    """Failed to generate a comparable entity"""

@@ -30,6 +30,7 @@ def simulate_entity(connection, entity):
     assert entity.schema == dummy_schema
     cls = entity.__class__
     adj_target = cls(dummy_schema, entity.signature, entity.definition)
+    connection.execute("begin")
     connection.execute(f"drop schema if exists {dummy_schema} cascade")
     connection.execute(f"create schema if not exists {dummy_schema}")
     try:
@@ -37,6 +38,7 @@ def simulate_entity(connection, entity):
         yield
     finally:
         connection.execute(f"drop schema if exists {dummy_schema} cascade")
+        connection.execute("rollback")
 
 
 class ReplaceableEntity:
@@ -275,7 +277,7 @@ def render_drop_entity(autogen_context, op):
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
     return (
-        target.render_self_for_migration(omit_definition=True) + f"op.drop_entity({variable_name})"
+        target.render_self_for_migration(omit_definition=False) + f"op.drop_entity({variable_name})"
     )
 
 
