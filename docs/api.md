@@ -42,3 +42,22 @@ scifi_books = PGView(
     definition="select * from books where genre='scifi'"
 )
 ```
+
+
+::: alembic_utils.pg_trigger.PGTrigger
+    :docstring:
+    :members: from_sql from_path
+
+
+```python
+from alembic_utils.pg_trigger import PGTrigger
+
+trigger = PGTrigger(
+    schema="public",
+    signature="lower_account_email",
+    definition="""
+        BEFORE INSERT ON public.account
+        FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
+    """,
+)
+```
