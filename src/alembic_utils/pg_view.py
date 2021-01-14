@@ -69,7 +69,7 @@ class PGView(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGView"]:
+    def from_database(cls, sess, schema) -> List["PGView"]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
@@ -84,7 +84,7 @@ class PGView(ReplaceableEntity):
             and schemaname::text = '{schema}';
         """
         )
-        rows = connection.execute(sql).fetchall()
+        rows = sess.execute(sql).fetchall()
         db_views = [PGView(x[0], x[1], x[2]) for x in rows]
 
         for view in db_views:

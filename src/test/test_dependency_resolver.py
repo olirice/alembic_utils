@@ -1,8 +1,5 @@
-import pytest
-
-from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_view import PGView
-from alembic_utils.replaceable_entity import register_entities, simulate_entities
+from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 VIEW_INDEPENDENT = PGView(
@@ -16,7 +13,6 @@ VIEW_DEPENDENT = PGView(
     signature="dependent_view",
     definition="select * from public.independent_view",
 )
-
 
 
 def test_create_revision_with_dependency(engine) -> None:

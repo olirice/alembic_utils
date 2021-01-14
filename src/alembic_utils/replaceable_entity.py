@@ -3,16 +3,18 @@ import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Tuple, Type, TypeVar
-from sqlalchemy.orm import Session
-from sqlalchemy import event
-from alembic_utils.exceptions import FailedToGenerateComparable, UnreachableException
 
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
 from flupy import flu
+from sqlalchemy.orm import Session
 
 from alembic_utils.cache import cachedmethod
-from alembic_utils.exceptions import DuplicateRegistration
+from alembic_utils.exceptions import (
+    DuplicateRegistration,
+    FailedToGenerateComparable,
+    UnreachableException,
+)
 from alembic_utils.reversible_op import ReversibleOp
 from alembic_utils.statement import normalize_whitespace, strip_terminating_semicolon
 
@@ -153,9 +155,7 @@ class ReplaceableEntity:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
-        escaped_definition = (
-            self.definition if not omit_definition else "# not required for op"
-        )
+        escaped_definition = self.definition if not omit_definition else "# not required for op"
 
         return f"""{var_name} = {class_name}(
             schema="{self.schema}",
@@ -186,13 +186,9 @@ class ReplaceableEntity:
         # All entities in the database for self's schema
         entities_in_database = self.from_database(sess, schema=self.schema)
 
-        found_identical = any(
-            [self.is_equal_definition(x, sess) for x in entities_in_database]
-        )
+        found_identical = any([self.is_equal_definition(x, sess) for x in entities_in_database])
 
-        found_signature = any(
-            [self.is_equal_identity(x, sess) for x in entities_in_database]
-        )
+        found_signature = any([self.is_equal_identity(x, sess) for x in entities_in_database])
 
         if found_identical:
             return None
@@ -272,8 +268,7 @@ def render_drop_entity(autogen_context, op):
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
     return (
-        target.render_self_for_migration(omit_definition=False)
-        + f"op.drop_entity({variable_name})"
+        target.render_self_for_migration(omit_definition=False) + f"op.drop_entity({variable_name})"
     )
 
 
@@ -328,7 +323,7 @@ def register_entities(
         autogen_context, upgrade_ops, sqla_schemas: List[Optional[str]]
     ):
         engine = autogen_context.connection.engine
-        
+
         # Ensure pg_functions have unique identities (not registered twice)
         for ident, function_group in flu(entities).group_by(key=lambda x: x.identity):
             if len(function_group.collect()) > 1:
@@ -349,9 +344,7 @@ def register_entities(
             observed_schemas.append(entity.schema)
 
         # Remove excluded schemas
-        observed_schemas = [
-            x for x in set(observed_schemas) if x not in (exclude_schemas or [])
-        ]
+        observed_schemas = [x for x in set(observed_schemas) if x not in (exclude_schemas or [])]
 
         with engine.connect() as connection:
             # Start a parent transaction
@@ -372,22 +365,17 @@ def register_entities(
                             continue
                         try:
                             with sess.begin_nested():
-                                with simulate_entities(
-                                    sess, resolved_entities + [entity]
-                                ):
+                                with simulate_entities(sess, resolved_entities + [entity]):
                                     resolved_entities.append(entity)
                         except:
                             continue
-
 
                 for entity in entities:
                     if entity not in resolved_entities:
                         # Cause the error to raiseDisplay the error
                         with sess.begin_nested():
                             try:
-                                with simulate_entities(
-                                        sess, resolved_entities + [entity]
-                                    ):
+                                with simulate_entities(sess, resolved_entities + [entity]):
                                     pass
                             except Exception:
                                 # If it somehow passes (never should) exit with error anyway
@@ -402,9 +390,7 @@ def register_entities(
                     # Identify possible dependencies leading up to local_entity
                     # in resolved_entities
                     possible_dependencies = (
-                        flu(resolved_entities)
-                        .take_while(lambda x: x != local_entity)
-                        .collect()
+                        flu(resolved_entities).take_while(lambda x: x != local_entity).collect()
                     )
 
                     with simulate_entities(sess, possible_dependencies) as conn:

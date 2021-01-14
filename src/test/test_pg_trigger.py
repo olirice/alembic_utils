@@ -1,6 +1,6 @@
 import pytest
 
-from alembic_utils.exceptions import FailedToGenerateComparable, SQLParseFailure
+from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
 from alembic_utils.replaceable_entity import register_entities

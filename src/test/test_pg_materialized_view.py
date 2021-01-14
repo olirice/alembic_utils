@@ -2,7 +2,7 @@ import pytest
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_materialized_view import PGMaterializedView
-from alembic_utils.replaceable_entity import register_entities, simulate_entities
+from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TEST_MAT_VIEW = PGMaterializedView(

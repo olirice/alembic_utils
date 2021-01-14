@@ -4,7 +4,7 @@ from typing import List, Tuple
 from parse import parse
 from sqlalchemy import text as sql_text
 
-from alembic_utils.exceptions import FailedToGenerateComparable, SQLParseFailure
+from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
@@ -107,7 +107,7 @@ class PGTrigger(ReplaceableEntity):
         {self.to_sql_statement_create()}
         """
 
-    def get_identity_comparable(self, connection) -> Tuple:
+    def get_identity_comparable(self, sess) -> Tuple:
         """Generates a SQL "create function" statement for PGTrigger
 
         Had to override create_entity because triggers inherit their schema from
@@ -136,7 +136,6 @@ class PGTrigger(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql, {"schema": schema}).fetchall()
-        print(rows)
 
         db_triggers = [PGTrigger.from_sql(x[2]) for x in rows]
 

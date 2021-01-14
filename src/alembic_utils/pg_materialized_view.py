@@ -87,7 +87,7 @@ class PGMaterializedView(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGMaterializedView"]:
+    def from_database(cls, sess, schema) -> List["PGMaterializedView"]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
@@ -103,7 +103,7 @@ class PGMaterializedView(ReplaceableEntity):
             and schemaname::text = '{schema}';
         """
         )
-        rows = connection.execute(sql).fetchall()
+        rows = sess.execute(sql).fetchall()
         db_views = [PGMaterializedView(x[0], x[1], x[2], with_data=x[3]) for x in rows]
 
         for view in db_views:
