@@ -96,7 +96,7 @@ class PGView(ReplaceableEntity):
         """Return SQL string that returns 1 row for existing DB object"""
         return f"""
         select
-            -- Schema is appended in python
+            schemaname,
             viewname view_name
         from
             pg_views
@@ -108,7 +108,7 @@ class PGView(ReplaceableEntity):
         """Return SQL string that returns 1 row for existing DB object"""
         return f"""
         select
-            -- Schema is appended in python
+            schemaname,
             viewname view_name,
             definition
         from

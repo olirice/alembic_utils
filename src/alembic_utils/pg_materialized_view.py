@@ -115,7 +115,7 @@ class PGMaterializedView(ReplaceableEntity):
         """Return SQL string that returns 1 row for existing DB object"""
         return f"""
         select
-            -- Schema is appended in python
+            schemaname,
             matviewname view_name
         from
             pg_matviews
@@ -127,7 +127,7 @@ class PGMaterializedView(ReplaceableEntity):
         """Return SQL string that returns 1 row for existing DB object"""
         return f"""
         select
-            -- Schema is appended in python
+            schemaname,
             matviewname view_name,
             definition
         from

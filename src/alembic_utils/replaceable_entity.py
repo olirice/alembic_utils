@@ -90,7 +90,7 @@ class ReplaceableEntity:
         identity_query = self.get_compare_identity_query()
         with simulate_entity(connection, self):
             # Collect the definition_comparable for dummy schema self
-            row = (self.schema,) + tuple(connection.execute(identity_query).fetchone())
+            row = tuple(connection.execute(identity_query).fetchone())
         return row
 
     @cachedmethod(
@@ -110,7 +110,7 @@ class ReplaceableEntity:
 
         with simulate_entity(connection, self):
             # Collect the definition_comparable for dummy schema self
-            row = (self.schema,) + tuple(connection.execute(definition_query).fetchone())
+            row = tuple(connection.execute(definition_query).fetchone())
         return row
 
     def to_sql_statement_create(self) -> str:

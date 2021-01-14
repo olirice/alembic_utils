@@ -158,9 +158,9 @@ class PGTrigger(ReplaceableEntity):
         sql = sql_text(
             f"""
         select
+            itr.trigger_schema as table_schema,
             tgname trigger_name,
-            pg_get_triggerdef(pgt.oid) definition,
-            itr.trigger_schema as table_schema
+            pg_get_triggerdef(pgt.oid) definition
         from
             pg_trigger pgt
             inner join information_schema.triggers itr
@@ -174,7 +174,7 @@ class PGTrigger(ReplaceableEntity):
         rows = connection.execute(sql, schema=schema).fetchall()
         print(rows)
 
-        db_triggers = [PGTrigger.from_sql(x[1]) for x in rows]
+        db_triggers = [PGTrigger.from_sql(x[2]) for x in rows]
 
         for trig in db_triggers:
             assert trig is not None

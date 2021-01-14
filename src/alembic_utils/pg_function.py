@@ -151,6 +151,7 @@ class PGFunction(ReplaceableEntity):
         """Only called in simulation. alembic_util schema will onle have 1 record"""
         return f"""
         select
+            pronamespace::regnamespace::text,
             proname,
             pronargs,
             proargtypes
