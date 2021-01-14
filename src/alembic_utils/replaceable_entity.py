@@ -10,6 +10,7 @@ from flupy import flu
 from sqlalchemy.orm import Session
 
 from alembic_utils.cache import cachedmethod
+from alembic_utils.defer_dependents import defer_dependents
 from alembic_utils.exceptions import (
     DuplicateRegistration,
     FailedToGenerateComparable,
@@ -122,7 +123,7 @@ class ReplaceableEntity:
         """ Generates a SQL "create function" statement for PGFunction """
         raise NotImplementedError()
 
-    def to_sql_statement_drop(self) -> str:
+    def to_sql_statement_drop(self, cascade=False) -> str:
         """ Generates a SQL "drop function" statement for PGFunction """
         raise NotImplementedError()
 
@@ -354,6 +355,14 @@ def register_entities(
                 sess = Session(bind=connection)
                 sess.begin_nested()
 
+                # All database entities currently live
+                # Check if anything needs to drop
+                db_entities = []
+                for schema in observed_schemas:
+                    for entity_class in ReplaceableEntity.__subclasses__():
+                        for entity in entity_class.from_database(sess, schema=schema):
+                            db_entities.append(entity)
+
                 # 2021-01-14: Finding drop ops must run before other ops. Not intentiaonl. Find out why.
                 # Check for new or updated entities
 
@@ -365,8 +374,9 @@ def register_entities(
                             continue
                         try:
                             with sess.begin_nested():
-                                with simulate_entities(sess, resolved_entities + [entity]):
-                                    resolved_entities.append(entity)
+                                with defer_dependents(sess, entity):
+                                    with simulate_entities(sess, resolved_entities + [entity]):
+                                        resolved_entities.append(entity)
                         except:
                             continue
 
@@ -377,10 +387,10 @@ def register_entities(
                             try:
                                 with simulate_entities(sess, resolved_entities + [entity]):
                                     pass
-                            except Exception:
+                            except Exception as exc:
                                 # If it somehow passes (never should) exit with error anyway
                                 raise FailedToGenerateComparable(
-                                    f"failed to simulate entity {entity.signature}"
+                                    f"failed to simulate entity {entity.signature}, message {str(exc)}"
                                 )
                         raise UnreachableException
 
@@ -396,7 +406,8 @@ def register_entities(
                     with simulate_entities(sess, possible_dependencies) as conn:
                         # Simulate already processed entities in case
                         # dependencies exist among remaining entities
-                        maybe_op = local_entity.get_required_migration_op(conn)
+                        with defer_dependents(sess, local_entity):
+                            maybe_op = local_entity.get_required_migration_op(conn)
 
                     if maybe_op is not None:
                         if isinstance(maybe_op, CreateOp):
@@ -417,19 +428,13 @@ def register_entities(
                         # a possible dependency to later local_entities
                         processed_entities.append(local_entity)
 
-                # Check if anything needs to drop
-                for schema in observed_schemas:
-                    # Entities within the schemas that are live
-                    for entity_class in ReplaceableEntity.__subclasses__():
-                        db_entities = entity_class.from_database(sess, schema=schema)
-
-                        # Check for functions that were deleted locally
-                        for db_entity in db_entities:
-                            for local_entity in entities:
-                                if db_entity.is_equal_identity(local_entity, sess):
-                                    break
-                            else:
-                                # No match was found locally
-                                upgrade_ops.ops.append(DropOp(db_entity))
+                # Check for functions that were deleted locally
+                for db_entity in db_entities:
+                    for local_entity in entities:
+                        if db_entity.is_equal_identity(local_entity, sess):
+                            break
+                    else:
+                        # No match was found locally
+                        upgrade_ops.ops.append(DropOp(db_entity))
             finally:
                 transaction.rollback()

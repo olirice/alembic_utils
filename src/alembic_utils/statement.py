@@ -11,6 +11,12 @@ def strip_terminating_semicolon(sql: str) -> str:
     return sql.strip().rstrip(";").strip()
 
 
+def strip_double_quotes(sql: str) -> str:
+    """Removes starting and ending double quotes"""
+    sql = sql.strip().rstrip('"')
+    return sql.strip().lstrip('"').strip()
+
+
 def escape_colon(sql: str) -> str:
     """Escapes colons for for use in sqlalchemy.text"""
     holder = str(uuid4())
