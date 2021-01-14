@@ -6,3 +6,8 @@ def normalize_whitespace(text, base_whitespace: str = " ") -> str:
 def strip_terminating_semicolon(sql: str) -> str:
     """Removes terminating semicolon on a SQL statement if it exists"""
     return sql.strip().rstrip(";").strip()
+
+
+def escape_colon(sql: str) -> str:
+    """Escapes colons for for use in sqlalchemy.text"""
+    return sql.replace(":", "\:")

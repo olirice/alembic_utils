@@ -12,7 +12,7 @@ from flupy import flu
 from alembic_utils.cache import cachedmethod
 from alembic_utils.exceptions import DuplicateRegistration
 from alembic_utils.reversible_op import ReversibleOp
-from alembic_utils.statement import normalize_whitespace, strip_terminating_semicolon
+from alembic_utils.statement import escape_colon, normalize_whitespace, strip_terminating_semicolon
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class ReplaceableEntity:
     def __init__(self, schema: str, signature: str, definition: str):
         self.schema: str = normalize_whitespace(schema)
         self.signature: str = normalize_whitespace(signature)
-        self.definition: str = strip_terminating_semicolon(definition)
+        self.definition: str = escape_colon(strip_terminating_semicolon(definition))
 
     @classmethod
     def from_sql(cls: Type[T], sql: str) -> T:
