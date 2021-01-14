@@ -7,6 +7,7 @@ from sqlalchemy import text as sql_text
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
+from alembic_utils.statement import strip_terminating_semicolon
 
 
 class PGMaterializedView(ReplaceableEntity):
@@ -31,9 +32,7 @@ class PGMaterializedView(ReplaceableEntity):
         # Strip optional semicolon and all whitespace from end of definition
         # because the "with data" clause is optional and the alternative would be to enumerate
         # every possibility in the templates
-        sql = sql.strip()
-        sql = sql.rstrip(";")
-        sql = sql.strip()
+        sql = strip_terminating_semicolon(sql)
 
         templates = [
             # Enumerate maybe semicolon endings

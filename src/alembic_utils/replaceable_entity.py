@@ -12,15 +12,11 @@ from flupy import flu
 from alembic_utils.cache import cachedmethod
 from alembic_utils.exceptions import DuplicateRegistration
 from alembic_utils.reversible_op import ReversibleOp
+from alembic_utils.statement import normalize_whitespace, strip_terminating_semicolon
 
 log = logging.getLogger(__name__)
 
 T = TypeVar("T", bound="ReplaceableEntity")
-
-
-def normalize_whitespace(text, base_whitespace: str = " ") -> str:
-    """ Convert all whitespace to *base_whitespace* """
-    return base_whitespace.join(text.split()).strip()
 
 
 @contextmanager
@@ -49,7 +45,7 @@ class ReplaceableEntity:
     def __init__(self, schema: str, signature: str, definition: str):
         self.schema: str = normalize_whitespace(schema)
         self.signature: str = normalize_whitespace(signature)
-        self.definition: str = definition.strip()
+        self.definition: str = strip_terminating_semicolon(definition)
 
     @classmethod
     def from_sql(cls: Type[T], sql: str) -> T:

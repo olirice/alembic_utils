@@ -85,7 +85,7 @@ def test_update_revision(engine) -> None:
 
     # Update definition of TO_UPPER
     UPDATED_TEST_VIEW = PGView(
-        TEST_VIEW.schema, TEST_VIEW.signature, """select *, TRUE as is_updated from pg_views"""
+        TEST_VIEW.schema, TEST_VIEW.signature, """select *, TRUE as is_updated from pg_views;"""
     )
 
     register_entities([UPDATED_TEST_VIEW])
@@ -170,6 +170,47 @@ def test_drop_revision(engine) -> None:
     assert "op.create_entity" in migration_contents
     assert "from alembic_utils" in migration_contents
     assert migration_contents.index("op.drop_entity") < migration_contents.index("op.create_entity")
+
+    # Execute upgrade
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    # Execute Downgrade
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
+def test_update_create_or_replace_failover_to_drop_add(engine) -> None:
+    # Create the view outside of a revision
+    engine.execute(TEST_VIEW.to_sql_statement_create())
+
+    # Update definition of TO_UPPER
+    # deleted columns from the beginning of the view.
+    # this will fail a create or replace statemnt
+    # psycopg2.errors.InvalidTableDefinition) cannot drop columns from view
+    # and should fail over to drop and then replace (in plpgsql of `create_or_replace_entity` method
+    # on pgview
+
+    UPDATED_TEST_VIEW = PGView(
+        TEST_VIEW.schema, TEST_VIEW.signature, """select TRUE as is_updated from pg_views"""
+    )
+
+    register_entities([UPDATED_TEST_VIEW])
+
+    # Autogenerate a new migration
+    # It should detect the change we made and produce a "replace_function" statement
+    output = run_alembic_command(
+        engine=engine,
+        command="revision",
+        command_kwargs={"autogenerate": True, "rev_id": "2", "message": "replace"},
+    )
+
+    migration_replace_path = TEST_VERSIONS_ROOT / "2_replace.py"
+
+    with migration_replace_path.open() as migration_file:
+        migration_contents = migration_file.read()
+
+    assert "op.replace_entity" in migration_contents
+    assert "op.create_entity" not in migration_contents
+    assert "op.drop_entity" not in migration_contents
+    assert "from alembic_utils.pg_view import PGView" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})

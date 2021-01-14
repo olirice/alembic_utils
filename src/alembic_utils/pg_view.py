@@ -7,6 +7,7 @@ from sqlalchemy import text as sql_text
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
+from alembic_utils.statement import strip_terminating_semicolon
 
 
 class PGView(ReplaceableEntity):
@@ -31,7 +32,7 @@ class PGView(ReplaceableEntity):
                 schema=result["schema"],
                 # strip quote characters
                 signature=signature.replace('"', ""),
-                definition=result["definition"],
+                definition=strip_terminating_semicolon(result["definition"]),
             )
 
         raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
@@ -39,17 +40,32 @@ class PGView(ReplaceableEntity):
     def to_sql_statement_create(self) -> str:
         """Generates a SQL "create view" statement"""
         return sql_text(
-            f'CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition}'
+            f'CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};'
         )
 
     def to_sql_statement_drop(self) -> str:
         """Generates a SQL "drop view" statement"""
-        return sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}"')
+        return sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}";')
 
     def to_sql_statement_create_or_replace(self) -> str:
-        """Generates a SQL "create or replace view" statement"""
+        """Generates a SQL "create or replace view" statement
+
+        If the initial "CREATE OR REPLACE" statement does not succeed,
+        fails over onto "DROP VIEW" followed by "CREATE VIEW"
+        """
         return sql_text(
-            f'CREATE OR REPLACE VIEW {self.literal_schema}."{self.signature}" AS {self.definition}'
+            f"""
+        do $$
+            begin
+                CREATE OR REPLACE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
+
+            exception when others then
+                DROP VIEW {self.literal_schema}."{self.signature}";
+
+                CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
+            end;
+        $$ language 'plpgsql'
+        """
         )
 
     @classmethod
