@@ -21,19 +21,14 @@ T = TypeVar("T", bound="ReplaceableEntity")
 
 @contextmanager
 def simulate_entity(connection, entity):
-    """Creates *entity* in the *dummy_schema* and self would be transformed into if it were created in the database"""
-    dummy_schema = "alembic_utils"
-    assert entity.schema == dummy_schema
-    cls = entity.__class__
-    adj_target = cls(dummy_schema, entity.signature, entity.definition)
+    """Creates *entity* in a transaction so its postgres rendered definition
+    can be retrieved
+    """
     connection.execute("begin")
-    connection.execute(f"drop schema if exists {dummy_schema} cascade")
-    connection.execute(f"create schema if not exists {dummy_schema}")
     try:
-        connection.execute(adj_target.to_sql_statement_create())
+        connection.execute(entity.to_sql_statement_create_or_replace())
         yield
     finally:
-        connection.execute(f"drop schema if exists {dummy_schema} cascade")
         connection.execute("rollback")
 
 
@@ -92,10 +87,8 @@ class ReplaceableEntity:
     def get_identity_comparable(self, connection) -> Tuple:
         """ Generates a SQL "create function" statement for PGFunction """
         # Create other in a dummy schema
-        cls = self.__class__
-        adj_self = cls("alembic_utils", self.signature, self.definition)
-        identity_query = adj_self.get_compare_identity_query()
-        with simulate_entity(connection, adj_self):
+        identity_query = self.get_compare_identity_query()
+        with simulate_entity(connection, self):
             # Collect the definition_comparable for dummy schema self
             row = (self.schema,) + tuple(connection.execute(identity_query).fetchone())
         return row
@@ -113,10 +106,9 @@ class ReplaceableEntity:
     def get_definition_comparable(self, connection) -> Tuple:
         """ Generates a SQL "create function" statement for PGFunction """
         # Create self in a dummy schema
-        cls = self.__class__
-        adj_self = cls("alembic_utils", self.signature, self.definition)
-        definition_query = adj_self.get_compare_definition_query()
-        with simulate_entity(connection, adj_self):
+        definition_query = self.get_compare_definition_query()
+
+        with simulate_entity(connection, self):
             # Collect the definition_comparable for dummy schema self
             row = (self.schema,) + tuple(connection.execute(definition_query).fetchone())
         return row
@@ -178,7 +170,7 @@ class ReplaceableEntity:
         """A string that consistently and globally identifies a function"""
         return f"{self.schema}.{self.signature}"
 
-    def to_variable_name(self):
+    def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents """
         schema_name = self.schema.lower()
         object_name = self.signature.split("(")[0].strip().lower()
@@ -352,7 +344,9 @@ def register_entities(
 
         with engine.connect() as connection:
 
+            # 2021-01-14: Finding drop ops must run before other ops. Not intentiaonl. Find out why.
             # Check for new or updated entities
+
             for local_entity in entities:
                 maybe_op = local_entity.get_required_migration_op(connection)
                 if maybe_op is not None:
@@ -369,9 +363,6 @@ def register_entities(
                             local_entity.signature,
                         )
                     upgrade_ops.ops.append(maybe_op)
-
-            # Entities grouped by class (e.g. PGFunction, PGView, etc)
-            entity_groups = flu(entities).group_by(lambda x: x.__class__, sort=False)
 
             # Check if anything needs to drop
             for schema in observed_schemas:
