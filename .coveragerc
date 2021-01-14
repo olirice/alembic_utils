@@ -3,5 +3,7 @@ exclude_lines =
     pragma: no cover
     raise AssertionError
     raise NotImplementedError
+    UnreachableException
     if __name__ == .__main__.:
     if TYPE_CHECKING:
+    pass
