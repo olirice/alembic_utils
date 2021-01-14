@@ -81,7 +81,7 @@ class PGMaterializedView(ReplaceableEntity):
 
         return sql_text(
             f"""
-            DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}";
+            DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}";
             CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;
         """
         )

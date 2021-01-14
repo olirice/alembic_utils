@@ -2,7 +2,7 @@ import pytest
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_materialized_view import PGMaterializedView
-from alembic_utils.replaceable_entity import register_entities, simulate_entity
+from alembic_utils.replaceable_entity import register_entities, simulate_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TEST_MAT_VIEW = PGMaterializedView(
@@ -52,22 +52,6 @@ def test_find_no_match(engine) -> None:
     with engine.connect() as connection:
         maybe_found = TEST_MAT_VIEW.get_database_definition(connection)
     assert maybe_found is None
-
-
-def test_teardown_temp_schema_on_error(engine) -> None:
-    """Make sure the temporary schema gets town down when the simulated entity fails"""
-    SQL = "create materialized view public.some_view as INVALID SQL!;"
-    view = PGMaterializedView.from_sql(SQL)
-
-    with engine.connect() as connection:
-        with pytest.raises(Exception):
-            with simulate_entity(connection, view):
-                pass
-
-        maybe_schema = connection.execute(
-            "select * from pg_namespace where nspname = 'alembic_utils';"
-        ).fetchone()
-        assert maybe_schema is None
 
 
 def test_create_revision(engine) -> None:

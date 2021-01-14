@@ -2,7 +2,7 @@ import pytest
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_view import PGView
-from alembic_utils.replaceable_entity import register_entities, simulate_entity
+from alembic_utils.replaceable_entity import register_entities, simulate_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TEST_VIEW = PGView(
@@ -45,7 +45,7 @@ def test_teardown_temp_schema_on_error(engine) -> None:
 
     with engine.connect() as connection:
         with pytest.raises(Exception):
-            with simulate_entity(connection, view):
+            with simulate_entities(connection, [view]):
                 pass
 
         maybe_schema = connection.execute(

@@ -103,7 +103,7 @@ class PGTrigger(ReplaceableEntity):
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         return f"""
-        {self.to_sql_statement_drop()}
+        DROP TRIGGER IF EXISTS {self.signature} ON {self.on_entity};
         {self.to_sql_statement_create()}
         """
 

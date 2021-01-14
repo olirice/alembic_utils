@@ -1,9 +1,10 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-
 import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Tuple, Type, TypeVar
+from sqlalchemy.orm import Session
+from sqlalchemy import event
 
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
@@ -20,16 +21,17 @@ T = TypeVar("T", bound="ReplaceableEntity")
 
 
 @contextmanager
-def simulate_entity(connection, entity):
-    """Creates *entity* in a transaction so its postgres rendered definition
+def simulate_entities(connection, entities):
+    """Creates *entities* in a transaction so postgres rendered definition
     can be retrieved
     """
-    connection.execute("begin")
     try:
-        connection.execute(entity.to_sql_statement_create_or_replace())
-        yield
+        transaction = connection.begin()
+        for entity in entities:
+            connection.execute(entity.to_sql_statement_create_or_replace())
+        yield connection
     finally:
-        connection.execute("rollback")
+        transaction.rollback()
 
 
 class ReplaceableEntity:
@@ -76,7 +78,7 @@ class ReplaceableEntity:
 
     @cachedmethod(
         lambda self: self._CACHE,
-        key=lambda self, _: (
+        key=lambda self, *_: (
             self.__class__.__name__,
             "identity",
             self.schema,
@@ -88,14 +90,14 @@ class ReplaceableEntity:
         """ Generates a SQL "create function" statement for PGFunction """
         # Create other in a dummy schema
         identity_query = self.get_compare_identity_query()
-        with simulate_entity(connection, self):
+        with simulate_entities(connection, [self]):
             # Collect the definition_comparable for dummy schema self
             row = tuple(connection.execute(identity_query).fetchone())
         return row
 
     @cachedmethod(
         lambda self: self._CACHE,
-        key=lambda self, _: (
+        key=lambda self, *_: (
             self.__class__.__name__,
             "definition",
             self.schema,
@@ -108,7 +110,7 @@ class ReplaceableEntity:
         # Create self in a dummy schema
         definition_query = self.get_compare_definition_query()
 
-        with simulate_entity(connection, self):
+        with simulate_entities(connection, [self]):
             # Collect the definition_comparable for dummy schema self
             row = tuple(connection.execute(definition_query).fetchone())
         return row
@@ -150,7 +152,9 @@ class ReplaceableEntity:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
-        escaped_definition = self.definition if not omit_definition else "# not required for op"
+        escaped_definition = (
+            self.definition if not omit_definition else "# not required for op"
+        )
 
         return f"""{var_name} = {class_name}(
             schema="{self.schema}",
@@ -185,7 +189,9 @@ class ReplaceableEntity:
             [self.is_equal_definition(x, connection) for x in entities_in_database]
         )
 
-        found_signature = any([self.is_equal_identity(x, connection) for x in entities_in_database])
+        found_signature = any(
+            [self.is_equal_identity(x, connection) for x in entities_in_database]
+        )
 
         if found_identical:
             return None
@@ -265,7 +271,8 @@ def render_drop_entity(autogen_context, op):
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
     return (
-        target.render_self_for_migration(omit_definition=False) + f"op.drop_entity({variable_name})"
+        target.render_self_for_migration(omit_definition=False)
+        + f"op.drop_entity({variable_name})"
     )
 
 
@@ -319,6 +326,24 @@ def register_entities(
         autogen_context, upgrade_ops, sqla_schemas: List[Optional[str]]
     ):
         engine = autogen_context.connection.engine
+        connection = engine.connect()
+        # Start a parent transaction
+        transaction = connection.begin()
+        # Bind the session within the parent transaction
+        session = Session(bind=connection)
+        # Issue savepoint
+        session.begin_nested()
+
+        # then each time that SAVEPOINT ends, reopen it
+        @event.listens_for(session, "after_transaction_end")
+        def restart_savepoint(session, transaction):
+            if transaction.nested and not transaction._parent.nested:
+                # ensure that state is expired the way
+                # session.commit() at the top level normally does
+                # (optional step)
+                session.expire_all()
+                session.begin_nested()
+
 
         # Ensure pg_functions have unique identities (not registered twice)
         for ident, function_group in flu(entities).group_by(key=lambda x: x.identity):
@@ -340,15 +365,64 @@ def register_entities(
             observed_schemas.append(entity.schema)
 
         # Remove excluded schemas
-        observed_schemas = [x for x in set(observed_schemas) if x not in (exclude_schemas or [])]
+        observed_schemas = [
+            x for x in set(observed_schemas) if x not in (exclude_schemas or [])
+        ]
 
         with engine.connect() as connection:
 
             # 2021-01-14: Finding drop ops must run before other ops. Not intentiaonl. Find out why.
             # Check for new or updated entities
 
-            for local_entity in entities:
-                maybe_op = local_entity.get_required_migration_op(connection)
+            # Solve entity resolution order
+            resolved_entities = []
+            for _ in range(len(entities)):
+                for entity in entities:
+                    if entity in resolved_entities:
+                        continue
+                    try:
+                        with simulate_entities(
+                            connection, resolved_entities + [entity]
+                        ):
+                            resolved_entities.append(entity)
+                    except:
+                        continue
+
+            from alembic_utils.exceptions import FailedToGenerateComparable
+
+            for entity in entities:
+                if entity not in resolved_entities:
+                    # Cause the error to raiseDisplay the error
+                    with simulate_entities(
+                            connection, resolved_entities + [entity]
+                        ):
+                        pass
+                    
+                    # If it somehow passes (never should) exit with error anyway
+                    raise FailedToGenerateComparable(
+                        f"failed to simulate entity {entity.signature}"
+                    )
+
+            processed_entities = []
+            for local_entity in resolved_entities:
+
+                # Identify possible dependencies leading up to local_entity
+                # in resolved_entities
+                possible_dependencies = (
+                    flu(resolved_entities)
+                    .take_while(lambda x: x != local_entity)
+                    .collect()
+                )
+
+                with simulate_entities(connection, possible_dependencies) as conn:
+
+                    #if possible_dependencies != []:
+                    #    import pdb
+                        #pdb.set_trace()
+                    # Simulate already processed entities in case
+                    # dependencies exist among remaining entities
+                    maybe_op = local_entity.get_required_migration_op(conn)
+
                 if maybe_op is not None:
                     if isinstance(maybe_op, CreateOp):
                         log.warning(
@@ -363,6 +437,10 @@ def register_entities(
                             local_entity.signature,
                         )
                     upgrade_ops.ops.append(maybe_op)
+
+                    # Add to processed entities so we can pass it as
+                    # a possible dependency to later local_entities
+                    processed_entities.append(local_entity)
 
             # Check if anything needs to drop
             for schema in observed_schemas:
