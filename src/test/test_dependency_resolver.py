@@ -19,7 +19,7 @@ VIEW_DEPENDENT = PGView(
 
 
 
-def create_revision_with_dependency(engine) -> None:
+def test_create_revision_with_dependency(engine) -> None:
     register_entities([VIEW_DEPENDENT, VIEW_INDEPENDENT])
 
     output = run_alembic_command(

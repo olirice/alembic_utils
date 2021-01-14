@@ -48,9 +48,8 @@ def test_parsable_body() -> None:
         pytest.fail(f"Unexpected SQLParseFailure for view {SQL}")
 
 
-def test_find_no_match(engine) -> None:
-    with engine.connect() as connection:
-        maybe_found = TEST_MAT_VIEW.get_database_definition(connection)
+def test_find_no_match(sess) -> None:
+    maybe_found = TEST_MAT_VIEW.get_database_definition(sess)
     assert maybe_found is None
 
 

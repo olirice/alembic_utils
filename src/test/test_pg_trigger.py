@@ -16,8 +16,6 @@ def sql_setup(engine):
         id serial primary key,
         email text not null
     );
-
-
     """
     )
 
@@ -182,13 +180,13 @@ def test_fail_create_sql_statement_create():
         trig.to_sql_statement_create()
 
 
-def test_get_definition_comparable_does_not_exist_yet(sql_setup, engine):
-    engine.execute(FUNC.to_sql_statement_create())
+def test_get_definition_comparable_does_not_exist_yet(sql_setup, sess):
+    sess.execute(FUNC.to_sql_statement_create())
     # for coverage
-    assert TRIG.get_definition_comparable(engine) is not None
+    assert TRIG.get_definition_comparable(sess) is not None
 
 
-def test_get_definition_comparable_invalid_sql(sql_setup, engine):
+def test_get_definition_comparable_invalid_sql(sql_setup, sess):
     trig = PGTrigger(schema="public", signature="lower_account_email", definition="INVALID DEF")
-    with pytest.raises(FailedToGenerateComparable):
-        assert TRIG.get_definition_comparable(engine) is not None
+    with pytest.raises(SQLParseFailure):
+        trig.get_definition_comparable(sess)

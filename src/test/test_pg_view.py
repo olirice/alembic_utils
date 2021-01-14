@@ -4,6 +4,7 @@ from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities, simulate_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
+from alembic_utils.exceptions import FailedToGenerateComparable
 
 TEST_VIEW = PGView(
     schema="DEV", signature="testExample", definition="select *, FALSE as is_updated from pg_views"
@@ -31,27 +32,9 @@ def test_parsable_body() -> None:
         pytest.fail(f"Unexpected SQLParseFailure for view {SQL}")
 
 
-def test_find_no_match(engine) -> None:
-    with engine.connect() as connection:
-        maybe_found = TEST_VIEW.get_database_definition(connection)
-
+def test_find_no_match(sess) -> None:
+    maybe_found = TEST_VIEW.get_database_definition(sess)
     assert maybe_found is None
-
-
-def test_teardown_temp_schema_on_error(engine) -> None:
-    """Make sure the temporary schema gets town down when the simulated entity fails"""
-    SQL = "create or replace view public.some_view as INVALID SQL!;"
-    view = PGView.from_sql(SQL)
-
-    with engine.connect() as connection:
-        with pytest.raises(Exception):
-            with simulate_entities(connection, [view]):
-                pass
-
-        maybe_schema = connection.execute(
-            "select * from pg_namespace where nspname = 'alembic_utils';"
-        ).fetchone()
-        assert maybe_schema is None
 
 
 def test_create_revision(engine) -> None:
@@ -216,3 +199,19 @@ def test_update_create_or_replace_failover_to_drop_add(engine) -> None:
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
     # Execute Downgrade
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
+def test_attempt_revision_on_unparsable(engine) -> None:
+    BROKEN_VIEW = PGView(
+        schema="public", signature="broken_view", definition="NOPE;"
+    )
+    register_entities([BROKEN_VIEW])
+    
+    with pytest.raises(FailedToGenerateComparable):
+        run_alembic_command(
+            engine=engine,
+            command="revision",
+            command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
+        )
+
+ 

@@ -107,41 +107,6 @@ class PGTrigger(ReplaceableEntity):
         {self.to_sql_statement_create()}
         """
 
-    def get_definition_comparable(self, connection) -> Tuple:
-        """Generates a SQL "create function" statement for PGTrigger
-
-        Had to override create_entity because triggers inherit their schema from
-        the table they're applied to
-        """
-        pg_version_str = connection.execute(sql_text("show server_version_num")).fetchone()[0]
-        pg_version = int(pg_version_str)
-
-        # First try a plain create
-        definition_query = self.get_compare_definition_query()
-
-        try:
-            connection.execute("begin")
-            connection.execute(self.to_sql_statement_create())
-
-            return (self.schema,) + tuple(connection.execute(definition_query).fetchone())
-        except Exception as exc:
-            pass
-        finally:
-            connection.execute("rollback")
-
-        # If  that fails, try a drop and then a create
-        try:
-            connection.execute("begin")
-            connection.execute(self.to_sql_statement_drop())
-            connection.execute(self.to_sql_statement_create())
-            return (self.schema,) + tuple(connection.execute(definition_query).fetchone())
-        except Exception as exc:
-            pass
-        finally:
-            connection.execute("rollback")
-
-        raise FailedToGenerateComparable("Could not simulate entity to get definition comparable")
-
     def get_identity_comparable(self, connection) -> Tuple:
         """Generates a SQL "create function" statement for PGTrigger
 
@@ -151,7 +116,7 @@ class PGTrigger(ReplaceableEntity):
         return (self.schema, self.identity)
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGFunction"]:
+    def from_database(cls, sess, schema) -> List["PGFunction"]:
         """Get a list of all functions defined in the db"""
 
         # NOTE(OR): Schema is looked up by unqualified trigger name. Mismatches possible
@@ -170,8 +135,7 @@ class PGTrigger(ReplaceableEntity):
             and itr.event_object_schema = :schema
         """
         )
-
-        rows = connection.execute(sql, schema=schema).fetchall()
+        rows = sess.execute(sql, {"schema": schema}).fetchall()
         print(rows)
 
         db_triggers = [PGTrigger.from_sql(x[2]) for x in rows]
