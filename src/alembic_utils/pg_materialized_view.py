@@ -13,6 +13,9 @@ from alembic_utils.statement import strip_terminating_semicolon
 class PGMaterializedView(ReplaceableEntity):
     """A PostgreSQL Materialized View compatible with `alembic revision --autogenerate`
 
+    Limitations:
+        Materialized views may not have other views or materialized views that depend on them.
+
     **Parameters:**
 
     * **schema** - *str*: A SQL schema name

@@ -172,7 +172,6 @@ class PGTrigger(ReplaceableEntity):
         )
 
         rows = connection.execute(sql, schema=schema).fetchall()
-        print(rows)
 
         db_triggers = [PGTrigger.from_sql(x[2]) for x in rows]
 

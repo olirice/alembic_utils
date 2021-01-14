@@ -220,7 +220,7 @@ def test_update_create_or_replace_failover_to_drop_add(engine) -> None:
 
 def test_view_contains_semicolon(engine) -> None:
     TEST_SEMI_VIEW = PGView(
-        schema="public", signature="sample", definition="select ':a' as myfield"
+        schema="public", signature="sample", definition="select ':a' as myfield, '1'::int as othi"
     )
 
     register_entities([TEST_SEMI_VIEW])
