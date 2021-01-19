@@ -91,16 +91,3 @@ class PGView(ReplaceableEntity):
             assert view is not None
 
         return db_views
-
-    def get_compare_identity_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        return f"""
-        select
-            schemaname,
-            viewname view_name
-        from
-            pg_views
-        where
-            schemaname::text = '{self.schema}'
-            and viewname = '{self.signature}';
-        """

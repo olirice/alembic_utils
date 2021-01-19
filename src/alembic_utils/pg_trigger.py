@@ -1,5 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from parse import parse
 from sqlalchemy import text as sql_text
@@ -144,11 +144,3 @@ class PGTrigger(ReplaceableEntity):
             assert trig is not None
 
         return db_triggers
-
-    def get_identity_comparable(self, sess) -> Tuple:
-        """Generates a SQL "create function" statement for PGTrigger
-
-        Had to override create_entity because triggers inherit their schema from
-        the table they're applied to
-        """
-        return (self.schema, self.identity)

@@ -16,10 +16,6 @@ class PGFunction(ReplaceableEntity):
     * **schema** - *str*: A SQL schema name
     * **signature** - *str*: A SQL function's call signature
     * **definition** - *str*:  The remainig function body and identifiers
-
-    Limitations:
-        PGFunction does not support function overloading (multiple functions
-        with the same schema and name but different type signatures
     """
 
     @classmethod
@@ -150,19 +146,3 @@ class PGFunction(ReplaceableEntity):
             assert func is not None
 
         return db_functions
-
-    def get_compare_identity_query(self):
-        """Only called in simulation. alembic_util schema will onle have 1 record"""
-        proname = self.signature.split("(")[0]
-        return f"""
-        select
-            pronamespace::regnamespace::text,
-            proname,
-            pronargs,
-            proargtypes
-        from
-            pg_proc proc
-        where
-            pronamespace::regnamespace::text = '{self.schema}'
-            and proname = '{proname}';
-        """
