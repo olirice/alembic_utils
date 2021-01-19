@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from parse import parse
 from sqlalchemy.orm import Session
@@ -11,9 +11,12 @@ if TYPE_CHECKING:
     from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
-@contextmanager
-def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
-    """Defer entities that depend on *entity*"""
+def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["ReplaceableEntity"]:
+    """Collect a list of entities that are dependent on *entity*
+
+    The output is sorted in the order that the entities can be dropped without raising
+    an exception. It includes direct and transitive dependencies
+    """
 
     # Materialized views don't have a create or replace statement
     # So replace_entity is defined as a drop and then a create
@@ -26,6 +29,7 @@ def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
     from alembic_utils.pg_materialized_view import PGMaterializedView
     from alembic_utils.pg_view import PGView
 
+    #    from alembic_utils.pg_trigger import PGTrigger
     # This is almost certainly a bad idea
 
     sql_error_message: Optional[str] = None
@@ -39,8 +43,7 @@ def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
 
     if sql_error_message is None:
         # No dependencies
-        yield
-        return
+        return []
 
     # Parse the error to find the dependency links
     #
@@ -53,19 +56,20 @@ def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
 
     TEMPLATE = "{}cannot drop{}{}DETAIL:{remaining}HINT:{}{:w}{}"
 
-    VIEW_RECORD_TEMPLATE = "view {signature} depends on {}"
-    MATERIALIZED_VIEW_RECORD_TEMPLATE = "materialized view {signature} depends on {}"
+    VIEW_TEMPLATE = "view {signature} depends on {}"
+    MATERIALIZED_VIEW_TEMPLATE = "materialized view {signature} depends on {}"
+    #    TRIGGER_TEMPLATE = "trigger {signature} depends on {}"
 
     res = parse(TEMPLATE, sql_error_message)
 
     if not res:
         # The error was something other than a dependency issue
-        yield
-        return
+        return []
 
     class_to_parser = [
-        (PGView, partial(parse, VIEW_RECORD_TEMPLATE)),
-        (PGMaterializedView, partial(parse, MATERIALIZED_VIEW_RECORD_TEMPLATE)),
+        (PGView, partial(parse, VIEW_TEMPLATE)),
+        (PGMaterializedView, partial(parse, MATERIALIZED_VIEW_TEMPLATE)),
+        #        (PGTrigger, partial(parse, TRIGGER_TEMPLATE)),
     ]
 
     dependent_objects = []
@@ -102,15 +106,35 @@ def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
                     # dependent_objects.append(dependent_object)
                     break
 
+    seen_identities = set()
+    deduped_dependencies = []
+
+    for ent in reversed(dependent_objects):
+        if ent.identity not in seen_identities:
+            deduped_dependencies.append(ent)
+        seen_identities.add(ent.identity)
+
     # This includes transitive dependencies
-    dependent_objects = list(reversed(dependent_objects))
+    return deduped_dependencies
+
+
+@contextmanager
+def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
+    """Defer entities that depend on *entity*"""
+
+    dependents = get_dependent_entities(sess, entity)
+    # print(entity.identity, [x.identity for x in dependents])
 
     try:
         sess.begin_nested()
 
-        for ent in dependent_objects:
+        for ent in dependents:
+            if ent is None:
+                import pdb
+
+                pdb.set_trace()
             sess.execute(ent.to_sql_statement_drop())
-        yield
+        yield dependents
 
     finally:
         sess.rollback()

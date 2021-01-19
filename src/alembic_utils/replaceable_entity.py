@@ -25,15 +25,15 @@ T = TypeVar("T", bound="ReplaceableEntity")
 
 
 @contextmanager
-def simulate_entities(sess: Session, entities):
+def simulate_entity(sess: Session, entity):
     """Creates *entities* in a transaction so postgres rendered definition
     can be retrieved
     """
     try:
         sess.begin_nested()
-        for entity in entities:
+        with defer_dependents(sess, entity):
             sess.execute(entity.to_sql_statement_create_or_replace())
-        yield sess
+            yield sess
     finally:
         sess.rollback()
 
@@ -94,7 +94,7 @@ class ReplaceableEntity:
         """ Generates a SQL "create function" statement for PGFunction """
         # Create other in a dummy schema
         identity_query = self.get_compare_identity_query()
-        with simulate_entities(sess, [self]):
+        with simulate_entity(sess, self):
             # Collect the definition_comparable for dummy schema self
             row = tuple(sess.execute(identity_query).fetchone())
         return row
@@ -114,7 +114,7 @@ class ReplaceableEntity:
         # Create self in a dummy schema
         definition_query = self.get_compare_definition_query()
 
-        with simulate_entities(sess, [self]):
+        with simulate_entity(sess, self):
             # Collect the definition_comparable for dummy schema self
             row = tuple(sess.execute(definition_query).fetchone())
         return row
@@ -187,14 +187,20 @@ class ReplaceableEntity:
         # All entities in the database for self's schema
         entities_in_database = self.from_database(sess, schema=self.schema)
 
-        found_identical = any([self.is_equal_definition(x, sess) for x in entities_in_database])
+        with simulate_entity(sess, self) as sess:
+            db_def = self.get_database_definition(sess)
 
-        found_signature = any([self.is_equal_identity(x, sess) for x in entities_in_database])
+        for x in entities_in_database:
 
-        if found_identical:
-            return None
-        if found_signature:
-            return ReplaceOp(self)
+            if (db_def.identity, normalize_whitespace(db_def.definition)) == (
+                x.identity,
+                normalize_whitespace(x.definition),
+            ):
+                return None
+
+            if db_def.identity == x.identity:
+                return ReplaceOp(self)
+
         return CreateOp(self)
 
 
@@ -348,93 +354,59 @@ def register_entities(
         observed_schemas = [x for x in set(observed_schemas) if x not in (exclude_schemas or [])]
 
         with engine.connect() as connection:
-            # Start a parent transaction
-            transaction = connection.begin()
+
+            for entity in entities:
+                print(f"Processing {entity.__class__.__name__} {entity.identity}")
+
+                try:
+                    # Start a parent transaction
+                    # Bind the session within the parent transaction
+                    transaction = connection.begin()
+                    sess = Session(bind=connection)
+                    maybe_op = entity.get_required_migration_op(sess)
+                    if maybe_op:
+                        upgrade_ops.ops.append(maybe_op)
+
+                        print(
+                            f"Detected {maybe_op.__class__.__name__} for {entity.__class__.__name__} {entity.identity}"
+                        )
+
+                finally:
+                    transaction.rollback()
+
             try:
+                # Start a parent transaction
                 # Bind the session within the parent transaction
+                transaction = connection.begin()
                 sess = Session(bind=connection)
-                sess.begin_nested()
+
+                # Convert the user defined definitions to the database rendered definitions
+                local_entities = []
+                for ent in entities:
+                    with simulate_entity(sess, ent) as sess:
+                        local_entity = ent.get_database_definition(sess)
+                        local_entities.append(local_entity)
 
                 # All database entities currently live
                 # Check if anything needs to drop
-                db_entities = []
-                for schema in observed_schemas:
-                    for entity_class in ReplaceableEntity.__subclasses__():
-                        for entity in entity_class.from_database(sess, schema=schema):
-                            db_entities.append(entity)
+                for entity_class in ReplaceableEntity.__subclasses__():
 
-                # 2021-01-14: Finding drop ops must run before other ops. Not intentiaonl. Find out why.
-                # Check for new or updated entities
+                    # Entities within the schemas that are live
+                    for schema in observed_schemas:
 
-                # Solve entity resolution order
-                resolved_entities = []
-                for _ in range(len(entities)):
-                    for entity in entities:
-                        if entity in resolved_entities:
-                            continue
-                        try:
-                            with sess.begin_nested():
-                                with defer_dependents(sess, entity):
-                                    with simulate_entities(sess, resolved_entities + [entity]):
-                                        resolved_entities.append(entity)
-                        except:
-                            continue
+                        db_entities = entity_class.from_database(sess, schema=schema)
 
-                for entity in entities:
-                    if entity not in resolved_entities:
-                        # Cause the error to raiseDisplay the error
-                        with sess.begin_nested():
-                            try:
-                                with simulate_entities(sess, resolved_entities + [entity]):
-                                    pass
-                            except Exception as exc:
-                                # If it somehow passes (never should) exit with error anyway
-                                raise FailedToGenerateComparable(
-                                    f"failed to simulate entity {entity.signature}, message {str(exc)}"
+                        # Check for functions that were deleted locally
+                        for db_entity in db_entities:
+                            for local_entity in local_entities:
+                                if db_entity.identity == local_entity.identity:
+                                    break
+                            else:
+                                # No match was found locally
+                                upgrade_ops.ops.append(DropOp(db_entity))
+                                print(
+                                    f"Detected DropOp drop {db_entity.__class__.__name__} {db_entity.identity}"
                                 )
-                        raise UnreachableException
 
-                processed_entities = []
-                for local_entity in resolved_entities:
-
-                    # Identify possible dependencies leading up to local_entity
-                    # in resolved_entities
-                    possible_dependencies = (
-                        flu(resolved_entities).take_while(lambda x: x != local_entity).collect()
-                    )
-
-                    with simulate_entities(sess, possible_dependencies) as conn:
-                        # Simulate already processed entities in case
-                        # dependencies exist among remaining entities
-                        with defer_dependents(sess, local_entity):
-                            maybe_op = local_entity.get_required_migration_op(conn)
-
-                    if maybe_op is not None:
-                        if isinstance(maybe_op, CreateOp):
-                            log.warning(
-                                "Detected added entity %r.%r",
-                                local_entity.schema,
-                                local_entity.signature,
-                            )
-                        elif isinstance(maybe_op, ReplaceOp):
-                            log.info(
-                                "Detected updated entity %r.%r",
-                                local_entity.schema,
-                                local_entity.signature,
-                            )
-                        upgrade_ops.ops.append(maybe_op)
-
-                        # Add to processed entities so we can pass it as
-                        # a possible dependency to later local_entities
-                        processed_entities.append(local_entity)
-
-                # Check for functions that were deleted locally
-                for db_entity in db_entities:
-                    for local_entity in entities:
-                        if db_entity.is_equal_identity(local_entity, sess):
-                            break
-                    else:
-                        # No match was found locally
-                        upgrade_ops.ops.append(DropOp(db_entity))
             finally:
                 transaction.rollback()

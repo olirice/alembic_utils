@@ -43,6 +43,8 @@ TRIG = PGTrigger(
 
 
 def test_create_revision(sql_setup, engine) -> None:
+    engine.execute(FUNC.to_sql_statement_create())
+
     register_entities([FUNC, TRIG])
     run_alembic_command(
         engine=engine,

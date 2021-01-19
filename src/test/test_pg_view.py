@@ -1,6 +1,7 @@
 import pytest
+from sqlalchemy.exc import ProgrammingError
 
-from alembic_utils.exceptions import FailedToGenerateComparable, SQLParseFailure
+from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_view import PGView
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
@@ -204,7 +205,8 @@ def test_attempt_revision_on_unparsable(engine) -> None:
     BROKEN_VIEW = PGView(schema="public", signature="broken_view", definition="NOPE;")
     register_entities([BROKEN_VIEW])
 
-    with pytest.raises(FailedToGenerateComparable):
+    # Reraise of psycopg2.errors.SyntaxError
+    with pytest.raises(ProgrammingError):
         run_alembic_command(
             engine=engine,
             command="revision",

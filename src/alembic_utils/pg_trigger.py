@@ -107,14 +107,6 @@ class PGTrigger(ReplaceableEntity):
         {self.to_sql_statement_create()}
         """
 
-    def get_identity_comparable(self, sess) -> Tuple:
-        """Generates a SQL "create function" statement for PGTrigger
-
-        Had to override create_entity because triggers inherit their schema from
-        the table they're applied to
-        """
-        return (self.schema, self.identity)
-
     @classmethod
     def from_database(cls, sess, schema) -> List["PGFunction"]:
         """Get a list of all functions defined in the db"""
@@ -132,7 +124,7 @@ class PGTrigger(ReplaceableEntity):
                     on lower(pgt.tgname) = lower(itr.trigger_name)
         where
             not tgisinternal
-            and itr.event_object_schema = :schema
+            and itr.event_object_schema like :schema
         """
         )
         rows = sess.execute(sql, {"schema": schema}).fetchall()
@@ -143,6 +135,14 @@ class PGTrigger(ReplaceableEntity):
             assert trig is not None
 
         return db_triggers
+
+    def get_identity_comparable(self, sess) -> Tuple:
+        """Generates a SQL "create function" statement for PGTrigger
+
+        Had to override create_entity because triggers inherit their schema from
+        the table they're applied to
+        """
+        return (self.schema, self.identity)
 
     def get_compare_definition_query(self):
         return f"""
@@ -155,5 +155,5 @@ class PGTrigger(ReplaceableEntity):
         where
             not tgisinternal
             and itr.event_object_schema = '{self.schema}'
-            and tgname = '{self.signature}'
+            and tgname = '{self.signature}';
         """

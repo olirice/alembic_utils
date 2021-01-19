@@ -89,6 +89,19 @@ class PGMaterializedView(ReplaceableEntity):
         """
         )
 
+    def render_self_for_migration(self, omit_definition=False) -> str:
+        """Render a string that is valid python code to reconstruct self in a migration"""
+        var_name = self.to_variable_name()
+        class_name = self.__class__.__name__
+        escaped_definition = self.definition if not omit_definition else "# not required for op"
+
+        return f"""{var_name} = {class_name}(
+            schema="{self.schema}",
+            signature="{self.signature}",
+            definition={repr(escaped_definition)},
+            with_data={repr(self.with_data)}
+        )\n\n"""
+
     @classmethod
     def from_database(cls, sess, schema) -> List["PGMaterializedView"]:
         """Get a list of all functions defined in the db"""
@@ -103,7 +116,7 @@ class PGMaterializedView(ReplaceableEntity):
             pg_matviews
         where
             schemaname not in ('pg_catalog', 'information_schema')
-            and schemaname::text = '{schema}';
+            and schemaname::text like '{schema}';
         """
         )
         rows = sess.execute(sql).fetchall()
@@ -123,7 +136,8 @@ class PGMaterializedView(ReplaceableEntity):
         from
             pg_matviews
         where
-            schemaname::text = '{self.schema}';
+            schemaname::text = '{self.schema}'
+            and matviewname = '{self.signature}';
         """
 
     def get_compare_definition_query(self) -> str:
@@ -136,18 +150,6 @@ class PGMaterializedView(ReplaceableEntity):
         from
 	    pg_matviews
 	where
-            schemaname::text = '{self.schema}';
+            schemaname::text = '{self.schema}'
+            and matviewname = '{self.signature}';
         """
-
-    def render_self_for_migration(self, omit_definition=False) -> str:
-        """Render a string that is valid python code to reconstruct self in a migration"""
-        var_name = self.to_variable_name()
-        class_name = self.__class__.__name__
-        escaped_definition = self.definition if not omit_definition else "# not required for op"
-
-        return f"""{var_name} = {class_name}(
-            schema="{self.schema}",
-            signature="{self.signature}",
-            definition={repr(escaped_definition)},
-            with_data={repr(self.with_data)}
-        )\n\n"""

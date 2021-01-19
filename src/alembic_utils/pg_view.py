@@ -81,7 +81,7 @@ class PGView(ReplaceableEntity):
             pg_views
         where
             schemaname not in ('pg_catalog', 'information_schema')
-            and schemaname::text = '{schema}';
+            and schemaname::text like '{schema}';
         """
         )
         rows = sess.execute(sql).fetchall()
@@ -101,7 +101,8 @@ class PGView(ReplaceableEntity):
         from
             pg_views
         where
-            schemaname::text = '{self.schema}';
+            schemaname::text = '{self.schema}'
+            and viewname = '{self.signature}';
         """
 
     def get_compare_definition_query(self) -> str:
@@ -114,5 +115,6 @@ class PGView(ReplaceableEntity):
         from
 	    pg_views
 	where
-            schemaname::text = '{self.schema}';
+            schemaname::text = '{self.schema}'
+            and viewname = '{self.signature}';
         """
