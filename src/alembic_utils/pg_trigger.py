@@ -40,6 +40,14 @@ class PGTrigger(ReplaceableEntity):
         super().__init__(schema=schema, signature=signature, definition=definition)
         self._on_entity = on_entity
 
+    @property
+    def identity(self) -> str:
+        """A string that consistently and globally identifies a function
+
+        Overriding default to add the "on table" clause
+        """
+        return f"{self.schema}.{self.signature}-{self.on_entity}"
+
     @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
         """Create an instance instance from a SQL string"""
