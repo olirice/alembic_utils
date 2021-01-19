@@ -17,6 +17,9 @@ class PGFunction(ReplaceableEntity):
     * **signature** - *str*: A SQL function's call signature
     * **definition** - *str*:  The remainig function body and identifiers
 
+    Limitations:
+        PGFunction does not support function overloading (multiple functions
+        with the same schema and name but different type signatures
     """
 
     @classmethod
@@ -83,7 +86,7 @@ class PGFunction(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGFunction"]:
+    def from_database(cls, sess, schema) -> List["PGFunction"]:
         """Get a list of all functions defined in the db"""
 
         # Prior to postgres 11, pg_proc had different columns
@@ -98,7 +101,7 @@ class PGFunction(ReplaceableEntity):
         """
 
         # Retrieve the postgres server version e.g. 90603 for 9.6.3 or 120003 for 12.3
-        pg_version_str = connection.execute(sql_text("show server_version_num")).fetchone()[0]
+        pg_version_str = sess.execute(sql_text("show server_version_num")).fetchone()[0]
         pg_version = int(pg_version_str)
 
         sql = sql_text(
@@ -135,11 +138,12 @@ class PGFunction(ReplaceableEntity):
             n.nspname not in ('pg_catalog', 'information_schema')
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
+            and n.nspname = :schema
         """
             + (PG_GTE_11 if pg_version >= 110000 else PG_LT_11)
         )
 
-        rows = connection.execute(sql, schema=schema).fetchall()
+        rows = sess.execute(sql, {"schema": schema}).fetchall()
         db_functions = [PGFunction.from_sql(x[3]) for x in rows]
 
         for func in db_functions:
@@ -149,6 +153,7 @@ class PGFunction(ReplaceableEntity):
 
     def get_compare_identity_query(self):
         """Only called in simulation. alembic_util schema will onle have 1 record"""
+        proname = self.signature.split("(")[0]
         return f"""
         select
             pronamespace::regnamespace::text,
@@ -159,20 +164,5 @@ class PGFunction(ReplaceableEntity):
             pg_proc proc
         where
             pronamespace::regnamespace::text = '{self.schema}'
-        """
-
-    def get_compare_definition_query(self):
-        """Only called in simulation. alembic_util schema will onle have 1 record"""
-        return f"""
-        select
-            regexp_replace(
-                pg_get_functiondef(proc.oid),
-                '^\s+',
-                '',
-                'igm'
-            )
-        from
-            pg_proc proc
-        where
-            pronamespace::regnamespace::text = '{self.schema}'
+            and proname = '{proname}';
         """

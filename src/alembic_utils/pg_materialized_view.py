@@ -84,13 +84,26 @@ class PGMaterializedView(ReplaceableEntity):
 
         return sql_text(
             f"""
-            DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}";
+            DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}";
             CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;
         """
         )
 
+    def render_self_for_migration(self, omit_definition=False) -> str:
+        """Render a string that is valid python code to reconstruct self in a migration"""
+        var_name = self.to_variable_name()
+        class_name = self.__class__.__name__
+        escaped_definition = self.definition if not omit_definition else "# not required for op"
+
+        return f"""{var_name} = {class_name}(
+            schema="{self.schema}",
+            signature="{self.signature}",
+            definition={repr(escaped_definition)},
+            with_data={repr(self.with_data)}
+        )\n\n"""
+
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGMaterializedView"]:
+    def from_database(cls, sess, schema) -> List["PGMaterializedView"]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
@@ -103,10 +116,10 @@ class PGMaterializedView(ReplaceableEntity):
             pg_matviews
         where
             schemaname not in ('pg_catalog', 'information_schema')
-            and schemaname::text = '{schema}';
+            and schemaname::text like '{schema}';
         """
         )
-        rows = connection.execute(sql).fetchall()
+        rows = sess.execute(sql).fetchall()
         db_views = [PGMaterializedView(x[0], x[1], x[2], with_data=x[3]) for x in rows]
 
         for view in db_views:
@@ -123,31 +136,6 @@ class PGMaterializedView(ReplaceableEntity):
         from
             pg_matviews
         where
-            schemaname::text = '{self.schema}';
+            schemaname::text = '{self.schema}'
+            and matviewname = '{self.signature}';
         """
-
-    def get_compare_definition_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        return f"""
-        select
-            schemaname,
-            matviewname view_name,
-            definition
-        from
-	    pg_matviews
-	where
-            schemaname::text = '{self.schema}';
-        """
-
-    def render_self_for_migration(self, omit_definition=False) -> str:
-        """Render a string that is valid python code to reconstruct self in a migration"""
-        var_name = self.to_variable_name()
-        class_name = self.__class__.__name__
-        escaped_definition = self.definition if not omit_definition else "# not required for op"
-
-        return f"""{var_name} = {class_name}(
-            schema="{self.schema}",
-            signature="{self.signature}",
-            definition={repr(escaped_definition)},
-            with_data={repr(self.with_data)}
-        )\n\n"""

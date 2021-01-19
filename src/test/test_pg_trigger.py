@@ -1,6 +1,6 @@
 import pytest
 
-from alembic_utils.exceptions import FailedToGenerateComparable, SQLParseFailure
+from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
 from alembic_utils.replaceable_entity import register_entities
@@ -16,8 +16,6 @@ def sql_setup(engine):
         id serial primary key,
         email text not null
     );
-
-
     """
     )
 
@@ -45,6 +43,8 @@ TRIG = PGTrigger(
 
 
 def test_create_revision(sql_setup, engine) -> None:
+    engine.execute(FUNC.to_sql_statement_create())
+
     register_entities([FUNC, TRIG])
     run_alembic_command(
         engine=engine,
@@ -180,15 +180,3 @@ def test_fail_create_sql_statement_create():
 
     with pytest.raises(SQLParseFailure):
         trig.to_sql_statement_create()
-
-
-def test_get_definition_comparable_does_not_exist_yet(sql_setup, engine):
-    engine.execute(FUNC.to_sql_statement_create())
-    # for coverage
-    assert TRIG.get_definition_comparable(engine) is not None
-
-
-def test_get_definition_comparable_invalid_sql(sql_setup, engine):
-    trig = PGTrigger(schema="public", signature="lower_account_email", definition="INVALID DEF")
-    with pytest.raises(FailedToGenerateComparable):
-        assert TRIG.get_definition_comparable(engine) is not None

@@ -1,5 +1,4 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-
 import logging
 from contextlib import contextmanager
 from pathlib import Path
@@ -8,9 +7,15 @@ from typing import List, Optional, Tuple, Type, TypeVar
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
 from flupy import flu
+from sqlalchemy.orm import Session
 
 from alembic_utils.cache import cachedmethod
-from alembic_utils.exceptions import DuplicateRegistration
+from alembic_utils.defer_dependents import defer_dependents
+from alembic_utils.exceptions import (
+    DuplicateRegistration,
+    FailedToGenerateComparable,
+    UnreachableException,
+)
 from alembic_utils.reversible_op import ReversibleOp
 from alembic_utils.statement import escape_colon, normalize_whitespace, strip_terminating_semicolon
 
@@ -20,16 +25,17 @@ T = TypeVar("T", bound="ReplaceableEntity")
 
 
 @contextmanager
-def simulate_entity(connection, entity):
-    """Creates *entity* in a transaction so its postgres rendered definition
+def simulate_entity(sess: Session, entity):
+    """Creates *entities* in a transaction so postgres rendered definition
     can be retrieved
     """
-    connection.execute("begin")
     try:
-        connection.execute(entity.to_sql_statement_create_or_replace())
-        yield
+        sess.begin_nested()
+        with defer_dependents(sess, entity):
+            sess.execute(entity.to_sql_statement_create_or_replace())
+            yield sess
     finally:
-        connection.execute("rollback")
+        sess.rollback()
 
 
 class ReplaceableEntity:
@@ -62,7 +68,7 @@ class ReplaceableEntity:
         return cls.from_sql(sql)
 
     @classmethod
-    def from_database(cls, connection, schema="%") -> List[T]:
+    def from_database(cls, sess: Session, schema="%") -> List[T]:
         """Collect existing entities from the database for given schema"""
         raise NotImplementedError()
 
@@ -70,13 +76,9 @@ class ReplaceableEntity:
         """Return SQL string that returns 1 row for existing DB object"""
         raise NotImplementedError()
 
-    def get_compare_definition_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        raise NotImplementedError()
-
     @cachedmethod(
         lambda self: self._CACHE,
-        key=lambda self, _: (
+        key=lambda self, *_: (
             self.__class__.__name__,
             "identity",
             self.schema,
@@ -84,40 +86,20 @@ class ReplaceableEntity:
             self.definition,
         ),
     )
-    def get_identity_comparable(self, connection) -> Tuple:
+    def get_identity_comparable(self, sess: Session) -> Tuple:
         """ Generates a SQL "create function" statement for PGFunction """
         # Create other in a dummy schema
         identity_query = self.get_compare_identity_query()
-        with simulate_entity(connection, self):
+        with simulate_entity(sess, self):
             # Collect the definition_comparable for dummy schema self
-            row = tuple(connection.execute(identity_query).fetchone())
-        return row
-
-    @cachedmethod(
-        lambda self: self._CACHE,
-        key=lambda self, _: (
-            self.__class__.__name__,
-            "definition",
-            self.schema,
-            self.signature,
-            self.definition,
-        ),
-    )
-    def get_definition_comparable(self, connection) -> Tuple:
-        """ Generates a SQL "create function" statement for PGFunction """
-        # Create self in a dummy schema
-        definition_query = self.get_compare_definition_query()
-
-        with simulate_entity(connection, self):
-            # Collect the definition_comparable for dummy schema self
-            row = tuple(connection.execute(definition_query).fetchone())
+            row = tuple(sess.execute(identity_query).fetchone())
         return row
 
     def to_sql_statement_create(self) -> str:
         """ Generates a SQL "create function" statement for PGFunction """
         raise NotImplementedError()
 
-    def to_sql_statement_drop(self) -> str:
+    def to_sql_statement_drop(self, cascade=False) -> str:
         """ Generates a SQL "drop function" statement for PGFunction """
         raise NotImplementedError()
 
@@ -125,22 +107,16 @@ class ReplaceableEntity:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         raise NotImplementedError()
 
-    def is_equal_definition(self, other: T, connection) -> bool:
+    def is_equal_identity(self, other: T, sess: Session) -> bool:
         """Is the definition within self and other the same"""
-        self_comparable = self.get_definition_comparable(connection)
-        other_comparable = other.get_definition_comparable(connection)
+        self_comparable = self.get_identity_comparable(sess)
+        other_comparable = other.get_identity_comparable(sess)
         return self_comparable == other_comparable
 
-    def is_equal_identity(self, other: T, connection) -> bool:
-        """Is the definition within self and other the same"""
-        self_comparable = self.get_identity_comparable(connection)
-        other_comparable = other.get_identity_comparable(connection)
-        return self_comparable == other_comparable
-
-    def get_database_definition(self: T, connection) -> Optional[T]:
+    def get_database_definition(self: T, sess: Session) -> Optional[T]:
         """ Looks up self and return the copy existing in the database (maybe)the"""
-        all_entities = self.from_database(connection, schema=self.schema)
-        matches = [x for x in all_entities if self.is_equal_identity(x, connection)]
+        all_entities = self.from_database(sess, schema=self.schema)
+        matches = [x for x in all_entities if self.is_equal_identity(x, sess)]
         if len(matches) == 0:
             return None
         db_match = matches[0]
@@ -176,21 +152,25 @@ class ReplaceableEntity:
         object_name = self.signature.split("(")[0].strip().lower()
         return f"{schema_name}_{object_name}"
 
-    def get_required_migration_op(self, connection) -> Optional[ReversibleOp]:
+    def get_required_migration_op(self, sess: Session) -> Optional[ReversibleOp]:
         """Get the migration operation required for autogenerate"""
         # All entities in the database for self's schema
-        entities_in_database = self.from_database(connection, schema=self.schema)
+        entities_in_database = self.from_database(sess, schema=self.schema)
 
-        found_identical = any(
-            [self.is_equal_definition(x, connection) for x in entities_in_database]
-        )
+        with simulate_entity(sess, self) as sess:
+            db_def = self.get_database_definition(sess)
 
-        found_signature = any([self.is_equal_identity(x, connection) for x in entities_in_database])
+        for x in entities_in_database:
 
-        if found_identical:
-            return None
-        if found_signature:
-            return ReplaceOp(self)
+            if (db_def.identity, normalize_whitespace(db_def.definition)) == (
+                x.identity,
+                normalize_whitespace(x.definition),
+            ):
+                return None
+
+            if db_def.identity == x.identity:
+                return ReplaceOp(self)
+
         return CreateOp(self)
 
 
@@ -288,7 +268,8 @@ def render_revert_entity(autogen_context, op):
     engine = context.connection.engine
 
     with engine.connect() as connection:
-        db_target = op.target.get_database_definition(connection)
+        sess = Session(bind=connection)
+        db_target = op.target.get_database_definition(sess)
 
     variable_name = db_target.to_variable_name()
     return db_target.render_self_for_migration() + f"op.replace_entity({variable_name})"
@@ -344,37 +325,58 @@ def register_entities(
 
         with engine.connect() as connection:
 
-            # 2021-01-14: Finding drop ops must run before other ops. Not intentiaonl. Find out why.
-            # Check for new or updated entities
+            for entity in entities:
+                print(f"Processing {entity.__class__.__name__} {entity.identity}")
 
-            for local_entity in entities:
-                maybe_op = local_entity.get_required_migration_op(connection)
-                if maybe_op is not None:
-                    if isinstance(maybe_op, CreateOp):
-                        log.warning(
-                            "Detected added entity %r.%r",
-                            local_entity.schema,
-                            local_entity.signature,
-                        )
-                    elif isinstance(maybe_op, ReplaceOp):
-                        log.info(
-                            "Detected updated entity %r.%r",
-                            local_entity.schema,
-                            local_entity.signature,
-                        )
-                    upgrade_ops.ops.append(maybe_op)
+                try:
+                    # Start a parent transaction
+                    # Bind the session within the parent transaction
+                    transaction = connection.begin()
+                    sess = Session(bind=connection)
+                    maybe_op = entity.get_required_migration_op(sess)
+                    if maybe_op:
+                        upgrade_ops.ops.append(maybe_op)
 
-            # Check if anything needs to drop
-            for schema in observed_schemas:
-                # Entities within the schemas that are live
+                        print(
+                            f"Detected {maybe_op.__class__.__name__} for {entity.__class__.__name__} {entity.identity}"
+                        )
+
+                finally:
+                    transaction.rollback()
+
+            try:
+                # Start a parent transaction
+                # Bind the session within the parent transaction
+                transaction = connection.begin()
+                sess = Session(bind=connection)
+
+                # Convert the user defined definitions to the database rendered definitions
+                local_entities = []
+                for ent in entities:
+                    with simulate_entity(sess, ent) as sess:
+                        local_entity = ent.get_database_definition(sess)
+                        local_entities.append(local_entity)
+
+                # All database entities currently live
+                # Check if anything needs to drop
                 for entity_class in ReplaceableEntity.__subclasses__():
-                    db_entities = entity_class.from_database(connection, schema=schema)
 
-                    # Check for functions that were deleted locally
-                    for db_entity in db_entities:
-                        for local_entity in entities:
-                            if db_entity.is_equal_identity(local_entity, connection):
-                                break
-                        else:
-                            # No match was found locally
-                            upgrade_ops.ops.append(DropOp(db_entity))
+                    # Entities within the schemas that are live
+                    for schema in observed_schemas:
+
+                        db_entities = entity_class.from_database(sess, schema=schema)
+
+                        # Check for functions that were deleted locally
+                        for db_entity in db_entities:
+                            for local_entity in local_entities:
+                                if db_entity.identity == local_entity.identity:
+                                    break
+                            else:
+                                # No match was found locally
+                                upgrade_ops.ops.append(DropOp(db_entity))
+                                print(
+                                    f"Detected DropOp drop {db_entity.__class__.__name__} {db_entity.identity}"
+                                )
+
+            finally:
+                transaction.rollback()

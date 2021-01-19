@@ -2,7 +2,7 @@ import pytest
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_materialized_view import PGMaterializedView
-from alembic_utils.replaceable_entity import register_entities, simulate_entity
+from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TEST_MAT_VIEW = PGMaterializedView(
@@ -48,26 +48,9 @@ def test_parsable_body() -> None:
         pytest.fail(f"Unexpected SQLParseFailure for view {SQL}")
 
 
-def test_find_no_match(engine) -> None:
-    with engine.connect() as connection:
-        maybe_found = TEST_MAT_VIEW.get_database_definition(connection)
+def test_find_no_match(sess) -> None:
+    maybe_found = TEST_MAT_VIEW.get_database_definition(sess)
     assert maybe_found is None
-
-
-def test_teardown_temp_schema_on_error(engine) -> None:
-    """Make sure the temporary schema gets town down when the simulated entity fails"""
-    SQL = "create materialized view public.some_view as INVALID SQL!;"
-    view = PGMaterializedView.from_sql(SQL)
-
-    with engine.connect() as connection:
-        with pytest.raises(Exception):
-            with simulate_entity(connection, view):
-                pass
-
-        maybe_schema = connection.execute(
-            "select * from pg_namespace where nspname = 'alembic_utils';"
-        ).fetchone()
-        assert maybe_schema is None
 
 
 def test_create_revision(engine) -> None:
@@ -88,35 +71,6 @@ def test_create_revision(engine) -> None:
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
     assert "from alembic_utils.pg_materialized_view import PGMaterializedView" in migration_contents
-
-    # Execute upgrade
-    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
-    # Execute Downgrade
-    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
-
-
-@pytest.mark.xfail
-def test_works_when_dependnecy_exisst(engine) -> None:
-    engine.execute(TEST_MAT_VIEW.to_sql_statement_create())
-    # Make a dependency on the TEST_MAT_VIEW
-    engine.execute('create view public.abc as select * from "DEV".test_mat_view;')
-
-    register_entities([TEST_MAT_VIEW])
-
-    output = run_alembic_command(
-        engine=engine,
-        command="revision",
-        command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
-    )
-
-    migration_create_path = TEST_VERSIONS_ROOT / "1_create.py"
-
-    with migration_create_path.open() as migration_file:
-        migration_contents = migration_file.read()
-
-    assert "op.create_entity" not in migration_contents
-    assert "op.drop_entity" not in migration_contents
-    assert "op.replace_entity" not in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})

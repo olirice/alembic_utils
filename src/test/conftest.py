@@ -9,6 +9,7 @@ import time
 import pytest
 from parse import parse
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, reset_event_listener_registry
 
@@ -118,3 +119,13 @@ def engine(raw_engine):
     yield raw_engine
 
     run_cleaners()
+
+
+@pytest.fixture(scope="function")
+def sess(engine):
+    maker = sessionmaker(engine)
+    sess = maker()
+    yield sess
+    sess.rollback()
+    sess.expire_all()
+    sess.close()

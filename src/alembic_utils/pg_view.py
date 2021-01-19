@@ -69,7 +69,7 @@ class PGView(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGView"]:
+    def from_database(cls, sess, schema) -> List["PGView"]:
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
@@ -81,10 +81,10 @@ class PGView(ReplaceableEntity):
             pg_views
         where
             schemaname not in ('pg_catalog', 'information_schema')
-            and schemaname::text = '{schema}';
+            and schemaname::text like '{schema}';
         """
         )
-        rows = connection.execute(sql).fetchall()
+        rows = sess.execute(sql).fetchall()
         db_views = [PGView(x[0], x[1], x[2]) for x in rows]
 
         for view in db_views:
@@ -101,18 +101,6 @@ class PGView(ReplaceableEntity):
         from
             pg_views
         where
-            schemaname::text = '{self.schema}';
-        """
-
-    def get_compare_definition_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        return f"""
-        select
-            schemaname,
-            viewname view_name,
-            definition
-        from
-	    pg_views
-	where
-            schemaname::text = '{self.schema}';
+            schemaname::text = '{self.schema}'
+            and viewname = '{self.signature}';
         """

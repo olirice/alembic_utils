@@ -12,3 +12,7 @@ class SQLParseFailure(AlembicUtilsException):
 
 class FailedToGenerateComparable(AlembicUtilsException):
     """Failed to generate a comparable entity"""
+
+
+class UnreachableException(AlembicUtilsException):
+    """An exception no one should ever see"""
