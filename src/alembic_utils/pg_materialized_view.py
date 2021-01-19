@@ -139,17 +139,3 @@ class PGMaterializedView(ReplaceableEntity):
             schemaname::text = '{self.schema}'
             and matviewname = '{self.signature}';
         """
-
-    def get_compare_definition_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        return f"""
-        select
-            schemaname,
-            matviewname view_name,
-            definition
-        from
-	    pg_matviews
-	where
-            schemaname::text = '{self.schema}'
-            and matviewname = '{self.signature}';
-        """

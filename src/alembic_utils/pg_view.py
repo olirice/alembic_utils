@@ -104,17 +104,3 @@ class PGView(ReplaceableEntity):
             schemaname::text = '{self.schema}'
             and viewname = '{self.signature}';
         """
-
-    def get_compare_definition_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        return f"""
-        select
-            schemaname,
-            viewname view_name,
-            definition
-        from
-	    pg_views
-	where
-            schemaname::text = '{self.schema}'
-            and viewname = '{self.signature}';
-        """

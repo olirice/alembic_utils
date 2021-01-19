@@ -123,16 +123,11 @@ def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
     """Defer entities that depend on *entity*"""
 
     dependents = get_dependent_entities(sess, entity)
-    # print(entity.identity, [x.identity for x in dependents])
 
     try:
         sess.begin_nested()
 
         for ent in dependents:
-            if ent is None:
-                import pdb
-
-                pdb.set_trace()
             sess.execute(ent.to_sql_statement_drop())
         yield dependents
 

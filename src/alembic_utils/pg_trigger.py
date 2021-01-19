@@ -143,17 +143,3 @@ class PGTrigger(ReplaceableEntity):
         the table they're applied to
         """
         return (self.schema, self.identity)
-
-    def get_compare_definition_query(self):
-        return f"""
-        select
-            pg_get_triggerdef(pgt.oid) definition
-        from
-            pg_trigger pgt
-            inner join information_schema.triggers itr
-                on lower(pgt.tgname) = lower(itr.trigger_name)
-        where
-            not tgisinternal
-            and itr.event_object_schema = '{self.schema}'
-            and tgname = '{self.signature}';
-        """

@@ -76,10 +76,6 @@ class ReplaceableEntity:
         """Return SQL string that returns 1 row for existing DB object"""
         raise NotImplementedError()
 
-    def get_compare_definition_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        raise NotImplementedError()
-
     @cachedmethod(
         lambda self: self._CACHE,
         key=lambda self, *_: (
@@ -99,26 +95,6 @@ class ReplaceableEntity:
             row = tuple(sess.execute(identity_query).fetchone())
         return row
 
-    @cachedmethod(
-        lambda self: self._CACHE,
-        key=lambda self, *_: (
-            self.__class__.__name__,
-            "definition",
-            self.schema,
-            self.signature,
-            self.definition,
-        ),
-    )
-    def get_definition_comparable(self, sess) -> Tuple:
-        """ Generates a SQL "create function" statement for PGFunction """
-        # Create self in a dummy schema
-        definition_query = self.get_compare_definition_query()
-
-        with simulate_entity(sess, self):
-            # Collect the definition_comparable for dummy schema self
-            row = tuple(sess.execute(definition_query).fetchone())
-        return row
-
     def to_sql_statement_create(self) -> str:
         """ Generates a SQL "create function" statement for PGFunction """
         raise NotImplementedError()
@@ -130,12 +106,6 @@ class ReplaceableEntity:
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         raise NotImplementedError()
-
-    def is_equal_definition(self, other: T, sess: Session) -> bool:
-        """Is the definition within self and other the same"""
-        self_comparable = self.get_definition_comparable(sess)
-        other_comparable = other.get_definition_comparable(sess)
-        return self_comparable == other_comparable
 
     def is_equal_identity(self, other: T, sess: Session) -> bool:
         """Is the definition within self and other the same"""

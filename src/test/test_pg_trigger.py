@@ -180,15 +180,3 @@ def test_fail_create_sql_statement_create():
 
     with pytest.raises(SQLParseFailure):
         trig.to_sql_statement_create()
-
-
-def test_get_definition_comparable_does_not_exist_yet(sql_setup, sess):
-    sess.execute(FUNC.to_sql_statement_create())
-    # for coverage
-    assert TRIG.get_definition_comparable(sess) is not None
-
-
-def test_get_definition_comparable_invalid_sql(sql_setup, sess):
-    trig = PGTrigger(schema="public", signature="lower_account_email", definition="INVALID DEF")
-    with pytest.raises(SQLParseFailure):
-        trig.get_definition_comparable(sess)

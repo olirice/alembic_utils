@@ -166,21 +166,3 @@ class PGFunction(ReplaceableEntity):
             pronamespace::regnamespace::text = '{self.schema}'
             and proname = '{proname}';
         """
-
-    def get_compare_definition_query(self):
-        """Only called in simulation. alembic_util schema will onle have 1 record"""
-        proname = self.signature.split("(")[0]
-        return f"""
-        select
-            regexp_replace(
-                pg_get_functiondef(proc.oid),
-                '^\s+',
-                '',
-                'igm'
-            )
-        from
-            pg_proc proc
-        where
-            pronamespace::regnamespace::text = '{self.schema}'
-            and proname = '{proname}';
-        """
