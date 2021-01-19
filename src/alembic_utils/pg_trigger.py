@@ -1,5 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from parse import parse
 from sqlalchemy import text as sql_text
@@ -33,6 +33,12 @@ class PGTrigger(ReplaceableEntity):
     """
 
     _template = "create{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}"
+
+    def __init__(
+        self, schema: str, signature: str, definition: str, on_entity: Optional[str] = None
+    ):
+        super().__init__(schema=schema, signature=signature, definition=definition)
+        self._on_entity = on_entity
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
@@ -92,6 +98,9 @@ class PGTrigger(ReplaceableEntity):
     @property
     def on_entity(self) -> str:
         """Get the fully qualified name of the table/view the trigger is applied to"""
+
+        if self._on_entity:
+            return self._on_entity
         create_statement = str(self.to_sql_statement_create())
         result = parse(self._template, create_statement, case_sensitive=False)
         return result["on_entity"]

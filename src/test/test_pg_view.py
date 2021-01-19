@@ -32,11 +32,6 @@ def test_parsable_body() -> None:
         pytest.fail(f"Unexpected SQLParseFailure for view {SQL}")
 
 
-def test_find_no_match(sess) -> None:
-    maybe_found = TEST_VIEW.get_database_definition(sess)
-    assert maybe_found is None
-
-
 def test_create_revision(engine) -> None:
     register_entities([TEST_VIEW])
 
