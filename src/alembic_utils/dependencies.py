@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from parse import parse
 from sqlalchemy.orm import Session
@@ -27,6 +27,7 @@ def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["
     # migration op is needed and then rolls them all back in a transaction
 
     from alembic_utils.pg_materialized_view import PGMaterializedView
+    from alembic_utils.pg_trigger import PGTrigger
     from alembic_utils.pg_view import PGView
 
     #    from alembic_utils.pg_trigger import PGTrigger
@@ -58,7 +59,7 @@ def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["
 
     VIEW_TEMPLATE = "view {signature} depends on {}"
     MATERIALIZED_VIEW_TEMPLATE = "materialized view {signature} depends on {}"
-    #    TRIGGER_TEMPLATE = "trigger {signature} depends on {}"
+    TRIGGER_TEMPLATE = "trigger {signature} on table {on_entity} depends on {}"
 
     res = parse(TEMPLATE, sql_error_message)
 
@@ -69,7 +70,7 @@ def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["
     class_to_parser = [
         (PGView, partial(parse, VIEW_TEMPLATE)),
         (PGMaterializedView, partial(parse, MATERIALIZED_VIEW_TEMPLATE)),
-        #        (PGTrigger, partial(parse, TRIGGER_TEMPLATE)),
+        (PGTrigger, partial(parse, TRIGGER_TEMPLATE)),
     ]
 
     dependent_objects = []
@@ -83,27 +84,20 @@ def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["
                 parsed_signature = parser(drec)
 
                 if parsed_signature:
+
                     signature_str = parsed_signature["signature"]
                     if "." in signature_str:
                         schema, _, signature = signature_str.partition(".")
                     else:
                         schema, signature = "public", signature_str
 
-                    entity_wo_definition = class_(
-                        strip_double_quotes(schema), strip_double_quotes(signature), ""
-                    )
+                    init_dict: Dict[str, str] = parsed_signature.named
+                    init_dict["schema"] = strip_double_quotes(schema)
+                    init_dict["signature"] = strip_double_quotes(signature)
+                    init_dict["definition"] = ""
 
+                    entity_wo_definition = class_(**init_dict)
                     dependent_objects.append(entity_wo_definition)
-
-                    # If definition is needed in the future, use the following
-
-                    # dependent_object = [
-                    #    x
-                    #    for x in class_.from_database(sess, schema)
-                    #    if x.identity == entity_wo_definition.identity
-                    # ][0]
-
-                    # dependent_objects.append(dependent_object)
                     break
 
     seen_identities = set()

@@ -1,15 +1,15 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 import logging
 from contextlib import contextmanager
+from itertools import zip_longest
 from pathlib import Path
-from typing import List, Optional, Tuple, Type, TypeVar
+from typing import List, Optional, Type, TypeVar
 
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
 from flupy import flu
 from sqlalchemy.orm import Session
 
-from alembic_utils.cache import cachedmethod
 from alembic_utils.dependencies import defer_dependent
 from alembic_utils.exceptions import (
     DuplicateRegistration,
@@ -72,29 +72,6 @@ class ReplaceableEntity:
         """Collect existing entities from the database for given schema"""
         raise NotImplementedError()
 
-    def get_compare_identity_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        raise NotImplementedError()
-
-    @cachedmethod(
-        lambda self: self._CACHE,
-        key=lambda self, *_: (
-            self.__class__.__name__,
-            "identity",
-            self.schema,
-            self.signature,
-            self.definition,
-        ),
-    )
-    def get_identity_comparable(self, sess: Session) -> Tuple:
-        """ Generates a SQL "create function" statement for PGFunction """
-        # Create other in a dummy schema
-        identity_query = self.get_compare_identity_query()
-        with simulate_entity(sess, self):
-            # Collect the definition_comparable for dummy schema self
-            row = tuple(sess.execute(identity_query).fetchone())
-        return row
-
     def to_sql_statement_create(self) -> str:
         """ Generates a SQL "create function" statement for PGFunction """
         raise NotImplementedError()
@@ -107,20 +84,27 @@ class ReplaceableEntity:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         raise NotImplementedError()
 
-    def is_equal_identity(self, other: T, sess: Session) -> bool:
-        """Is the definition within self and other the same"""
-        self_comparable = self.get_identity_comparable(sess)
-        other_comparable = other.get_identity_comparable(sess)
-        return self_comparable == other_comparable
-
-    def get_database_definition(self: T, sess: Session) -> Optional[T]:
+    def get_database_definition(self: T, sess: Session) -> T:  # $Optional[T]:
         """ Looks up self and return the copy existing in the database (maybe)the"""
-        all_entities = self.from_database(sess, schema=self.schema)
-        matches = [x for x in all_entities if self.is_equal_identity(x, sess)]
-        if len(matches) == 0:
-            return None
-        db_match = matches[0]
-        return db_match
+        with simulate_entity(sess, self) as sess:
+            # Drop self
+            sess.execute(self.to_sql_statement_drop())
+
+            # collect all remaining entities
+            db_entities = self.from_database(sess, schema=self.schema)
+            db_entities = sorted(db_entities, key=lambda x: x.identity)
+
+        with simulate_entity(sess, self) as sess:
+            # collect all remaining entities
+            all_w_self = self.from_database(sess, schema=self.schema)
+            all_w_self = sorted(all_w_self, key=lambda x: x.identity)
+
+        # Find "self" by diffing the before and after
+        for without_self, with_self in zip_longest(db_entities, all_w_self):
+            if without_self is None or without_self.identity != with_self.identity:
+                return with_self
+
+        raise UnreachableException()
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
