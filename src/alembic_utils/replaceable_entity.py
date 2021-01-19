@@ -10,7 +10,7 @@ from flupy import flu
 from sqlalchemy.orm import Session
 
 from alembic_utils.cache import cachedmethod
-from alembic_utils.defer_dependents import defer_dependents
+from alembic_utils.dependencies import defer_dependent
 from alembic_utils.exceptions import (
     DuplicateRegistration,
     FailedToGenerateComparable,
@@ -31,7 +31,7 @@ def simulate_entity(sess: Session, entity):
     """
     try:
         sess.begin_nested()
-        with defer_dependents(sess, entity):
+        with defer_dependent(sess, entity):
             sess.execute(entity.to_sql_statement_create_or_replace())
             yield sess
     finally:

@@ -119,8 +119,11 @@ def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["
 
 
 @contextmanager
-def defer_dependents(sess: Session, entity: "ReplaceableEntity"):
-    """Defer entities that depend on *entity*"""
+def defer_dependent(sess: Session, entity: "ReplaceableEntity"):
+    """Defer entities that depend on *entity* and yield the session
+
+    Automatically rolls back at the end of the context
+    """
 
     dependents = get_dependent_entities(sess, entity)
 
