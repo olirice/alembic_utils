@@ -128,17 +128,19 @@ class PGTrigger(ReplaceableEntity):
     def from_database(cls, sess, schema) -> List["PGFunction"]:
         """Get a list of all functions defined in the db"""
 
-        # NOTE(OR): Schema is looked up by unqualified trigger name. Mismatches possible
         sql = sql_text(
-            f"""
+            """
         select
             itr.trigger_schema as table_schema,
             tgname trigger_name,
             pg_get_triggerdef(pgt.oid) definition
         from
             pg_trigger pgt
+			inner join pg_class pc
+				on pgt.tgrelid = pc.oid
             inner join information_schema.triggers itr
-                    on lower(pgt.tgname) = lower(itr.trigger_name)
+                on lower(pgt.tgname) = lower(itr.trigger_name)
+				and pc.relnamespace::regnamespace::text = itr.trigger_schema
         where
             not tgisinternal
             and itr.event_object_schema like :schema
