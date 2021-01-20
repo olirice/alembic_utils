@@ -65,7 +65,7 @@ def solve_resolution_order(sess: Session, entities):
     resolved = []
 
     # Resolve the entities with 0 dependencies first (faster)
-    logger.debug("Resolving entities with no dependencies")
+    logger.info("Resolving entities with no dependencies")
     for entity in entities:
         try:
             with simulate_entity(sess, entity):
@@ -191,7 +191,7 @@ class ReplaceableEntity:
     @property
     def identity(self) -> str:
         """A string that consistently and globally identifies a function"""
-        return f"{self.schema}.{self.signature}"
+        return f"{self.__class__.__name__}: {self.schema}.{self.signature}"
 
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents """

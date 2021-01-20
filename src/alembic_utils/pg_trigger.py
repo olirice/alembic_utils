@@ -46,7 +46,7 @@ class PGTrigger(ReplaceableEntity):
 
         Overriding default to add the "on table" clause
         """
-        return f"{self.schema}.{self.signature}-{self.on_entity}"
+        return f"{self.__class__.__name__}{self.schema}.{self.signature}-{self.on_entity}"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
