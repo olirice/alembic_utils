@@ -64,15 +64,25 @@ def solve_resolution_order(sess: Session, entities):
 
     resolved = []
 
+    # Resolve the entities with 0 dependencies first (faster)
+    for entity in entities:
+        try:
+            with simulate_entity(sess, entity):
+                resolved.append(entity)
+        except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
+            continue
+
+    # Resolve entities with possible dependencies
     for _ in range(len(entities)):
+        print("Resolving order round", _)
         n_resolved = len(resolved)
 
         for entity in entities:
             if entity in resolved:
                 continue
+
             try:
                 with simulate_entity(sess, entity, dependencies=resolved):
-                    # simulate the entity
                     resolved.append(entity)
             except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
                 continue
@@ -373,6 +383,8 @@ def register_entities(
             # entities that are receiving a create or update op
             has_create_or_update_op = []
 
+            # database rendered definitions for the entities we have a local instance for
+            # Note: used for drops
             local_entities = []
 
             # Required migration OPs, Create/Update/NoOp
