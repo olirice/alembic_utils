@@ -8,7 +8,7 @@ First, install alembic_utils
 $ pip install alembic_utils
 ```
 
-Next, add "alembic_utils" to the logger keys in `alembic.ini` and add a configuration for it.
+Next, add "alembic_utils" to the logger keys in `alembic.ini` and a configuration for it.
 ```
 ...
 [loggers]
