@@ -115,6 +115,17 @@
 <div class="codehilite"><pre><span></span><code>$ pip install alembic_utils
 </code></pre></div>
 
+<p>Next, add "alembic_utils" to the logger keys in <code>alembic.ini</code> and add a configuration for it.</p>
+<div class="codehilite"><pre><span></span><code><span class="p">...</span><span class="w"></span>
+<span class="o">[</span><span class="n">loggers</span><span class="o">]</span><span class="w"></span>
+<span class="n">keys</span><span class="o">=</span><span class="n">root</span><span class="p">,</span><span class="n">sqlalchemy</span><span class="p">,</span><span class="n">alembic</span><span class="p">,</span><span class="n">alembic_utils</span><span class="w"></span>
+
+<span class="o">[</span><span class="n">logger_alembic_utils</span><span class="o">]</span><span class="w"></span>
+<span class="k">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INFO</span><span class="w"></span>
+<span class="n">handlers</span><span class="w"> </span><span class="o">=</span><span class="w"></span>
+<span class="n">qualname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">alembic_utils</span><span class="w"></span>
+</code></pre></div>
+
 <h3 id="reference">Reference</h3>
 <p>Then add a function to your project</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># my_function.py</span>
