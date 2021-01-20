@@ -8,6 +8,18 @@ First, install alembic_utils
 $ pip install alembic_utils
 ```
 
+Next, add "alembic_utils" to the logger keys in `alembic.ini` and add a configuration for it.
+```
+...
+[loggers]
+keys=root,sqlalchemy,alembic,alembic_utils
+
+[logger_alembic_utils]
+level = INFO
+handlers =
+qualname = alembic_utils
+```
+
 ### Reference
 
 Then add a function to your project

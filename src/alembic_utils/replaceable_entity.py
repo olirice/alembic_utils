@@ -24,7 +24,7 @@ from alembic_utils.statement import (
     strip_terminating_semicolon,
 )
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound="ReplaceableEntity")
 
@@ -65,6 +65,7 @@ def solve_resolution_order(sess: Session, entities):
     resolved = []
 
     # Resolve the entities with 0 dependencies first (faster)
+    logger.debug("Resolving entities with no dependencies")
     for entity in entities:
         try:
             with simulate_entity(sess, entity):
@@ -74,7 +75,7 @@ def solve_resolution_order(sess: Session, entities):
 
     # Resolve entities with possible dependencies
     for _ in range(len(entities)):
-        print("Resolving order round", _)
+        logger.info("Resolving entities with dependencies. This may take a minute")
         n_resolved = len(resolved)
 
         for entity in entities:
@@ -389,7 +390,11 @@ def register_entities(
 
             # Required migration OPs, Create/Update/NoOp
             for entity in ordered_entities:
-                print(f"Processing {entity.__class__.__name__} {entity.identity}")
+                logger.info(
+                    "Detecting required migration op %s %s",
+                    entity.__class__.__name__,
+                    entity.identity,
+                )
 
                 try:
                     transaction = connection.begin()
@@ -408,8 +413,17 @@ def register_entities(
                         upgrade_ops.ops.append(maybe_op)
                         has_create_or_update_op.append(entity)
 
-                        print(
-                            f"Detected {maybe_op.__class__.__name__} for {entity.__class__.__name__} {entity.identity}"
+                        logger.info(
+                            "Detected %s op for %s %s",
+                            maybe_op.__class__.__name__,
+                            entity.__class__.__name__,
+                            entity.identity,
+                        )
+                    else:
+                        logger.info(
+                            "Detected NoOp op for %s %s",
+                            entity.__class__.__name__,
+                            entity.identity,
                         )
 
                 finally:
@@ -439,8 +453,10 @@ def register_entities(
                             else:
                                 # No match was found locally
                                 upgrade_ops.ops.append(DropOp(db_entity))
-                                print(
-                                    f"Detected DropOp drop {db_entity.__class__.__name__} {db_entity.identity}"
+                                logger.info(
+                                    "Detected DropOp op for %s %s",
+                                    db_entity.__class__.__name__,
+                                    db_entity.identity,
                                 )
 
             finally:
