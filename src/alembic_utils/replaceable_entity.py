@@ -26,9 +26,10 @@ T = TypeVar("T", bound="ReplaceableEntity")
 
 @contextmanager
 def simulate_entity(sess: Session, entity):
-    """Creates *entities* in a transaction so postgres rendered definition
+    """Creates *entiity* in a transaction so postgres rendered definition
     can be retrieved
     """
+
     try:
         sess.begin_nested()
         with defer_dependent(sess, entity):

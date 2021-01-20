@@ -17,21 +17,16 @@ def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["
     The output is sorted in the order that the entities can be dropped without raising
     an exception. It includes direct and transitive dependencies
     """
+    from alembic_utils.pg_materialized_view import PGMaterializedView
+    from alembic_utils.pg_trigger import PGTrigger
+    from alembic_utils.pg_view import PGView
 
     # Materialized views don't have a create or replace statement
     # So replace_entity is defined as a drop and then a create
     # the simulator will fail to simulate the drop and complain about dependent entities
     # if they exist
-
     # The dependency resolver defers dependent entities while we figure out what
     # migration op is needed and then rolls them all back in a transaction
-
-    from alembic_utils.pg_materialized_view import PGMaterializedView
-    from alembic_utils.pg_trigger import PGTrigger
-    from alembic_utils.pg_view import PGView
-
-    #    from alembic_utils.pg_trigger import PGTrigger
-    # This is almost certainly a bad idea
 
     sql_error_message: Optional[str] = None
     try:
@@ -55,22 +50,37 @@ def get_dependent_entities(sess: Session, entity: "ReplaceableEntity") -> List["
     # HINT: USE DROP ... CASCADE to drop the dependent objects too.
     # .....
 
-    TEMPLATE = "{}cannot drop{}{}DETAIL:{remaining}HINT:{}{:w}{}"
+    error_template = "{}cannot drop{}{}DETAIL:{remaining}HINT:{}{:w}{}"
 
-    VIEW_TEMPLATE = "view {signature} depends on {}"
-    MATERIALIZED_VIEW_TEMPLATE = "materialized view {signature} depends on {}"
-    TRIGGER_TEMPLATE = "trigger {signature} on table {on_entity} depends on {}"
+    view_template = "view {signature} depends on {}"
+    materialized_view_template = "materialized view {signature} depends on {}"
+    trigger_template = "trigger {signature} on table {on_entity} depends on {}"
 
-    res = parse(TEMPLATE, sql_error_message)
+    # Dependencies of functions are not tracked or enforced in PG. Their bodies are stored as text
+    #
+    # Example:
+    #    create view public.abc as select 'hello' as one;
+    #    create or replace function catabc() returns text as $$ select one from public.abc $$ language sql;
+    #    select catabc()
+    #    -- Returns: 'hello'
+    #
+    #    drop view public.abc
+    #    -- Ideally this would fail, but it doesnt.
+    #
+    #    select catabc()
+    #    -- Runtime error:
+    #    -- relation "public.abc" does not exist
+
+    res = parse(error_template, sql_error_message)
 
     if not res:
         # The error was something other than a dependency issue
         return []
 
     class_to_parser = [
-        (PGView, partial(parse, VIEW_TEMPLATE)),
-        (PGMaterializedView, partial(parse, MATERIALIZED_VIEW_TEMPLATE)),
-        (PGTrigger, partial(parse, TRIGGER_TEMPLATE)),
+        (PGView, partial(parse, view_template)),
+        (PGMaterializedView, partial(parse, materialized_view_template)),
+        (PGTrigger, partial(parse, trigger_template)),
     ]
 
     dependent_objects = []
