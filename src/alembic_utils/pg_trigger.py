@@ -131,19 +131,16 @@ class PGTrigger(ReplaceableEntity):
         sql = sql_text(
             """
         select
-            itr.trigger_schema as table_schema,
+            pc.relnamespace::regnamespace::text as table_schema,
             tgname trigger_name,
             pg_get_triggerdef(pgt.oid) definition
         from
             pg_trigger pgt
-			inner join pg_class pc
-				on pgt.tgrelid = pc.oid
-            inner join information_schema.triggers itr
-                on lower(pgt.tgname) = lower(itr.trigger_name)
-				and pc.relnamespace::regnamespace::text = itr.trigger_schema
+                inner join pg_class pc
+                    on pgt.tgrelid = pc.oid
         where
             not tgisinternal
-            and itr.event_object_schema like :schema
+            and pc.relnamespace::regnamespace::text like :schema
         """
         )
         rows = sess.execute(sql, {"schema": schema}).fetchall()
