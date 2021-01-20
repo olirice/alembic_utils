@@ -1,6 +1,6 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 import logging
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from itertools import zip_longest
 from pathlib import Path
 from typing import List, Optional, Type, TypeVar
@@ -8,6 +8,7 @@ from typing import List, Optional, Type, TypeVar
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
 from flupy import flu
+from sqlalchemy import exc as sqla_exc
 from sqlalchemy.orm import Session
 
 from alembic_utils.dependencies import defer_dependent
@@ -29,18 +30,72 @@ T = TypeVar("T", bound="ReplaceableEntity")
 
 
 @contextmanager
-def simulate_entity(sess: Session, entity):
+def simulate_entity(sess: Session, entity, dependencies: Optional[List[T]] = None):
     """Creates *entiity* in a transaction so postgres rendered definition
     can be retrieved
     """
+    if not dependencies:
+        dependencies: List[T] = []
 
     try:
         sess.begin_nested()
-        with defer_dependent(sess, entity):
-            sess.execute(entity.to_sql_statement_create_or_replace())
-            yield sess
+
+        dependency_managers = [simulate_entity(sess, x) for x in dependencies]
+
+        with ExitStack() as stack:
+            # Setup all the possible dependencies
+            for mgr in dependency_managers:
+                stack.enter_context(mgr)
+
+            with defer_dependent(sess, entity):
+                sess.execute(entity.to_sql_statement_create_or_replace())
+                yield sess
     finally:
         sess.rollback()
+
+
+def solve_resolution_order(sess: Session, entities):
+    """Solve for an entity resolution order that increases the probability that
+    a migration will suceed if, for example, two new views are created and one
+    refers to the other
+
+    This strategy will only solve for simple cases
+    """
+
+    resolved = []
+
+    # Resolve the entities with 0 dependencies first (faster)
+    for entity in entities:
+        try:
+            with simulate_entity(sess, entity):
+                resolved.append(entity)
+        except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
+            continue
+
+    # Resolve entities with possible dependencies
+    for _ in range(len(entities)):
+        print("Resolving order round", _)
+        n_resolved = len(resolved)
+
+        for entity in entities:
+            if entity in resolved:
+                continue
+
+            try:
+                with simulate_entity(sess, entity, dependencies=resolved):
+                    resolved.append(entity)
+            except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
+                continue
+
+        if len(resolved) == n_resolved:
+            # No new entities resolved in the last iteration. Exit
+            break
+
+    for entity in entities:
+        if entity not in resolved:
+            resolved.append(entity)
+
+    return resolved
 
 
 class ReplaceableEntity:
@@ -89,9 +144,11 @@ class ReplaceableEntity:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         raise NotImplementedError()
 
-    def get_database_definition(self: T, sess: Session) -> T:  # $Optional[T]:
-        """ Looks up self and return the copy existing in the database (maybe)the"""
-        with simulate_entity(sess, self) as sess:
+    def get_database_definition(
+        self: T, sess: Session, dependencies: Optional[List[T]] = None
+    ) -> T:  # $Optional[T]:
+        """Creates the entity in the database, retrieves its 'rendered' then rolls it back"""
+        with simulate_entity(sess, self, dependencies) as sess:
             # Drop self
             sess.execute(self.to_sql_statement_drop())
 
@@ -99,7 +156,7 @@ class ReplaceableEntity:
             db_entities = self.from_database(sess, schema=self.schema)
             db_entities = sorted(db_entities, key=lambda x: x.identity)
 
-        with simulate_entity(sess, self) as sess:
+        with simulate_entity(sess, self, dependencies) as sess:
             # collect all remaining entities
             all_w_self = self.from_database(sess, schema=self.schema)
             all_w_self = sorted(all_w_self, key=lambda x: x.identity)
@@ -141,13 +198,14 @@ class ReplaceableEntity:
         object_name = self.signature.split("(")[0].strip().lower()
         return f"{schema_name}_{object_name}"
 
-    def get_required_migration_op(self, sess: Session) -> Optional[ReversibleOp]:
+    def get_required_migration_op(
+        self, sess: Session, dependencies: Optional[List[T]] = None
+    ) -> Optional[ReversibleOp]:
         """Get the migration operation required for autogenerate"""
         # All entities in the database for self's schema
         entities_in_database = self.from_database(sess, schema=self.schema)
 
-        with simulate_entity(sess, self) as sess:
-            db_def = self.get_database_definition(sess)
+        db_def = self.get_database_definition(sess, dependencies=dependencies)
 
         for x in entities_in_database:
 
@@ -314,17 +372,41 @@ def register_entities(
 
         with engine.connect() as connection:
 
-            for entity in entities:
+            # Solve resolution order
+            try:
+                transaction = connection.begin()
+                sess = Session(bind=connection)
+                ordered_entities: List[T] = solve_resolution_order(sess, entities)
+            finally:
+                transaction.rollback()
+
+            # entities that are receiving a create or update op
+            has_create_or_update_op = []
+
+            # database rendered definitions for the entities we have a local instance for
+            # Note: used for drops
+            local_entities = []
+
+            # Required migration OPs, Create/Update/NoOp
+            for entity in ordered_entities:
                 print(f"Processing {entity.__class__.__name__} {entity.identity}")
 
                 try:
-                    # Start a parent transaction
-                    # Bind the session within the parent transaction
                     transaction = connection.begin()
                     sess = Session(bind=connection)
-                    maybe_op = entity.get_required_migration_op(sess)
+
+                    maybe_op = entity.get_required_migration_op(
+                        sess, dependencies=has_create_or_update_op
+                    )
+
+                    local_db_def = entity.get_database_definition(
+                        sess, dependencies=has_create_or_update_op
+                    )
+                    local_entities.append(local_db_def)
+
                     if maybe_op:
                         upgrade_ops.ops.append(maybe_op)
+                        has_create_or_update_op.append(entity)
 
                         print(
                             f"Detected {maybe_op.__class__.__name__} for {entity.__class__.__name__} {entity.identity}"
@@ -333,18 +415,12 @@ def register_entities(
                 finally:
                     transaction.rollback()
 
+            # Required migration OPs, Drop
             try:
                 # Start a parent transaction
                 # Bind the session within the parent transaction
                 transaction = connection.begin()
                 sess = Session(bind=connection)
-
-                # Convert the user defined definitions to the database rendered definitions
-                local_entities = []
-                for ent in entities:
-                    with simulate_entity(sess, ent) as sess:
-                        local_entity = ent.get_database_definition(sess)
-                        local_entities.append(local_entity)
 
                 # All database entities currently live
                 # Check if anything needs to drop
