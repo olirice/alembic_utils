@@ -60,7 +60,7 @@ class PGView(ReplaceableEntity):
                 CREATE OR REPLACE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
 
             exception when others then
-                DROP VIEW {self.literal_schema}."{self.signature}";
+                DROP VIEW IF EXISTS {self.literal_schema}."{self.signature}";
 
                 CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
             end;
