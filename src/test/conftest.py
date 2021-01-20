@@ -11,7 +11,10 @@ from parse import parse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from alembic_utils.testbase import TEST_VERSIONS_ROOT, reset_event_listener_registry
+from alembic_utils.testbase import (
+    TEST_VERSIONS_ROOT,
+    reset_event_listener_registry,
+)
 
 PYTEST_DB = "postgresql://alem_user:password@localhost:5610/alem_db"
 

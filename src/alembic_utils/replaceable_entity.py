@@ -17,7 +17,11 @@ from alembic_utils.exceptions import (
     UnreachableException,
 )
 from alembic_utils.reversible_op import ReversibleOp
-from alembic_utils.statement import escape_colon, normalize_whitespace, strip_terminating_semicolon
+from alembic_utils.statement import (
+    escape_colon,
+    normalize_whitespace,
+    strip_terminating_semicolon,
+)
 
 log = logging.getLogger(__name__)
 

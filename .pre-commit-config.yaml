@@ -1,7 +1,7 @@
 repos:
 
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+    rev: v3.4.0
     hooks:
     - id: check-ast
     - id: check-added-large-files
@@ -12,10 +12,10 @@ repos:
     - id: trailing-whitespace
 
 -   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.5.2
+    rev: v5.7.0
     hooks:
     - id: isort
-      args: ['--multi-line=3', '--trailing-comma', '--force-grid-wrap=0', '--use-parentheses', '--line-width=100']
+      args: ['--multi-line=3', '--trailing-comma', '--force-grid-wrap=0', '--use-parentheses']
 
 
 -   repo: https://github.com/humitos/mirrors-autoflake
@@ -29,4 +29,3 @@ repos:
     hooks:
     - id: black
       language_version: python3.7
-      args: ['--line-length=100']
