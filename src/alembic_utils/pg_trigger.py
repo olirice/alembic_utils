@@ -1,14 +1,15 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List, Optional
+from typing import List
 
 from parse import parse
 from sqlalchemy import text as sql_text
 
 from alembic_utils.exceptions import SQLParseFailure
+from alembic_utils.on_entity_mixin import OnEntityMixin
 from alembic_utils.replaceable_entity import ReplaceableEntity
 
 
-class PGTrigger(ReplaceableEntity):
+class PGTrigger(OnEntityMixin, ReplaceableEntity):
     """A PostgreSQL Trigger compatible with `alembic revision --autogenerate`
 
     **Parameters:**
@@ -16,6 +17,7 @@ class PGTrigger(ReplaceableEntity):
     * **schema** - *str*: A SQL schema name
     * **signature** - *str*: A SQL function's call signature
     * **definition** - *str*:  The remainig function body and identifiers
+    * **on_entity** - *str*:  fully qualifed entity that the policy applies
 
     Postgres Create Trigger Specification:
 
@@ -26,27 +28,9 @@ class PGTrigger(ReplaceableEntity):
         [ FOR [ EACH ] { ROW | STATEMENT } ]
         [ WHEN ( condition ) ]
         EXECUTE PROCEDURE function_name ( arguments )
-
-    Limitations:
-        - "table" must be qualified with a schema name e.g. public.account vs account
-        - trigger schema must match table schema
     """
 
     _template = "create{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}"
-
-    def __init__(
-        self, schema: str, signature: str, definition: str, on_entity: Optional[str] = None
-    ):
-        super().__init__(schema=schema, signature=signature, definition=definition)
-        self._on_entity = on_entity
-
-    @property
-    def identity(self) -> str:
-        """A string that consistently and globally identifies a function
-
-        Overriding default to add the "on table" clause
-        """
-        return f"{self.__class__.__name__}{self.schema}.{self.signature}-{self.on_entity}"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
@@ -60,9 +44,7 @@ class PGTrigger(ReplaceableEntity):
             action = result["action"]
 
             if "." not in on_entity:
-                raise SQLParseFailure(
-                    f'Failed to parse SQL into PGFunction the table/view {on_entity} must be qualified with a schema e.g. "public.account"'
-                )
+                on_entity = "public" + "." + on_entity
 
             schema = on_entity.split(".")[0]
 
@@ -72,6 +54,7 @@ class PGTrigger(ReplaceableEntity):
             return cls(
                 schema=schema,
                 signature=signature,
+                on_entity=on_entity,
                 definition=definition,
             )
         raise SQLParseFailure(f'Failed to parse SQL into PGTrigger """{sql}"""')
@@ -102,16 +85,6 @@ class PGTrigger(ReplaceableEntity):
         )
 
         return sql_text(f"CREATE TRIGGER {self.signature} {def_rendered}")
-
-    @property
-    def on_entity(self) -> str:
-        """Get the fully qualified name of the table/view the trigger is applied to"""
-
-        if self._on_entity:
-            return self._on_entity
-        create_statement = str(self.to_sql_statement_create())
-        result = parse(self._template, create_statement, case_sensitive=False)
-        return result["on_entity"]
 
     def to_sql_statement_drop(self) -> str:
         """Generates a SQL "drop function" statement for PGFunction"""

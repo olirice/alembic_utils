@@ -55,9 +55,32 @@ from alembic_utils.pg_trigger import PGTrigger
 trigger = PGTrigger(
     schema="public",
     signature="lower_account_email",
+    on_entity="public.account",
     definition="""
         BEFORE INSERT ON public.account
         FOR EACH ROW EXECUTE FUNCTION public.downcase_email()
+    """,
+)
+```
+
+
+::: alembic_utils.pg_policy.PGPolicy
+    :docstring:
+    :members: from_sql from_path
+
+
+```python
+from alembic_utils.pg_policy import PGPolicy
+
+policy = PGPolicy(
+    schema="public",
+    signature="allow_read",
+    on_entity="public.account",
+    definition="""
+        AS PERMISSIVE
+        FOR SELECT
+        TO api_user
+        USING (id = current_setting('api_current_user', true)::int)
     """,
 )
 ```
