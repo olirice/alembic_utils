@@ -11,7 +11,6 @@ from flupy import flu
 from sqlalchemy import exc as sqla_exc
 from sqlalchemy.orm import Session
 
-from alembic_utils.dependencies import defer_dependent
 from alembic_utils.exceptions import (
     DuplicateRegistration,
     FailedToGenerateComparable,
@@ -48,9 +47,27 @@ def simulate_entity(sess: Session, entity, dependencies: Optional[List[T]] = Non
             for mgr in dependency_managers:
                 stack.enter_context(mgr)
 
-            with defer_dependent(sess, entity):
-                sess.execute(entity.to_sql_statement_create_or_replace())
+            did_yield = False
+            try:
+                sess.begin_nested()
+                sess.execute(entity.to_sql_statement_drop(cascade=True))
+                sess.execute(entity.to_sql_statement_create())
+                did_yield = True
                 yield sess
+            except:
+                if did_yield:
+                    # the error came from user code after the yield
+                    # so we can exit
+                    raise
+
+                # Try again without the drop in case the drop raised
+                # a does not exist error
+                sess.rollback()
+                sess.begin_nested()
+                sess.execute(entity.to_sql_statement_create())
+                yield sess
+            finally:
+                sess.rollback()
     finally:
         sess.rollback()
 
@@ -71,7 +88,7 @@ def solve_resolution_order(sess: Session, entities):
         try:
             with simulate_entity(sess, entity):
                 resolved.append(entity)
-        except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
+        except (sqla_exc.ProgrammingError, sqla_exc.InternalError) as exc:
             continue
 
     # Resolve entities with possible dependencies

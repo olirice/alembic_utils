@@ -6,6 +6,11 @@ class OnEntityMixin:
 
     def __init__(self, schema: str, signature: str, definition: str, on_entity: str = None):
         super().__init__(schema=schema, signature=signature, definition=definition)
+
+        if "." not in on_entity:
+            on_entity = "public." + on_entity
+
+        # Guarenteed to have a schema
         self.on_entity = coerce_to_unquoted(on_entity)
 
     @property
@@ -33,5 +38,5 @@ class OnEntityMixin:
         """A deterministic variable name based on PGFunction's contents """
         schema_name = self.schema.lower()
         object_name = self.signature.split("(")[0].strip().lower()
-        unqualified_entity_name, _, _ = self.on_entity.lower().partition(".")
+        _, _, unqualified_entity_name = self.on_entity.lower().partition(".")
         return f"{schema_name}_{unqualified_entity_name}_{object_name}"
