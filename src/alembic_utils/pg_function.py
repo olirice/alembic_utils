@@ -55,8 +55,9 @@ class PGFunction(ReplaceableEntity):
             f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
-    def to_sql_statement_drop(self) -> str:
+    def to_sql_statement_drop(self, cascade=False) -> str:
         """Generates a SQL "drop function" statement for PGFunction"""
+        cascade = "cascade" if cascade else ""
         template = "{function_name}({parameters})"
         result = parse(template, self.signature, case_sensitive=False)
         try:
@@ -73,7 +74,9 @@ class PGFunction(ReplaceableEntity):
         parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
-        return sql_text(f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params})')
+        return sql_text(
+            f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params}) {cascade}'
+        )
 
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """
