@@ -19,6 +19,7 @@ from alembic_utils.exceptions import (
 )
 from alembic_utils.reversible_op import ReversibleOp
 from alembic_utils.statement import (
+    coerce_to_unquoted,
     escape_colon,
     normalize_whitespace,
     strip_terminating_semicolon,
@@ -102,11 +103,9 @@ def solve_resolution_order(sess: Session, entities):
 class ReplaceableEntity:
     """A SQL Entity that can be replaced"""
 
-    _CACHE = {}
-
     def __init__(self, schema: str, signature: str, definition: str):
-        self.schema: str = normalize_whitespace(schema)
-        self.signature: str = normalize_whitespace(signature)
+        self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
+        self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = escape_colon(strip_terminating_semicolon(definition))
 
     @classmethod
