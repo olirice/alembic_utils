@@ -1,6 +1,3 @@
-# pylint: disable=unused-argument,invalid-name,line-too-long
-from __future__ import annotations
-
 from typing import List
 
 from parse import parse
@@ -24,7 +21,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
     """
 
     @classmethod
-    def from_sql(cls, sql: str) -> PGPolicy:
+    def from_sql(cls, sql: str) -> "PGPolicy":
         """Create an instance instance from a SQL string"""
 
         template = "create policy{:s}{signature}{:s}on{:s}{on_entity}{:s}{definition}"
@@ -66,7 +63,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List[PGPolicy]:
+    def from_database(cls, connection, schema) -> List["PGPolicy"]:
         """Get a list of all policies defined in the db"""
         sql = sql_text(
             f"""
