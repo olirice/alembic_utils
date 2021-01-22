@@ -86,9 +86,10 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
 
         return sql_text(f"CREATE TRIGGER {self.signature} {def_rendered}")
 
-    def to_sql_statement_drop(self) -> str:
+    def to_sql_statement_drop(self, cascade=False) -> str:
         """Generates a SQL "drop function" statement for PGFunction"""
-        return sql_text(f"DROP TRIGGER {self.signature} ON {self.on_entity};")
+        cascade = "cascade" if cascade else ""
+        return sql_text(f"DROP TRIGGER {self.signature} ON {self.on_entity} {cascade}")
 
     def to_sql_statement_create_or_replace(self) -> str:
         """ Generates a SQL "create or replace function" statement for PGFunction """

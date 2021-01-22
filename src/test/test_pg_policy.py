@@ -10,7 +10,7 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 TEST_POLICY = PGPolicy(
     schema="public",
     signature="some_policy",
-    on_entity="public.some_tab",
+    on_entity="some_tab",  # schema omitted intentionally
     definition="""
     for all
     to anon_user
