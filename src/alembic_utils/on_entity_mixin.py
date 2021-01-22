@@ -32,7 +32,7 @@ class OnEntityMixin:
     signature="{self.signature}",
     on_entity="{self.on_entity}",
     definition={repr(escaped_definition)}
-)\n\n"""
+)\n"""
 
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents """

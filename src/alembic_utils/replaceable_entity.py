@@ -106,7 +106,7 @@ class ReplaceableEntity:
     schema="{self.schema}",
     signature="{self.signature}",
     definition={repr(escaped_definition)}
-)\n\n"""
+)\n"""
 
     @classmethod
     def render_import_statement(cls) -> str:
@@ -211,7 +211,7 @@ def render_create_entity(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
-    return target.render_self_for_migration() + f"op.create_entity({variable_name})"
+    return target.render_self_for_migration() + f"op.create_entity({variable_name})\n"
 
 
 @renderers.dispatch_for(DropOp)
@@ -220,7 +220,8 @@ def render_drop_entity(autogen_context, op):
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
     return (
-        target.render_self_for_migration(omit_definition=False) + f"op.drop_entity({variable_name})"
+        target.render_self_for_migration(omit_definition=False)
+        + f"op.drop_entity({variable_name})\n"
     )
 
 
@@ -229,7 +230,7 @@ def render_replace_entity(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
-    return target.render_self_for_migration() + f"op.replace_entity({variable_name})"
+    return target.render_self_for_migration() + f"op.replace_entity({variable_name})\n"
 
 
 @renderers.dispatch_for(RevertOp)
