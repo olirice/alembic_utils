@@ -1,6 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 import logging
-from contextlib import ExitStack, contextmanager
 from itertools import zip_longest
 from pathlib import Path
 from typing import List, Optional, Type, TypeVar
@@ -8,15 +7,15 @@ from typing import List, Optional, Type, TypeVar
 from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
 from flupy import flu
-from sqlalchemy import exc as sqla_exc
 from sqlalchemy.orm import Session
 
+from alembic_utils.dependency_resolution import solve_resolution_order
 from alembic_utils.exceptions import (
     DuplicateRegistration,
-    FailedToGenerateComparable,
     UnreachableException,
 )
 from alembic_utils.reversible_op import ReversibleOp
+from alembic_utils.simulate import simulate_entity
 from alembic_utils.statement import (
     coerce_to_unquoted,
     escape_colon,
@@ -27,94 +26,6 @@ from alembic_utils.statement import (
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound="ReplaceableEntity")
-
-
-@contextmanager
-def simulate_entity(sess: Session, entity, dependencies: Optional[List[T]] = None):
-    """Creates *entiity* in a transaction so postgres rendered definition
-    can be retrieved
-    """
-    if not dependencies:
-        dependencies: List[T] = []
-
-    try:
-        sess.begin_nested()
-
-        dependency_managers = [simulate_entity(sess, x) for x in dependencies]
-
-        with ExitStack() as stack:
-            # Setup all the possible dependencies
-            for mgr in dependency_managers:
-                stack.enter_context(mgr)
-
-            did_yield = False
-            try:
-                sess.begin_nested()
-                sess.execute(entity.to_sql_statement_drop(cascade=True))
-                sess.execute(entity.to_sql_statement_create())
-                did_yield = True
-                yield sess
-            except:
-                if did_yield:
-                    # the error came from user code after the yield
-                    # so we can exit
-                    raise
-
-                # Try again without the drop in case the drop raised
-                # a does not exist error
-                sess.rollback()
-                sess.begin_nested()
-                sess.execute(entity.to_sql_statement_create())
-                yield sess
-            finally:
-                sess.rollback()
-    finally:
-        sess.rollback()
-
-
-def solve_resolution_order(sess: Session, entities):
-    """Solve for an entity resolution order that increases the probability that
-    a migration will suceed if, for example, two new views are created and one
-    refers to the other
-
-    This strategy will only solve for simple cases
-    """
-
-    resolved = []
-
-    # Resolve the entities with 0 dependencies first (faster)
-    logger.info("Resolving entities with no dependencies")
-    for entity in entities:
-        try:
-            with simulate_entity(sess, entity):
-                resolved.append(entity)
-        except (sqla_exc.ProgrammingError, sqla_exc.InternalError) as exc:
-            continue
-
-    # Resolve entities with possible dependencies
-    for _ in range(len(entities)):
-        logger.info("Resolving entities with dependencies. This may take a minute")
-        n_resolved = len(resolved)
-
-        for entity in entities:
-            if entity in resolved:
-                continue
-
-            try:
-                with simulate_entity(sess, entity, dependencies=resolved):
-                    resolved.append(entity)
-            except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
-                continue
-
-        if len(resolved) == n_resolved:
-            # No new entities resolved in the last iteration. Exit
-            break
-
-    for entity in entities:
-        if entity not in resolved:
-            resolved.append(entity)
-
-    return resolved
 
 
 class ReplaceableEntity:
