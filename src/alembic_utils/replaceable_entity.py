@@ -175,10 +175,10 @@ class ReplaceableEntity:
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
         return f"""{var_name} = {class_name}(
-            schema="{self.schema}",
-            signature="{self.signature}",
-            definition={repr(escaped_definition)}
-        )\n\n"""
+    schema="{self.schema}",
+    signature="{self.signature}",
+    definition={repr(escaped_definition)}
+)\n\n"""
 
     @classmethod
     def render_import_statement(cls) -> str:

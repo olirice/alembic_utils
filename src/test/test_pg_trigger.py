@@ -35,6 +35,7 @@ $$ language plpgsql;
 TRIG = PGTrigger(
     schema="public",
     signature="lower_account_email",
+    on_entity="public.account",
     definition="""
         BEFORE INSERT ON public.account
         FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
@@ -75,6 +76,7 @@ def test_trig_update_revision(sql_setup, engine) -> None:
     UPDATED_TRIG = PGTrigger(
         schema="public",
         signature="lower_account_email",
+        on_entity="public.account",
         definition="""
             AFTER INSERT ON public.account
             FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
@@ -171,12 +173,17 @@ def test_on_entity_schema_not_qualified() -> None:
     AFTER INSERT ON account
     FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
     """
-    with pytest.raises(SQLParseFailure):
-        PGTrigger.from_sql(SQL)
+    trigger = PGTrigger.from_sql(SQL)
+    assert trigger.schema == "public"
 
 
 def test_fail_create_sql_statement_create():
-    trig = PGTrigger(schema="public", signature="lower_account_email", definition="INVALID DEF")
+    trig = PGTrigger(
+        schema="public",
+        signature="lower_account_email",
+        on_entity="public.sometab",
+        definition="INVALID DEF",
+    )
 
     with pytest.raises(SQLParseFailure):
         trig.to_sql_statement_create()

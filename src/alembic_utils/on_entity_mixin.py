@@ -8,6 +8,14 @@ class OnEntityMixin:
         super().__init__(schema=schema, signature=signature, definition=definition)
         self.on_entity = coerce_to_unquoted(on_entity)
 
+    @property
+    def identity(self) -> str:
+        """A string that consistently and globally identifies a function
+
+        Overriding default to add the "on table" clause
+        """
+        return f"{self.__class__.__name__}: {self.schema}.{self.signature} {self.on_entity}"
+
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
@@ -15,8 +23,15 @@ class OnEntityMixin:
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
         return f"""{var_name} = {class_name}(
-            schema="{self.schema}",
-            signature="{self.signature}",
-            on_entity="{self.on_entity}",
-            definition={repr(escaped_definition)}
-        )\n\n"""
+    schema="{self.schema}",
+    signature="{self.signature}",
+    on_entity="{self.on_entity}",
+    definition={repr(escaped_definition)}
+)\n\n"""
+
+    def to_variable_name(self) -> str:
+        """A deterministic variable name based on PGFunction's contents """
+        schema_name = self.schema.lower()
+        object_name = self.signature.split("(")[0].strip().lower()
+        unqualified_entity_name, _, _ = self.on_entity.lower().partition(".")
+        return f"{schema_name}_{unqualified_entity_name}_{object_name}"
