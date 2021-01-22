@@ -4,7 +4,7 @@ from alembic_utils.statement import coerce_to_unquoted
 class OnEntityMixin:
     """Mixin to ReplaceableEntity providing setup for entity types requiring an "ON" clause"""
 
-    def __init__(self, schema: str, signature: str, definition: str, on_entity: str = None):
+    def __init__(self, schema: str, signature: str, definition: str, on_entity: str):
         super().__init__(schema=schema, signature=signature, definition=definition)
 
         if "." not in on_entity:
