@@ -5,11 +5,13 @@ import os
 import shutil
 import subprocess
 import time
+from typing import Generator
 
 import pytest
 from parse import parse
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from alembic_utils.testbase import (
     TEST_VERSIONS_ROOT,
@@ -20,7 +22,7 @@ PYTEST_DB = "postgresql://alem_user:password@localhost:5610/alem_db"
 
 
 @pytest.fixture(scope="session")
-def maybe_start_pg() -> None:
+def maybe_start_pg() -> Generator[None, None, None]:
     """Creates a postgres 12 docker container that can be connected
     to using the PYTEST_DB connection string"""
 
@@ -97,7 +99,7 @@ def maybe_start_pg() -> None:
 
 
 @pytest.fixture(scope="session")
-def raw_engine(maybe_start_pg: None):
+def raw_engine(maybe_start_pg: None) -> Generator[Engine, None, None]:
     """sqlalchemy engine fixture"""
     eng = create_engine(PYTEST_DB)
     yield eng
@@ -105,7 +107,7 @@ def raw_engine(maybe_start_pg: None):
 
 
 @pytest.fixture(scope="function")
-def engine(raw_engine):
+def engine(raw_engine) -> Generator[Engine, None, None]:
     """Engine that has been reset between tests"""
 
     def run_cleaners():
@@ -125,7 +127,7 @@ def engine(raw_engine):
 
 
 @pytest.fixture(scope="function")
-def sess(engine):
+def sess(engine) -> Generator[Session, None, None]:
     maker = sessionmaker(engine)
     sess = maker()
     yield sess

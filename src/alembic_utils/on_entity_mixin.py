@@ -1,7 +1,16 @@
+from typing import TYPE_CHECKING
+
 from alembic_utils.statement import coerce_to_unquoted
 
+if TYPE_CHECKING:
+    from alembic_utils.replaceable_entity import ReplaceableEntity
 
-class OnEntityMixin:
+    _Base = ReplaceableEntity
+else:
+    _Base = object
+
+
+class OnEntityMixin(_Base):
     """Mixin to ReplaceableEntity providing setup for entity types requiring an "ON" clause"""
 
     def __init__(self, schema: str, signature: str, definition: str, on_entity: str):

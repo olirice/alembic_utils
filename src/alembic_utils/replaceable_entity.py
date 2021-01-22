@@ -8,6 +8,7 @@ from alembic.autogenerate import comparators, renderers
 from alembic.operations import Operations
 from flupy import flu
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.dependency_resolution import solve_resolution_order
 from alembic_utils.exceptions import (
@@ -60,20 +61,20 @@ class ReplaceableEntity:
         """Collect existing entities from the database for given schema"""
         raise NotImplementedError()
 
-    def to_sql_statement_create(self) -> str:
+    def to_sql_statement_create(self) -> TextClause:
         """ Generates a SQL "create function" statement for PGFunction """
         raise NotImplementedError()
 
-    def to_sql_statement_drop(self, cascade=False) -> str:
+    def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """ Generates a SQL "drop function" statement for PGFunction """
         raise NotImplementedError()
 
-    def to_sql_statement_create_or_replace(self) -> str:
+    def to_sql_statement_create_or_replace(self) -> TextClause:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         raise NotImplementedError()
 
     def get_database_definition(
-        self: T, sess: Session, dependencies: Optional[List[T]] = None
+        self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
     ) -> T:  # $Optional[T]:
         """Creates the entity in the database, retrieves its 'rendered' then rolls it back"""
         with simulate_entity(sess, self, dependencies) as sess:
@@ -81,13 +82,15 @@ class ReplaceableEntity:
             sess.execute(self.to_sql_statement_drop())
 
             # collect all remaining entities
-            db_entities = self.from_database(sess, schema=self.schema)
-            db_entities = sorted(db_entities, key=lambda x: x.identity)
+            db_entities: List[T] = sorted(
+                self.from_database(sess, schema=self.schema), key=lambda x: x.identity
+            )
 
         with simulate_entity(sess, self, dependencies) as sess:
             # collect all remaining entities
-            all_w_self = self.from_database(sess, schema=self.schema)
-            all_w_self = sorted(all_w_self, key=lambda x: x.identity)
+            all_w_self: List[T] = sorted(
+                self.from_database(sess, schema=self.schema), key=lambda x: x.identity
+            )
 
         # Find "self" by diffing the before and after
         for without_self, with_self in zip_longest(db_entities, all_w_self):
@@ -127,11 +130,11 @@ class ReplaceableEntity:
         return f"{schema_name}_{object_name}"
 
     def get_required_migration_op(
-        self, sess: Session, dependencies: Optional[List[T]] = None
+        self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
     ) -> Optional[ReversibleOp]:
         """Get the migration operation required for autogenerate"""
         # All entities in the database for self's schema
-        entities_in_database = self.from_database(sess, schema=self.schema)
+        entities_in_database: List[T] = self.from_database(sess, schema=self.schema)
 
         db_def = self.get_database_definition(sess, dependencies=dependencies)
 
@@ -273,7 +276,7 @@ def register_entities(
 
     @comparators.dispatch_for("schema")
     def compare_registered_entities(
-        autogen_context, upgrade_ops, sqla_schemas: List[Optional[str]]
+        autogen_context, upgrade_ops, sqla_schemas: Optional[List[Optional[str]]]
     ):
         engine = autogen_context.connection.engine
 
@@ -284,20 +287,25 @@ def register_entities(
                     f"PGFunction with identity {ident} was registered multiple times"
                 )
 
+        all_schema_references: List[str] = []
+
         # User registered schemas + automatically registered schemas (from SQLA Metadata)
-        observed_schemas: List[str] = []
         if schemas is not None:
             for schema in schemas:
-                observed_schemas.append(schema)
+                if schema is not None:
+                    all_schema_references.append(schema)
 
-        sqla_schemas = [schema for schema in sqla_schemas or [] if schema is not None]
-        observed_schemas.extend(sqla_schemas)
+        if sqla_schemas is not None:
+            to_add = [x for x in sqla_schemas if x]
+            all_schema_references.extend(to_add)
 
         for entity in entities:
-            observed_schemas.append(entity.schema)
+            all_schema_references.append(entity.schema)
 
         # Remove excluded schemas
-        observed_schemas = [x for x in set(observed_schemas) if x not in (exclude_schemas or [])]
+        observed_schemas = [
+            x for x in set(all_schema_references) if x not in (exclude_schemas or [])
+        ]
 
         with engine.connect() as connection:
 
@@ -310,7 +318,7 @@ def register_entities(
                 transaction.rollback()
 
             # entities that are receiving a create or update op
-            has_create_or_update_op = []
+            has_create_or_update_op: List[ReplaceableEntity] = []
 
             # database rendered definitions for the entities we have a local instance for
             # Note: used for drops
@@ -371,7 +379,9 @@ def register_entities(
                     # Entities within the schemas that are live
                     for schema in observed_schemas:
 
-                        db_entities = entity_class.from_database(sess, schema=schema)
+                        db_entities: List[ReplaceableEntity] = entity_class.from_database(
+                            sess, schema=schema
+                        )
 
                         # Check for functions that were deleted locally
                         for db_entity in db_entities:

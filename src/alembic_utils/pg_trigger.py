@@ -1,5 +1,4 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List
 
 from parse import parse
 from sqlalchemy import text as sql_text
@@ -59,7 +58,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
             )
         raise SQLParseFailure(f'Failed to parse SQL into PGTrigger """{sql}"""')
 
-    def to_sql_statement_create(self) -> str:
+    def to_sql_statement_create(self):
         """ Generates a SQL "create function" statement for PGFunction """
 
         # We need to parse and replace the schema qualifier on the table for simulate_entity to
@@ -86,12 +85,12 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
 
         return sql_text(f"CREATE TRIGGER {self.signature} {def_rendered}")
 
-    def to_sql_statement_drop(self, cascade=False) -> str:
+    def to_sql_statement_drop(self, cascade=False):
         """Generates a SQL "drop function" statement for PGFunction"""
         cascade = "cascade" if cascade else ""
         return sql_text(f"DROP TRIGGER {self.signature} ON {self.on_entity} {cascade}")
 
-    def to_sql_statement_create_or_replace(self) -> str:
+    def to_sql_statement_create_or_replace(self):
         """ Generates a SQL "create or replace function" statement for PGFunction """
         return f"""
         DROP TRIGGER IF EXISTS {self.signature} ON {self.on_entity};
@@ -99,7 +98,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         """
 
     @classmethod
-    def from_database(cls, sess, schema) -> List["PGFunction"]:
+    def from_database(cls, sess, schema):
         """Get a list of all functions defined in the db"""
 
         sql = sql_text(

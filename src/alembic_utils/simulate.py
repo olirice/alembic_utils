@@ -1,30 +1,35 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 import logging
 from contextlib import ExitStack, contextmanager
-from typing import List, Optional, TypeVar
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from alembic_utils.replaceable_entity import ReplaceableEntity
 
-T = TypeVar("T", bound="ReplaceableEntity")
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def simulate_entity(sess: Session, entity, dependencies: Optional[List[T]] = None):
+def simulate_entity(
+    sess: Session,
+    entity: "ReplaceableEntity",
+    dependencies: Optional[List["ReplaceableEntity"]] = None,
+):
     """Creates *entiity* in a transaction so postgres rendered definition
     can be retrieved
     """
-    if not dependencies:
-        dependencies: List[T] = []
+    deps: List["ReplaceableEntity"] = dependencies or []
 
     try:
         sess.begin_nested()
 
-        dependency_managers = [simulate_entity(sess, x) for x in dependencies]
+        dependency_managers = [simulate_entity(sess, x) for x in deps]
 
         with ExitStack() as stack:
-            # Setup all the possible dependencies
+            # Setup all the possible deps
             for mgr in dependency_managers:
                 stack.enter_context(mgr)
 

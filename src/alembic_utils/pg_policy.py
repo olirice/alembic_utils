@@ -1,5 +1,3 @@
-from typing import List
-
 from parse import parse
 from sqlalchemy import text as sql_text
 
@@ -43,17 +41,17 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
             )
         raise SQLParseFailure(f'Failed to parse SQL into PGPolicy """{sql}"""')
 
-    def to_sql_statement_create(self) -> str:
+    def to_sql_statement_create(self):
         """ Generates a SQL "create poicy" statement for PGPolicy """
 
         return sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition}")
 
-    def to_sql_statement_drop(self, cascade=False) -> str:
+    def to_sql_statement_drop(self, cascade=False):
         """Generates a SQL "drop policy" statement for PGPolicy"""
         cascade = "cascade" if cascade else ""
         return sql_text(f"DROP POLICY {self.signature} on {self.on_entity} {cascade}")
 
-    def to_sql_statement_create_or_replace(self) -> str:
+    def to_sql_statement_create_or_replace(self):
         """Not implemented, postgres policies do not support replace."""
         return sql_text(
             f"""
@@ -63,7 +61,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGPolicy"]:
+    def from_database(cls, connection, schema):
         """Get a list of all policies defined in the db"""
         sql = sql_text(
             f"""
@@ -109,8 +107,9 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
             schema = coerce_to_quoted(schema)
             table = coerce_to_quoted(table)
             policy_name = coerce_to_quoted(policy_name)
-            sql = f"create policy {policy_name} on {schema}.{table} {definition}"
-            policy = PGPolicy.from_sql(sql)
+            policy = PGPolicy.from_sql(
+                f"create policy {policy_name} on {schema}.{table} {definition}"
+            )
             db_policies.append(policy)
 
         for policy in db_policies:

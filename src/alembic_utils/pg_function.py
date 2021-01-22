@@ -49,13 +49,13 @@ class PGFunction(ReplaceableEntity):
         name, remainder = self.signature.split("(", 1)
         return '"' + name + '"(' + remainder
 
-    def to_sql_statement_create(self) -> str:
+    def to_sql_statement_create(self):
         """ Generates a SQL "create function" statement for PGFunction """
         return sql_text(
             f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
-    def to_sql_statement_drop(self, cascade=False) -> str:
+    def to_sql_statement_drop(self, cascade=False):
         """Generates a SQL "drop function" statement for PGFunction"""
         cascade = "cascade" if cascade else ""
         template = "{function_name}({parameters})"
@@ -78,14 +78,14 @@ class PGFunction(ReplaceableEntity):
             f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params}) {cascade}'
         )
 
-    def to_sql_statement_create_or_replace(self) -> str:
+    def to_sql_statement_create_or_replace(self):
         """ Generates a SQL "create or replace function" statement for PGFunction """
         return sql_text(
             f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
     @classmethod
-    def from_database(cls, sess, schema) -> List["PGFunction"]:
+    def from_database(cls, sess, schema):
         """Get a list of all functions defined in the db"""
 
         # Prior to postgres 11, pg_proc had different columns

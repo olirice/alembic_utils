@@ -3,7 +3,7 @@ from sqlalchemy.exc import DataError
 from sqlalchemy.orm import Session
 
 from alembic_utils.pg_view import PGView
-from alembic_utils.replaceable_entity import simulate_entity
+from alembic_utils.simulate import simulate_entity
 
 TEST_VIEW = PGView(
     schema="public",

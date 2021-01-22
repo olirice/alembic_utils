@@ -1,9 +1,9 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 
-from typing import List
 
 from parse import parse
 from sqlalchemy import text as sql_text
+from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
@@ -63,7 +63,7 @@ class PGMaterializedView(ReplaceableEntity):
 
         raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
 
-    def to_sql_statement_create(self) -> str:
+    def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create view" statement"""
 
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
@@ -73,14 +73,14 @@ class PGMaterializedView(ReplaceableEntity):
             f'CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;'
         )
 
-    def to_sql_statement_drop(self, cascade=False) -> str:
+    def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
         cascade = "cascade" if cascade else ""
         return sql_text(
             f'DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}" {cascade}'
         )
 
-    def to_sql_statement_create_or_replace(self) -> str:
+    def to_sql_statement_create_or_replace(self) -> TextClause:
         """Generates a SQL "create or replace view" statement"""
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
         definition = self.definition.rstrip().rstrip(";")
@@ -106,7 +106,7 @@ class PGMaterializedView(ReplaceableEntity):
         )\n\n"""
 
     @classmethod
-    def from_database(cls, sess, schema) -> List["PGMaterializedView"]:
+    def from_database(cls, sess, schema):
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
