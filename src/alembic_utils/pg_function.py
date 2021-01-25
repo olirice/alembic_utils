@@ -16,7 +16,6 @@ class PGFunction(ReplaceableEntity):
     * **schema** - *str*: A SQL schema name
     * **signature** - *str*: A SQL function's call signature
     * **definition** - *str*:  The remainig function body and identifiers
-
     """
 
     @classmethod
@@ -50,14 +49,15 @@ class PGFunction(ReplaceableEntity):
         name, remainder = self.signature.split("(", 1)
         return '"' + name + '"(' + remainder
 
-    def to_sql_statement_create(self) -> str:
+    def to_sql_statement_create(self):
         """ Generates a SQL "create function" statement for PGFunction """
         return sql_text(
             f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
-    def to_sql_statement_drop(self) -> str:
+    def to_sql_statement_drop(self, cascade=False):
         """Generates a SQL "drop function" statement for PGFunction"""
+        cascade = "cascade" if cascade else ""
         template = "{function_name}({parameters})"
         result = parse(template, self.signature, case_sensitive=False)
         try:
@@ -74,16 +74,18 @@ class PGFunction(ReplaceableEntity):
         parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
-        return sql_text(f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params})')
+        return sql_text(
+            f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params}) {cascade}'
+        )
 
-    def to_sql_statement_create_or_replace(self) -> str:
+    def to_sql_statement_create_or_replace(self):
         """ Generates a SQL "create or replace function" statement for PGFunction """
         return sql_text(
             f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["PGFunction"]:
+    def from_database(cls, sess, schema):
         """Get a list of all functions defined in the db"""
 
         # Prior to postgres 11, pg_proc had different columns
@@ -98,7 +100,7 @@ class PGFunction(ReplaceableEntity):
         """
 
         # Retrieve the postgres server version e.g. 90603 for 9.6.3 or 120003 for 12.3
-        pg_version_str = connection.execute(sql_text("show server_version_num")).fetchone()[0]
+        pg_version_str = sess.execute(sql_text("show server_version_num")).fetchone()[0]
         pg_version = int(pg_version_str)
 
         sql = sql_text(
@@ -135,43 +137,15 @@ class PGFunction(ReplaceableEntity):
             n.nspname not in ('pg_catalog', 'information_schema')
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
+            and n.nspname = :schema
         """
             + (PG_GTE_11 if pg_version >= 110000 else PG_LT_11)
         )
 
-        rows = connection.execute(sql, schema=schema).fetchall()
+        rows = sess.execute(sql, {"schema": schema}).fetchall()
         db_functions = [PGFunction.from_sql(x[3]) for x in rows]
 
         for func in db_functions:
             assert func is not None
 
         return db_functions
-
-    def get_compare_identity_query(self):
-        """Only called in simulation. alembic_util schema will onle have 1 record"""
-        return f"""
-        select
-            proname,
-            pronargs,
-            proargtypes
-        from
-            pg_proc proc
-        where
-            pronamespace::regnamespace::text = '{self.schema}'
-        """
-
-    def get_compare_definition_query(self):
-        """Only called in simulation. alembic_util schema will onle have 1 record"""
-        return f"""
-        select
-            regexp_replace(
-                pg_get_functiondef(proc.oid),
-                '^\s+',
-                '',
-                'igm'
-            )
-        from
-            pg_proc proc
-        where
-            pronamespace::regnamespace::text = '{self.schema}'
-        """

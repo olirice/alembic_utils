@@ -1,16 +1,20 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 
-from typing import List
 
 from parse import parse
 from sqlalchemy import text as sql_text
+from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
+from alembic_utils.statement import strip_terminating_semicolon
 
 
 class PGMaterializedView(ReplaceableEntity):
     """A PostgreSQL Materialized View compatible with `alembic revision --autogenerate`
+
+    Limitations:
+        Materialized views may not have other views or materialized views that depend on them.
 
     **Parameters:**
 
@@ -31,9 +35,7 @@ class PGMaterializedView(ReplaceableEntity):
         # Strip optional semicolon and all whitespace from end of definition
         # because the "with data" clause is optional and the alternative would be to enumerate
         # every possibility in the templates
-        sql = sql.strip()
-        sql = sql.rstrip(";")
-        sql = sql.strip()
+        sql = strip_terminating_semicolon(sql)
 
         templates = [
             # Enumerate maybe semicolon endings
@@ -61,7 +63,7 @@ class PGMaterializedView(ReplaceableEntity):
 
         raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
 
-    def to_sql_statement_create(self) -> str:
+    def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create view" statement"""
 
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
@@ -71,71 +73,24 @@ class PGMaterializedView(ReplaceableEntity):
             f'CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;'
         )
 
-    def to_sql_statement_drop(self) -> str:
+    def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
-        return sql_text(f'DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}"')
+        cascade = "cascade" if cascade else ""
+        return sql_text(
+            f'DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}" {cascade}'
+        )
 
-    def to_sql_statement_create_or_replace(self) -> str:
+    def to_sql_statement_create_or_replace(self) -> TextClause:
         """Generates a SQL "create or replace view" statement"""
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
         definition = self.definition.rstrip().rstrip(";")
 
         return sql_text(
             f"""
-            DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}";
+            DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}";
             CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;
         """
         )
-
-    @classmethod
-    def from_database(cls, connection, schema) -> List["PGMaterializedView"]:
-        """Get a list of all functions defined in the db"""
-        sql = sql_text(
-            f"""
-        select
-            schemaname schema_name,
-            matviewname view_name,
-            definition,
-            ispopulated is_populated
-        from
-            pg_matviews
-        where
-            schemaname not in ('pg_catalog', 'information_schema')
-            and schemaname::text = '{schema}';
-        """
-        )
-        rows = connection.execute(sql).fetchall()
-        db_views = [PGMaterializedView(x[0], x[1], x[2], with_data=x[3]) for x in rows]
-
-        for view in db_views:
-            assert view is not None
-
-        return db_views
-
-    def get_compare_identity_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        return f"""
-        select
-            -- Schema is appended in python
-            matviewname view_name
-        from
-            pg_matviews
-        where
-            schemaname::text = '{self.schema}';
-        """
-
-    def get_compare_definition_query(self) -> str:
-        """Return SQL string that returns 1 row for existing DB object"""
-        return f"""
-        select
-            -- Schema is appended in python
-            matviewname view_name,
-            definition
-        from
-	    pg_matviews
-	where
-            schemaname::text = '{self.schema}';
-        """
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
@@ -149,3 +104,28 @@ class PGMaterializedView(ReplaceableEntity):
             definition={repr(escaped_definition)},
             with_data={repr(self.with_data)}
         )\n\n"""
+
+    @classmethod
+    def from_database(cls, sess, schema):
+        """Get a list of all functions defined in the db"""
+        sql = sql_text(
+            f"""
+        select
+            schemaname schema_name,
+            matviewname view_name,
+            definition,
+            ispopulated is_populated
+        from
+            pg_matviews
+        where
+            schemaname not in ('pg_catalog', 'information_schema')
+            and schemaname::text like '{schema}';
+        """
+        )
+        rows = sess.execute(sql).fetchall()
+        db_views = [PGMaterializedView(x[0], x[1], x[2], with_data=x[3]) for x in rows]
+
+        for view in db_views:
+            assert view is not None
+
+        return db_views
