@@ -21,6 +21,8 @@ DEV_REQUIRES = [
     "pytest",
     "pytest-cov",
     "mkdocs",
+    "pyodbc",
+    "docker",
 ]
 
 setup(

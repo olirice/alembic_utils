@@ -31,6 +31,8 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
 
     _template = "create{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}"
 
+    dialect = "postgresql"
+
     @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
         """Create an instance instance from a SQL string"""

@@ -18,6 +18,8 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
     * **on_entity** - *str*:  fully qualifed entity that the policy applies
     """
 
+    dialect = "postgresql"
+
     @classmethod
     def from_sql(cls, sql: str) -> "PGPolicy":
         """Create an instance instance from a SQL string"""

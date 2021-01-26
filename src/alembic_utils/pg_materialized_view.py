@@ -28,6 +28,8 @@ class PGMaterializedView(ReplaceableEntity):
         super().__init__(schema=schema, signature=signature, definition=definition)
         self.with_data = with_data
 
+    dialect = "postgresql"
+
     @classmethod
     def from_sql(cls, sql: str) -> "PGMaterializedView":
         """Create an instance from a SQL string"""

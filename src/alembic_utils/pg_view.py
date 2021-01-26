@@ -20,6 +20,8 @@ class PGView(ReplaceableEntity):
     * **definition** - *str*: The SQL select statement body of the view
     """
 
+    dialect = "postgresql"
+
     @classmethod
     def from_sql(cls, sql: str) -> "PGView":
         """Create an instance from a SQL string"""

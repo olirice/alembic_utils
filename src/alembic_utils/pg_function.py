@@ -18,6 +18,8 @@ class PGFunction(ReplaceableEntity):
     * **definition** - *str*:  The remainig function body and identifiers
     """
 
+    dialect = "postgresql"
+
     @classmethod
     def from_sql(cls, sql: str) -> "PGFunction":
         """Create an instance instance from a SQL string"""

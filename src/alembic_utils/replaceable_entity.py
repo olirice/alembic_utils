@@ -41,6 +41,11 @@ class ReplaceableEntity:
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = escape_colon(strip_terminating_semicolon(definition))
 
+
+    @property
+    def dialect(self) -> str:
+        raise NotImplementedError("dialect must be set to match the type of DBAPI implementation / database")
+
     @classmethod
     def from_sql(cls: Type[T], sql: str) -> T:
         """Create an instance from a SQL string"""
@@ -275,6 +280,11 @@ def register_entities(
             # All database entities currently live
             # Check if anything needs to drop
             for entity_class in ReplaceableEntity.__subclasses__():
+                
+                # We only want to add an operation in the case where the connection
+                # dialect is equal to the entity class (subclass)
+                if connection.dialect.name != entity_class.dialect:
+                    continue
 
                 # Entities within the schemas that are live
                 for schema in observed_schemas:
