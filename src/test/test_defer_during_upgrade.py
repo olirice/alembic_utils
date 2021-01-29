@@ -38,3 +38,25 @@ def test_succeeds_when_defering(engine) -> None:
     with defer_during_upgrade(connection=engine) as sess:
         sess.execute(TEST_ROOT_INT.to_sql_statement_drop(cascade=True))
         sess.execute(TEST_ROOT_INT.to_sql_statement_create())
+
+
+def test_fails_gracefully_on_bad_user_statement(engine) -> None:
+    # Create the original view
+    engine.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
+    # Create the view that depends on it
+    engine.execute(TEST_DEPENDENT.to_sql_statement_create())
+
+    # Execute a failing statement in the session
+    with pytest.raises(Exception):
+        with defer_during_upgrade(connection=engine) as sess:
+            sess.execute(TEST_ROOT_INT.to_sql_statement_create())
+
+
+def test_fails_if_user_creates_new_entity(engine) -> None:
+    # Create the original view
+    engine.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
+
+    # User creates a brand new entity
+    with pytest.raises(Exception):
+        with defer_during_upgrade(connection=engine) as sess:
+            engine.execute(TEST_DEPENDENT.to_sql_statement_create())
