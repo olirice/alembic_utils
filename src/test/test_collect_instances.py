@@ -4,7 +4,11 @@ import flupy
 from flupy import fluent
 
 import alembic_utils
-from alembic_utils.experimental import T, collect_instances, walk_modules
+from alembic_utils.experimental._collect_instances import (
+    T,
+    collect_instances,
+    walk_modules,
+)
 
 
 def test_walk_modules() -> None:
