@@ -56,13 +56,19 @@ def solve_resolution_order(sess: Session, entities):
 
 
 @contextmanager
-def snapshot(connection) -> Generator[Session, None, None]:
-    """Ensure that all entities that existed at the start of the context manager exist when it exits by recreating any that are dropped.
+def recreate_dropped(connection) -> Generator[Session, None, None]:
+    """Recreate any dropped all ReplaceableEntities that were dropped within block
 
     This is useful for making cascading updates. For example, updating a table's column type when it has dependent views.
 
     def upgrade() -> None:
-        with snapshot(op.get_bind()) as conn:
+
+        my_view = PGView(...)
+
+        with recreate_dropped(op.get_bind()) as conn:
+
+            op.drop_entity(my_view)
+
             # change an integer column to a bigint
             op.alter_column(
                 table_name="account",

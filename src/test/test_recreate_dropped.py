@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.orm import Session
 
-from alembic_utils.depends import snapshot
+from alembic_utils.depends import recreate_dropped
 from alembic_utils.pg_view import PGView
 
 TEST_ROOT_BIGINT = PGView(
@@ -35,7 +35,7 @@ def test_succeeds_when_defering(engine) -> None:
 
     # Try to update a column type of the base view from undeneath
     # the dependent view
-    with snapshot(connection=engine) as sess:
+    with recreate_dropped(connection=engine) as sess:
         sess.execute(TEST_ROOT_INT.to_sql_statement_drop(cascade=True))
         sess.execute(TEST_ROOT_INT.to_sql_statement_create())
 
@@ -48,7 +48,7 @@ def test_fails_gracefully_on_bad_user_statement(engine) -> None:
 
     # Execute a failing statement in the session
     with pytest.raises(Exception):
-        with snapshot(connection=engine) as sess:
+        with recreate_dropped(connection=engine) as sess:
             sess.execute(TEST_ROOT_INT.to_sql_statement_create())
 
 
@@ -58,5 +58,5 @@ def test_fails_if_user_creates_new_entity(engine) -> None:
 
     # User creates a brand new entity
     with pytest.raises(Exception):
-        with snapshot(connection=engine) as sess:
+        with recreate_dropped(connection=engine) as sess:
             engine.execute(TEST_DEPENDENT.to_sql_statement_create())
