@@ -94,7 +94,7 @@ def snapshot(connection) -> Generator[Session, None, None]:
     before = collect_all_db_entities(sess)
 
     # In the yield, do a
-    #     conn.execute(my_mat_view.to_drop_entity(cascade=True))
+    #     op.drop_entity(my_mat_view, cascade=True)
     #     op.create_entity(my_mat_view)
     try:
         yield sess
