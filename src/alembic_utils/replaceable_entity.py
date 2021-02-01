@@ -10,7 +10,7 @@ from flupy import flu
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import TextClause
 
-from alembic_utils.dependency_resolution import solve_resolution_order
+from alembic_utils.depends import solve_resolution_order
 from alembic_utils.exceptions import (
     DuplicateRegistration,
     UnreachableException,
@@ -163,8 +163,12 @@ class CreateOp(ReversibleOp):
         return DropOp(self.target)
 
 
-@Operations.register_operation("drop_entity", "invoke_for_target")
+@Operations.register_operation("drop_entity", "invoke_for_target_optional_cascade")
 class DropOp(ReversibleOp):
+    def __init__(self, target: ReplaceableEntity, cascade: bool = False) -> None:
+        self.cascade = cascade
+        super().__init__(target)
+
     def reverse(self):
         return CreateOp(self.target)
 
@@ -194,7 +198,7 @@ def create_entity(operations, operation):
 @Operations.implementation_for(DropOp)
 def drop_entity(operations, operation):
     target: ReplaceableEntity = operation.target
-    operations.execute(target.to_sql_statement_drop())
+    operations.execute(target.to_sql_statement_drop(cascade=operation.cascade))
 
 
 @Operations.implementation_for(ReplaceOp)
