@@ -36,8 +36,9 @@ TRIG = PGTrigger(
     schema="public",
     signature="lower_account_email",
     on_entity="public.account",
+    is_constraint=True,
     definition="""
-        BEFORE INSERT ON public.account
+        AFTER INSERT ON public.account
         FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
     """,
 )
@@ -59,8 +60,6 @@ def test_create_revision(sql_setup, engine) -> None:
         migration_contents = migration_file.read()
 
     assert "op.create_entity" in migration_contents
-    # Make sure #is_constraint flag was populated
-    assert "is_constraint" in migration_contents
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
     assert "from alembic_utils.pg_trigger import PGTrigger" in migration_contents
@@ -79,8 +78,9 @@ def test_trig_update_revision(sql_setup, engine) -> None:
         schema="public",
         signature="lower_account_email",
         on_entity="public.account",
+        is_constraint=True,
         definition="""
-            AFTER INSERT ON public.account
+            AFTER INSERT OR UPDATE ON public.account
             FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
         """,
     )
