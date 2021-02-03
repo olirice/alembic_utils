@@ -33,7 +33,14 @@ setup(
     python_requires=">=3.6",
     packages=find_packages("src"),
     package_dir={"": "src"},
-    install_requires=["alembic", "psycopg2-binary", "flupy", "sqlalchemy", "parse"],
+    install_requires=[
+        "alembic",
+        "psycopg2-binary",
+        "flupy",
+        "sqlalchemy",
+        "parse",
+        "typing_extensions",
+    ],
     extras_require={
         "dev": DEV_REQUIRES,
         "nvim": ["neovim", "python-language-server"],
