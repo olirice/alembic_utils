@@ -4,18 +4,22 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import List, Optional, Type, TypeVar
 
-from alembic.autogenerate import comparators, renderers
-from alembic.operations import Operations
+from alembic.autogenerate import comparators
 from flupy import flu
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import TextClause
 
-from alembic_utils.dependency_resolution import solve_resolution_order
+from alembic_utils.depends import solve_resolution_order
 from alembic_utils.exceptions import (
     DuplicateRegistration,
     UnreachableException,
 )
-from alembic_utils.reversible_op import ReversibleOp
+from alembic_utils.reversible_op import (
+    CreateOp,
+    DropOp,
+    ReplaceOp,
+    ReversibleOp,
+)
 from alembic_utils.simulate import simulate_entity
 from alembic_utils.statement import (
     coerce_to_unquoted,
@@ -152,108 +156,6 @@ class ReplaceableEntity:
         return CreateOp(self)
 
 
-##############
-# Operations #
-##############
-
-
-@Operations.register_operation("create_entity", "invoke_for_target")
-class CreateOp(ReversibleOp):
-    def reverse(self):
-        return DropOp(self.target)
-
-
-@Operations.register_operation("drop_entity", "invoke_for_target")
-class DropOp(ReversibleOp):
-    def reverse(self):
-        return CreateOp(self.target)
-
-
-@Operations.register_operation("replace_entity", "invoke_for_target")
-class ReplaceOp(ReversibleOp):
-    def reverse(self):
-        return RevertOp(self.target)
-
-
-class RevertOp(ReversibleOp):
-    # Revert is never in an upgrade, so no need to implement reverse
-    pass
-
-
-###################
-# Implementations #
-###################
-
-
-@Operations.implementation_for(CreateOp)
-def create_entity(operations, operation):
-    target: ReplaceableEntity = operation.target
-    operations.execute(target.to_sql_statement_create())
-
-
-@Operations.implementation_for(DropOp)
-def drop_entity(operations, operation):
-    target: ReplaceableEntity = operation.target
-    operations.execute(target.to_sql_statement_drop())
-
-
-@Operations.implementation_for(ReplaceOp)
-@Operations.implementation_for(RevertOp)
-def replace_or_revert_entity(operations, operation):
-    target: ReplaceableEntity = operation.target
-    operations.execute(target.to_sql_statement_create_or_replace())
-
-
-##########
-# Render #
-##########
-
-
-@renderers.dispatch_for(CreateOp)
-def render_create_entity(autogen_context, op):
-    target = op.target
-    autogen_context.imports.add(target.render_import_statement())
-    variable_name = target.to_variable_name()
-    return target.render_self_for_migration() + f"op.create_entity({variable_name})\n"
-
-
-@renderers.dispatch_for(DropOp)
-def render_drop_entity(autogen_context, op):
-    target = op.target
-    autogen_context.imports.add(target.render_import_statement())
-    variable_name = target.to_variable_name()
-    return (
-        target.render_self_for_migration(omit_definition=False)
-        + f"op.drop_entity({variable_name})\n"
-    )
-
-
-@renderers.dispatch_for(ReplaceOp)
-def render_replace_entity(autogen_context, op):
-    target = op.target
-    autogen_context.imports.add(target.render_import_statement())
-    variable_name = target.to_variable_name()
-    return target.render_self_for_migration() + f"op.replace_entity({variable_name})\n"
-
-
-@renderers.dispatch_for(RevertOp)
-def render_revert_entity(autogen_context, op):
-    """Collect the entity definition currently live in the database and use its definition
-    as the downgrade revert target"""
-    target = op.target
-    autogen_context.imports.add(target.render_import_statement())
-
-    context = autogen_context
-    engine = context.connection.engine
-
-    with engine.connect() as connection:
-        sess = Session(bind=connection)
-        db_target = op.target.get_database_definition(sess)
-
-    variable_name = db_target.to_variable_name()
-    return db_target.render_self_for_migration() + f"op.replace_entity({variable_name})"
-
-
 ##################
 # Event Listener #
 ##################
@@ -278,7 +180,7 @@ def register_entities(
     def compare_registered_entities(
         autogen_context, upgrade_ops, sqla_schemas: Optional[List[Optional[str]]]
     ):
-        engine = autogen_context.connection.engine
+        connection = autogen_context.connection
 
         # Ensure pg_functions have unique identities (not registered twice)
         for ident, function_group in flu(entities).group_by(key=lambda x: x.identity):
@@ -307,95 +209,93 @@ def register_entities(
             x for x in set(all_schema_references) if x not in (exclude_schemas or [])
         ]
 
-        with engine.connect() as connection:
+        # Solve resolution order
+        try:
+            transaction = connection.begin()
+            sess = Session(bind=connection)
+            ordered_entities: List[T] = solve_resolution_order(sess, entities)
+        finally:
+            transaction.rollback()
 
-            # Solve resolution order
+        # entities that are receiving a create or update op
+        has_create_or_update_op: List[ReplaceableEntity] = []
+
+        # database rendered definitions for the entities we have a local instance for
+        # Note: used for drops
+        local_entities = []
+
+        # Required migration OPs, Create/Update/NoOp
+        for entity in ordered_entities:
+            logger.info(
+                "Detecting required migration op %s %s",
+                entity.__class__.__name__,
+                entity.identity,
+            )
+
             try:
                 transaction = connection.begin()
                 sess = Session(bind=connection)
-                ordered_entities: List[T] = solve_resolution_order(sess, entities)
-            finally:
-                transaction.rollback()
 
-            # entities that are receiving a create or update op
-            has_create_or_update_op: List[ReplaceableEntity] = []
-
-            # database rendered definitions for the entities we have a local instance for
-            # Note: used for drops
-            local_entities = []
-
-            # Required migration OPs, Create/Update/NoOp
-            for entity in ordered_entities:
-                logger.info(
-                    "Detecting required migration op %s %s",
-                    entity.__class__.__name__,
-                    entity.identity,
+                maybe_op = entity.get_required_migration_op(
+                    sess, dependencies=has_create_or_update_op
                 )
 
-                try:
-                    transaction = connection.begin()
-                    sess = Session(bind=connection)
+                local_db_def = entity.get_database_definition(
+                    sess, dependencies=has_create_or_update_op
+                )
+                local_entities.append(local_db_def)
 
-                    maybe_op = entity.get_required_migration_op(
-                        sess, dependencies=has_create_or_update_op
+                if maybe_op:
+                    upgrade_ops.ops.append(maybe_op)
+                    has_create_or_update_op.append(entity)
+
+                    logger.info(
+                        "Detected %s op for %s %s",
+                        maybe_op.__class__.__name__,
+                        entity.__class__.__name__,
+                        entity.identity,
                     )
-
-                    local_db_def = entity.get_database_definition(
-                        sess, dependencies=has_create_or_update_op
+                else:
+                    logger.info(
+                        "Detected NoOp op for %s %s",
+                        entity.__class__.__name__,
+                        entity.identity,
                     )
-                    local_entities.append(local_db_def)
-
-                    if maybe_op:
-                        upgrade_ops.ops.append(maybe_op)
-                        has_create_or_update_op.append(entity)
-
-                        logger.info(
-                            "Detected %s op for %s %s",
-                            maybe_op.__class__.__name__,
-                            entity.__class__.__name__,
-                            entity.identity,
-                        )
-                    else:
-                        logger.info(
-                            "Detected NoOp op for %s %s",
-                            entity.__class__.__name__,
-                            entity.identity,
-                        )
-
-                finally:
-                    transaction.rollback()
-
-            # Required migration OPs, Drop
-            try:
-                # Start a parent transaction
-                # Bind the session within the parent transaction
-                transaction = connection.begin()
-                sess = Session(bind=connection)
-
-                # All database entities currently live
-                # Check if anything needs to drop
-                for entity_class in ReplaceableEntity.__subclasses__():
-
-                    # Entities within the schemas that are live
-                    for schema in observed_schemas:
-
-                        db_entities: List[ReplaceableEntity] = entity_class.from_database(
-                            sess, schema=schema
-                        )
-
-                        # Check for functions that were deleted locally
-                        for db_entity in db_entities:
-                            for local_entity in local_entities:
-                                if db_entity.identity == local_entity.identity:
-                                    break
-                            else:
-                                # No match was found locally
-                                upgrade_ops.ops.append(DropOp(db_entity))
-                                logger.info(
-                                    "Detected DropOp op for %s %s",
-                                    db_entity.__class__.__name__,
-                                    db_entity.identity,
-                                )
 
             finally:
                 transaction.rollback()
+
+        # Required migration OPs, Drop
+        try:
+            # Start a parent transaction
+            # Bind the session within the parent transaction
+            transaction = connection.begin()
+            sess = Session(bind=connection)
+
+            # All database entities currently live
+            # Check if anything needs to drop
+            for entity_class in ReplaceableEntity.__subclasses__():
+
+                # Entities within the schemas that are live
+                for schema in observed_schemas:
+
+                    db_entities: List[ReplaceableEntity] = entity_class.from_database(
+                        sess, schema=schema
+                    )
+
+                    # Check for functions that were deleted locally
+                    for db_entity in db_entities:
+                        for local_entity in local_entities:
+                            if db_entity.identity == local_entity.identity:
+                                break
+                        else:
+                            # No match was found locally
+                            upgrade_ops.ops.append(DropOp(db_entity))
+                            logger.info(
+                                "Detected DropOp op for %s %s",
+                                db_entity.__class__.__name__,
+                                db_entity.identity,
+                            )
+
+        finally:
+            transaction.rollback()
