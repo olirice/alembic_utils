@@ -176,7 +176,7 @@
 </code></pre></div>
 
 <div class="autodoc">
-<div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_trigger.<strong>PGTrigger</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">on_entity</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_trigger.<strong>PGTrigger</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">on_entity</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">is_constraint=False</em><span class="autodoc-punctuation">)</span></div>
 <div class="autodoc-docstring"><p>A PostgreSQL Trigger compatible with <code>alembic revision --autogenerate</code></p>
 <p><strong>Parameters:</strong></p>
 <ul>
@@ -184,6 +184,7 @@
 <li><strong>signature</strong> - <em>str</em>: A SQL function's call signature</li>
 <li><strong>definition</strong> - <em>str</em>:  The remainig function body and identifiers</li>
 <li><strong>on_entity</strong> - <em>str</em>:  fully qualifed entity that the policy applies</li>
+<li><strong>is_constraint</strong> - <em>bool</em>: Is the trigger a constraint trigger</li>
 </ul>
 <p>Postgres Create Trigger Specification:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">CREATE</span> <span class="p">[</span> <span class="n">CONSTRAINT</span> <span class="p">]</span> <span class="n">TRIGGER</span> <span class="n">name</span> <span class="p">{</span> <span class="n">BEFORE</span> <span class="o">|</span> <span class="n">AFTER</span> <span class="o">|</span> <span class="n">INSTEAD</span> <span class="n">OF</span> <span class="p">}</span> <span class="p">{</span> <span class="n">event</span> <span class="p">[</span> <span class="n">OR</span> <span class="p">...</span> <span class="p">]</span> <span class="p">}</span>
