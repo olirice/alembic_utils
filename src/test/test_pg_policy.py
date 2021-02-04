@@ -62,7 +62,7 @@ def test_parse_without_schema_on_entity() -> None:
 
 
 def test_create_revision(engine, schema_setup) -> None:
-    register_entities([TEST_POLICY])
+    register_entities([TEST_POLICY], entity_types=[PGPolicy])
 
     output = run_alembic_command(
         engine=engine,
@@ -102,7 +102,7 @@ def test_update_revision(engine, schema_setup) -> None:
         """,
     )
 
-    register_entities([UPDATED_TEST_POLICY])
+    register_entities([UPDATED_TEST_POLICY], entity_types=[PGPolicy])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -132,7 +132,7 @@ def test_noop_revision(engine, schema_setup) -> None:
     # Create the view outside of a revision
     engine.execute(TEST_POLICY.to_sql_statement_create())
 
-    register_entities([TEST_POLICY])
+    register_entities([TEST_POLICY], entity_types=[PGPolicy])
 
     # Create a third migration without making changes.
     # This should result in no create, drop or replace statements
@@ -163,7 +163,7 @@ def test_noop_revision(engine, schema_setup) -> None:
 def test_drop_revision(engine, schema_setup) -> None:
 
     # Register no functions locally
-    register_entities([], schemas=["public"])
+    register_entities([], schemas=["public"], entity_types=[PGPolicy])
 
     # Manually create a SQL function
     engine.execute(TEST_POLICY.to_sql_statement_create())

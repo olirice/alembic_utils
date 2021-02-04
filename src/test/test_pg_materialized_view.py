@@ -49,7 +49,7 @@ def test_parsable_body() -> None:
 
 
 def test_create_revision(engine) -> None:
-    register_entities([TEST_MAT_VIEW])
+    register_entities([TEST_MAT_VIEW], entity_types=[PGMaterializedView])
 
     output = run_alembic_command(
         engine=engine,
@@ -85,7 +85,7 @@ def test_update_revision(engine) -> None:
         with_data=TEST_MAT_VIEW.with_data,
     )
 
-    register_entities([UPDATED_TEST_MAT_VIEW])
+    register_entities([UPDATED_TEST_MAT_VIEW], entity_types=[PGMaterializedView])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -115,7 +115,7 @@ def test_noop_revision(engine) -> None:
     # Create the view outside of a revision
     engine.execute(TEST_MAT_VIEW.to_sql_statement_create())
 
-    register_entities([TEST_MAT_VIEW])
+    register_entities([TEST_MAT_VIEW], entity_types=[PGMaterializedView])
 
     # Create a third migration without making changes.
     # This should result in no create, drop or replace statements
@@ -145,7 +145,7 @@ def test_noop_revision(engine) -> None:
 def test_drop_revision(engine) -> None:
 
     # Register no functions locally
-    register_entities([], schemas=["DEV"])
+    register_entities([], schemas=["DEV"], entity_types=[PGMaterializedView])
 
     # Manually create a SQL function
     engine.execute(TEST_MAT_VIEW.to_sql_statement_create())

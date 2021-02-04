@@ -51,7 +51,7 @@ def test_drop_fails_with_cascade(engine, sess) -> None:
     engine.execute(A.to_sql_statement_create())
     engine.execute(B_A.to_sql_statement_create())
 
-    register_entities([B_A], schemas=["DEV"])
+    register_entities([B_A], schemas=["DEV"], entity_types=[PGView])
 
     output = run_alembic_command(
         engine=engine,

@@ -33,7 +33,7 @@ def test_parsable_body() -> None:
 
 
 def test_create_revision(engine) -> None:
-    register_entities([TEST_VIEW])
+    register_entities([TEST_VIEW], entity_types=[PGView])
 
     output = run_alembic_command(
         engine=engine,
@@ -66,7 +66,7 @@ def test_update_revision(engine) -> None:
         TEST_VIEW.schema, TEST_VIEW.signature, """select *, TRUE as is_updated from pg_views;"""
     )
 
-    register_entities([UPDATED_TEST_VIEW])
+    register_entities([UPDATED_TEST_VIEW], entity_types=[PGView])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -96,7 +96,7 @@ def test_noop_revision(engine) -> None:
     # Create the view outside of a revision
     engine.execute(TEST_VIEW.to_sql_statement_create())
 
-    register_entities([TEST_VIEW])
+    register_entities([TEST_VIEW], entity_types=[PGView])
 
     # Create a third migration without making changes.
     # This should result in no create, drop or replace statements
@@ -126,7 +126,7 @@ def test_noop_revision(engine) -> None:
 def test_drop_revision(engine) -> None:
 
     # Register no functions locally
-    register_entities([], schemas=["DEV"])
+    register_entities([], schemas=["DEV"], entity_types=[PGView])
 
     # Manually create a SQL function
     engine.execute(TEST_VIEW.to_sql_statement_create())
@@ -170,7 +170,7 @@ def test_update_create_or_replace_failover_to_drop_add(engine) -> None:
         TEST_VIEW.schema, TEST_VIEW.signature, """select TRUE as is_updated from pg_views"""
     )
 
-    register_entities([UPDATED_TEST_VIEW])
+    register_entities([UPDATED_TEST_VIEW], entity_types=[PGView])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -198,7 +198,7 @@ def test_update_create_or_replace_failover_to_drop_add(engine) -> None:
 
 def test_attempt_revision_on_unparsable(engine) -> None:
     BROKEN_VIEW = PGView(schema="public", signature="broken_view", definition="NOPE;")
-    register_entities([BROKEN_VIEW])
+    register_entities([BROKEN_VIEW], entity_types=[PGView])
 
     # Reraise of psycopg2.errors.SyntaxError
     with pytest.raises(ProgrammingError):
@@ -214,7 +214,7 @@ def test_view_contains_semicolon(engine) -> None:
         schema="public", signature="sample", definition="select ':a' as myfield, '1'::int as othi"
     )
 
-    register_entities([TEST_SEMI_VIEW])
+    register_entities([TEST_SEMI_VIEW], entity_types=[PGView])
 
     output = run_alembic_command(
         engine=engine,

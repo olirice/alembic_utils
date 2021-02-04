@@ -22,6 +22,7 @@ from alembic_utils.reversible_op import (
 )
 from alembic_utils.simulate import simulate_entity
 from alembic_utils.statement import (
+    coerce_to_quoted,
     coerce_to_unquoted,
     escape_colon,
     normalize_whitespace,
@@ -51,7 +52,7 @@ class ReplaceableEntity:
         """Wrap a schema name in literal quotes
         Useful for emitting SQL statements
         """
-        return f'"{self.schema}"'
+        return coerce_to_quoted(self.schema)
 
     @classmethod
     def from_path(cls: Type[T], path: Path) -> T:
@@ -100,7 +101,6 @@ class ReplaceableEntity:
         for without_self, with_self in zip_longest(db_entities, all_w_self):
             if without_self is None or without_self.identity != with_self.identity:
                 return with_self
-
         raise UnreachableException()
 
     def render_self_for_migration(self, omit_definition=False) -> str:
@@ -165,6 +165,7 @@ def register_entities(
     entities: List[T],
     schemas: Optional[List[str]] = None,
     exclude_schemas: Optional[List[str]] = None,
+    entity_types: Optional[List[Type[ReplaceableEntity]]] = None,
 ) -> None:
     """Create an event listener to watch for changes in registered entities when migrations are created using
     `alembic revision --autogenerate`
@@ -174,11 +175,18 @@ def register_entities(
     * **entities** - *List[ReplaceableEntity]*: A list of entities (PGFunction, PGView, etc) to monitor for revisions
     * **schemas** - *Optional[List[str]]*: A list of SQL schema names to monitor. Note, schemas referenced in registered entities are automatically monitored.
     * **exclude_schemas** - *Optional[List[str]]*: A list of SQL schemas to ignore. Note, explicitly registered entities will still be monitored.
+    * **entity_types** - *Optional[List[str]]*: A list of ReplaceableEntity classes to consider during migrations. Other entity types are ignored
     """
+
+    allowed_entity_types: List[Type[ReplaceableEntity]] = (
+        entity_types or ReplaceableEntity.__subclasses__()
+    )
 
     @comparators.dispatch_for("schema")
     def compare_registered_entities(
-        autogen_context, upgrade_ops, sqla_schemas: Optional[List[Optional[str]]]
+        autogen_context,
+        upgrade_ops,
+        sqla_schemas: Optional[List[Optional[str]]],
     ):
         connection = autogen_context.connection
 
@@ -232,6 +240,9 @@ def register_entities(
                 entity.identity,
             )
 
+            if entity.__class__ not in allowed_entity_types:
+                continue
+
             try:
                 transaction = connection.begin()
                 sess = Session(bind=connection)
@@ -275,6 +286,9 @@ def register_entities(
             # All database entities currently live
             # Check if anything needs to drop
             for entity_class in ReplaceableEntity.__subclasses__():
+
+                if entity_class not in allowed_entity_types:
+                    continue
 
                 # Entities within the schemas that are live
                 for schema in observed_schemas:
