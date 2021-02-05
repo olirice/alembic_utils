@@ -42,6 +42,12 @@ class SchemaTableRole:
 class PGGrantTable(ReplaceableEntity):
     """A PostgreSQL Grant Statement compatible with `alembic revision --autogenerate`
 
+    PGGrantTable requires the role name being used to generate migrations to
+    match the role name that executes migrations.
+
+    If your system does not meet that requirement, disable them by excluding PGGrantTable
+    from the `entity_types` list paramter of `alembic_utils.replaceable_entity.register_entities`
+
     **Parameters:**
 
     * **schema** - *str*: A SQL schema name
@@ -96,7 +102,7 @@ class PGGrantTable(ReplaceableEntity):
         schema_name = self.schema.lower()
         table_name = self.table.lower()
         role_name = self.role.lower()
-        return f"{schema_name}_{table_name}_{role_name}_{str(self.grant)}"
+        return f"{schema_name}_{table_name}_{role_name}_{str(self.grant)}".lower()
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
