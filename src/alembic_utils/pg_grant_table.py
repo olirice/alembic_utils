@@ -85,7 +85,7 @@ class PGGrantTable(ReplaceableEntity):
         # rows in information_schema.role_column_grants are uniquely identified by
         # the columns listed below + the grantor
         # be cautious when editing
-        return f"{self.__class__.__name__}: {self.schema}.{self.table}.{self.grant}"
+        return f"{self.__class__.__name__}: {self.schema}.{self.table}.{self.role}.{self.grant}"
 
     @property
     def definition(self) -> str:  # type: ignore
