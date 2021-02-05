@@ -124,7 +124,6 @@ class PGGrantTable(ReplaceableEntity):
         WHERE
             not pr.rolsuper
             and grantor = CURRENT_USER
-            and table_schema like 'public'
             and table_schema like :schema
         """
         )
