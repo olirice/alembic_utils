@@ -21,13 +21,12 @@ class GrantOption(str, Enum):
     TRUNCATE = "TRUNCATE"
     REFERENCES = "REFERENCES"
     TRIGGER = "TRIGGER"
-    ALL = "ALL"
 
     def __str__(self) -> str:
         return str.__str__(self)
 
     def __repr__(self) -> str:
-        return str.__str__(self)
+        return f"'{str.__str__(self)}'"
 
 
 @dataclass(frozen=True, eq=True, order=True)
@@ -35,23 +34,46 @@ class SchemaTableRole:
     schema: str
     table: str
     role: str
+    grant: GrantOption
+    with_grant_option: str  # 'YES' or 'NO'
 
 
 @dataclass
 class PGGrantTable(ReplaceableEntity):
+    """A PostgreSQL Grant Statement compatible with `alembic revision --autogenerate`
+
+    **Parameters:**
+
+    * **schema** - *str*: A SQL schema name
+    * **table** - *str*: The table to grant access to
+    * **columns** - *List[str]*: A list of column names on *table* to grant access to
+    * **role** - *str*: The role to grant access to
+    * **grant** - *Union[GrantOption, str]*: On of SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+    * **with_grant_option** - *bool*: Can the role grant access to other roles
+    """
 
     schema: str
     table: str
+    columns: List[str]
     role: str
-    grant_options: List[GrantOption]
+    grant: GrantOption
+    with_grant_option: bool
 
     def __init__(
-        self, schema: str, table: str, role: str, grant_options: List[Union[GrantOption, str]]
+        self,
+        schema: str,
+        table: str,
+        columns: List[str],
+        role: str,
+        grant: Union[GrantOption, str],
+        with_grant_option=False,
     ):
         self.schema: str = coerce_to_unquoted(schema)
         self.table: str = coerce_to_unquoted(table)
+        self.columns: List[str] = sorted(columns)
         self.role: str = coerce_to_unquoted(role)
-        self.grant_options: List[GrantOption] = sorted([GrantOption(x) for x in grant_options])
+        self.grant: GrantOption = GrantOption(grant)
+        self.with_grant_option: bool = with_grant_option
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGGrantTable":
@@ -60,38 +82,50 @@ class PGGrantTable(ReplaceableEntity):
     @property
     def identity(self) -> str:
         """A string that consistently and globally identifies a function"""
-        return f"{self.__class__.__name__}: {self.schema}.{self.table}.{self.role}"
+        # rows in information_schema.role_column_grants are uniquely identified by
+        # the columns listed below + the grantor
+        # be cautious when editing
+        return f"{self.__class__.__name__}: {self.schema}.{self.table}.{self.grant}"
 
     @property
     def definition(self) -> str:  # type: ignore
-        return f"{self.__class__.__name__}: {self.schema}.{self.table}.{self.role} {' '.join([str(x) for x in sorted(self.grant_options)])}"
+        return str(self)
 
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents """
         schema_name = self.schema.lower()
         table_name = self.table.lower()
         role_name = self.role.lower()
-        return f"{schema_name}_{table_name}_{role_name}"
+        return f"{schema_name}_{table_name}_{role_name}_{str(self.grant)}"
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    table="{self.table}",
-    role="{self.role}",
-    grant_options={[str(x) for x in self.grant_options]},
-)\n"""
+        return f"""{var_name} = {self}\n"""
 
     @classmethod
     def from_database(cls, sess: Session, schema: str = "%"):
         sql = sql_text(
             """
-        SELECT table_schema, table_name, grantee as role_name, privilege_type as grant_option
-        FROM information_schema.role_table_grants
-        WHERE table_schema like :schema
+        SELECT
+            table_schema as schema,
+            table_name,
+            grantee as role_name,
+            privilege_type as grant_option,
+            is_grantable,
+            column_name
+        FROM
+            information_schema.role_column_grants rcg
+            -- Cant revoke from superusers so filter out those recs
+            join pg_roles pr
+                on rcg.grantee = pr.rolname
+        WHERE
+            not pr.rolsuper
+            and grantor = CURRENT_USER
+            and table_schema like 'public'
+            and table_schema like :schema
         """
         )
 
@@ -100,16 +134,18 @@ class PGGrantTable(ReplaceableEntity):
 
         grouped = (
             flu(rows)
-            .group_by(lambda x: SchemaTableRole(*x[:3]))
-            .map(lambda x: (x[0], x[1].map_item(3).collect()))
+            .group_by(lambda x: SchemaTableRole(*x[:5]))
+            .map(lambda x: (x[0], x[1].map_item(5).collect()))
             .collect()
         )
-        for s_t_r, grant_options in grouped:
+        for s_t_r, columns in grouped:
             grant = PGGrantTable(
                 schema=s_t_r.schema,
                 table=s_t_r.table,
                 role=s_t_r.role,
-                grant_options=grant_options,
+                grant=s_t_r.grant,
+                with_grant_option=s_t_r.with_grant_option == "YES",
+                columns=columns,
             )
             grants.append(grant)
         return grants
@@ -117,14 +153,14 @@ class PGGrantTable(ReplaceableEntity):
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create view" statement"""
         return sql_text(
-            f'GRANT {", ".join([str(x) for x in self.grant_options])} ON TABLE {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)}'
+            f'GRANT {self.grant} ( {", ".join(self.columns)} ) ON TABLE {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)}'
         )
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
         # cascade has no impact
         return sql_text(
-            f"REVOKE ALL ON TABLE {self.literal_schema}.{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
+            f"REVOKE {self.grant} ON TABLE {self.literal_schema}.{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
         )
 
     def to_sql_statement_create_or_replace(self) -> TextClause:
