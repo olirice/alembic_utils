@@ -158,14 +158,14 @@ class PGGrantTable(ReplaceableEntity):
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create view" statement"""
         return sql_text(
-            f'GRANT {self.grant} ( {", ".join(self.columns)} ) ON TABLE {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)}'
+            f'GRANT {self.grant} ( {", ".join(self.columns)} ) ON {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)}'
         )
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
         # cascade has no impact
         return sql_text(
-            f"REVOKE {self.grant} ON TABLE {self.literal_schema}.{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
+            f"REVOKE {self.grant} ON {self.literal_schema}.{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
         )
 
     def to_sql_statement_create_or_replace(self) -> TextClause:
