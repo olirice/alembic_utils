@@ -249,14 +249,20 @@
 </code></pre></div>
 
 <div class="autodoc">
-<div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_policy.<strong>PGPolicy</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">on_entity</em><span class="autodoc-punctuation">)</span></div>
-<div class="autodoc-docstring"><p>A PostgreSQL Policy compatible with <code>alembic revision --autogenerate</code></p>
+<div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_grant_table.<strong>PGGrantTable</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">table</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">columns</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">role</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">grant</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">with_grant_option=False</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-docstring"><p>A PostgreSQL Grant Statement compatible with <code>alembic revision --autogenerate</code></p>
+<p>PGGrantTable requires the role name being used to generate migrations to
+match the role name that executes migrations.</p>
+<p>If your system does not meet that requirement, disable them by excluding PGGrantTable
+from the <code>entity_types</code> list paramter of <code>alembic_utils.replaceable_entity.register_entities</code></p>
 <p><strong>Parameters:</strong></p>
 <ul>
 <li><strong>schema</strong> - <em>str</em>: A SQL schema name</li>
-<li><strong>signature</strong> - <em>str</em>: A SQL policy name and tablename, separated by "."</li>
-<li><strong>definition</strong> - <em>str</em>:  The definition of the policy, incl. permissive, for, to, using, with check</li>
-<li><strong>on_entity</strong> - <em>str</em>:  fully qualifed entity that the policy applies</li>
+<li><strong>table</strong> - <em>str</em>: The table to grant access to</li>
+<li><strong>columns</strong> - <em>List[str]</em>: A list of column names on <em>table</em> to grant access to</li>
+<li><strong>role</strong> - <em>str</em>: The role to grant access to</li>
+<li><strong>grant</strong> - <em>Union[Grant, str]</em>: On of SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER</li>
+<li><strong>with_grant_option</strong> - <em>bool</em>: Can the role grant access to other roles</li>
 </ul></div>
 </div>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">alembic_utils.pg_grant_table</span> <span class="kn">import</span> <span class="n">PGGrantTable</span>
