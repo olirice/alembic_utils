@@ -106,7 +106,7 @@
               
                 <h2 id="api-reference">API Reference</h2>
 <div class="autodoc">
-<div class="autodoc-signature"><code>alembic_utils.replaceable_entity.<strong>register_entities</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">entities</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">schemas=None</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">exclude_schemas=None</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-signature"><code>alembic_utils.replaceable_entity.<strong>register_entities</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">entities</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">schemas=None</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">exclude_schemas=None</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">entity_types=None</em><span class="autodoc-punctuation">)</span></div>
 <div class="autodoc-docstring"><p>Create an event listener to watch for changes in registered entities when migrations are created using
 <code>alembic revision --autogenerate</code></p>
 <p><strong>Parameters:</strong></p>
@@ -114,6 +114,7 @@
 <li><strong>entities</strong> - <em>List[ReplaceableEntity]</em>: A list of entities (PGFunction, PGView, etc) to monitor for revisions</li>
 <li><strong>schemas</strong> - <em>Optional[List[str]]</em>: A list of SQL schema names to monitor. Note, schemas referenced in registered entities are automatically monitored.</li>
 <li><strong>exclude_schemas</strong> - <em>Optional[List[str]]</em>: A list of SQL schemas to ignore. Note, explicitly registered entities will still be monitored.</li>
+<li><strong>entity_types</strong> - <em>Optional[List[str]]</em>: A list of ReplaceableEntity classes to consider during migrations. Other entity types are ignored</li>
 </ul></div>
 </div>
 <div class="codehilite"><pre><span></span><code><span class="c1"># migrations/env.py</span>
@@ -244,6 +245,29 @@
 <span class="s2">        TO api_user</span>
 <span class="s2">        USING (id = current_setting(&#39;api_current_user&#39;, true)::int)</span>
 <span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<div class="autodoc">
+<div class="autodoc-signature"><em>class </em><code>alembic_utils.pg_policy.<strong>PGPolicy</strong></code><span class="autodoc-punctuation">(</span><em class="autodoc-param">schema</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">signature</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">definition</em><span class="autodoc-punctuation">, </span><em class="autodoc-param">on_entity</em><span class="autodoc-punctuation">)</span></div>
+<div class="autodoc-docstring"><p>A PostgreSQL Policy compatible with <code>alembic revision --autogenerate</code></p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><strong>schema</strong> - <em>str</em>: A SQL schema name</li>
+<li><strong>signature</strong> - <em>str</em>: A SQL policy name and tablename, separated by "."</li>
+<li><strong>definition</strong> - <em>str</em>:  The definition of the policy, incl. permissive, for, to, using, with check</li>
+<li><strong>on_entity</strong> - <em>str</em>:  fully qualifed entity that the policy applies</li>
+</ul></div>
+</div>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span> <span class="nn">alembic_utils.pg_grant_table</span> <span class="kn">import</span> <span class="n">PGGrantTable</span>
+
+<span class="n">grant</span> <span class="o">=</span> <span class="n">PGGrantTable</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;public&quot;</span><span class="p">,</span>
+    <span class="n">table</span><span class="o">=</span><span class="s2">&quot;account&quot;</span><span class="p">,</span>
+    <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;email&quot;</span><span class="p">],</span>
+    <span class="n">role</span><span class="o">=</span><span class="s2">&quot;anon_user&quot;</span><span class="p">,</span>
+    <span class="n">grant</span><span class="o">=</span><span class="s1">&#39;SELECT&#39;</span><span class="p">,</span>
+    <span class="n">with_grant_option</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
               
