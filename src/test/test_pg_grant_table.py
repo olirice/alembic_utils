@@ -1,6 +1,6 @@
 import pytest
 
-from alembic_utils.pg_grant_table import GrantOption, PGGrantTable
+from alembic_utils.pg_grant_table import Grant, PGGrantTable
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
@@ -34,13 +34,13 @@ TEST_GRANT = PGGrantTable(
     table="account",
     columns=["id", "email"],
     role="anon_user",
-    grant=GrantOption.SELECT,
+    grant=Grant.SELECT,
     with_grant_option=False,
 )
 
 
 def test_repr():
-    go = GrantOption("SELECT")
+    go = Grant("SELECT")
     assert go.__repr__() == "'SELECT'"
 
 
@@ -76,7 +76,7 @@ def test_replace_revision(sql_setup, engine) -> None:
         table="account",
         columns=["id"],
         role="anon_user",
-        grant=GrantOption.SELECT,
+        grant=Grant.SELECT,
         with_grant_option=True,
     )
 

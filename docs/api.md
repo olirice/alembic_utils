@@ -84,3 +84,21 @@ policy = PGPolicy(
     """,
 )
 ```
+
+
+::: alembic_utils.pg_policy.PGPolicy
+    :docstring:
+
+
+```python
+from alembic_utils.pg_grant_table import PGGrantTable
+
+grant = PGGrantTable(
+    schema="public",
+    table="account",
+    columns=["id", "email"],
+    role="anon_user",
+    grant='SELECT',
+    with_grant_option=False,
+)
+```

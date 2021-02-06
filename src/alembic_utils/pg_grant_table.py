@@ -13,7 +13,7 @@ from alembic_utils.statement import coerce_to_quoted, coerce_to_unquoted
 # GRANT EXECUTE, ALL PRIVILEGES ON FUNCTION / ALL FUNCTIONS IN SCHEMA
 
 
-class GrantOption(str, Enum):
+class Grant(str, Enum):
     SELECT = "SELECT"
     INSERT = "INSERT"
     UPDATE = "UPDATE"
@@ -34,7 +34,7 @@ class SchemaTableRole:
     schema: str
     table: str
     role: str
-    grant: GrantOption
+    grant: Grant
     with_grant_option: str  # 'YES' or 'NO'
 
 
@@ -54,7 +54,7 @@ class PGGrantTable(ReplaceableEntity):
     * **table** - *str*: The table to grant access to
     * **columns** - *List[str]*: A list of column names on *table* to grant access to
     * **role** - *str*: The role to grant access to
-    * **grant** - *Union[GrantOption, str]*: On of SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+    * **grant** - *Union[Grant, str]*: On of SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
     * **with_grant_option** - *bool*: Can the role grant access to other roles
     """
 
@@ -62,7 +62,7 @@ class PGGrantTable(ReplaceableEntity):
     table: str
     columns: List[str]
     role: str
-    grant: GrantOption
+    grant: Grant
     with_grant_option: bool
 
     def __init__(
@@ -71,14 +71,14 @@ class PGGrantTable(ReplaceableEntity):
         table: str,
         columns: List[str],
         role: str,
-        grant: Union[GrantOption, str],
+        grant: Union[Grant, str],
         with_grant_option=False,
     ):
         self.schema: str = coerce_to_unquoted(schema)
         self.table: str = coerce_to_unquoted(table)
         self.columns: List[str] = sorted(columns)
         self.role: str = coerce_to_unquoted(role)
-        self.grant: GrantOption = GrantOption(grant)
+        self.grant: Grant = Grant(grant)
         self.with_grant_option: bool = with_grant_option
 
     @classmethod
