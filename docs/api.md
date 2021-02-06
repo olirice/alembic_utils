@@ -86,7 +86,7 @@ policy = PGPolicy(
 ```
 
 
-::: alembic_utils.pg_policy.PGPolicy
+::: alembic_utils.pg_grant_table.PGGrantTable
     :docstring:
 
 
