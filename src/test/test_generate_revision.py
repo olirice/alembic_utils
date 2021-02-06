@@ -14,7 +14,7 @@ TO_UPPER = PGFunction(
 
 
 def test_migration_create_function(engine) -> None:
-    register_entities([TO_UPPER])
+    register_entities([TO_UPPER], entity_types=[PGFunction])
     output = run_alembic_command(
         engine=engine,
         command="revision",

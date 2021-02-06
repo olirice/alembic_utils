@@ -79,6 +79,7 @@ def recreate_dropped(connection) -> Generator[Session, None, None]:
             )
     """
     from alembic_utils.pg_function import PGFunction
+    from alembic_utils.pg_grant_table import PGGrantTable
     from alembic_utils.pg_materialized_view import PGMaterializedView
     from alembic_utils.pg_trigger import PGTrigger
     from alembic_utils.pg_view import PGView
@@ -92,6 +93,7 @@ def recreate_dropped(connection) -> Generator[Session, None, None]:
             *PGTrigger.from_database(sess, "%"),
             *PGView.from_database(sess, "%"),
             *PGMaterializedView.from_database(sess, "%"),
+            *PGGrantTable.from_database(sess, "%"),
         ]
 
     sess = Session(bind=connection)

@@ -14,7 +14,7 @@ TO_UPPER = PGFunction(
 
 
 def test_create_revision(engine) -> None:
-    register_entities([TO_UPPER])
+    register_entities([TO_UPPER], entity_types=[PGFunction])
 
     run_alembic_command(
         engine=engine,
@@ -51,7 +51,7 @@ def test_update_revision(engine) -> None:
     $$ language SQL immutable strict;''',
     )
 
-    register_entities([UPDATED_TO_UPPER])
+    register_entities([UPDATED_TO_UPPER], entity_types=[PGFunction])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -81,7 +81,7 @@ def test_update_revision(engine) -> None:
 def test_noop_revision(engine) -> None:
     engine.execute(TO_UPPER.to_sql_statement_create())
 
-    register_entities([TO_UPPER])
+    register_entities([TO_UPPER], entity_types=[PGFunction])
 
     output = run_alembic_command(
         engine=engine,
@@ -109,7 +109,7 @@ def test_drop(engine) -> None:
     engine.execute(TO_UPPER.to_sql_statement_create())
 
     # Register no functions locally
-    register_entities([], schemas=["public"])
+    register_entities([], schemas=["public"], entity_types=[PGFunction])
 
     run_alembic_command(
         engine=engine,
@@ -148,7 +148,7 @@ def test_has_no_parameters(engine) -> None:
     )
 
     # Register no functions locally
-    register_entities([SIDE_EFFECT], schemas=["public"])
+    register_entities([SIDE_EFFECT], schemas=["public"], entity_types=[PGFunction])
 
     run_alembic_command(
         engine=engine,
@@ -175,7 +175,7 @@ def test_ignores_extension_functions(engine) -> None:
     # drop statements for those functions
     try:
         engine.execute("create extension if not exists unaccent;")
-        register_entities([], schemas=["public"])
+        register_entities([], schemas=["public"], entity_types=[PGFunction])
         run_alembic_command(
             engine=engine,
             command="revision",

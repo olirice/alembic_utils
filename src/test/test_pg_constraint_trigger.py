@@ -47,7 +47,7 @@ TRIG = PGTrigger(
 def test_create_revision(sql_setup, engine) -> None:
     engine.execute(FUNC.to_sql_statement_create())
 
-    register_entities([FUNC, TRIG])
+    register_entities([FUNC, TRIG], entity_types=[PGTrigger])
     run_alembic_command(
         engine=engine,
         command="revision",
@@ -85,7 +85,7 @@ def test_trig_update_revision(sql_setup, engine) -> None:
         """,
     )
 
-    register_entities([FUNC, UPDATED_TRIG])
+    register_entities([FUNC, UPDATED_TRIG], entity_types=[PGTrigger])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -116,7 +116,7 @@ def test_noop_revision(sql_setup, engine) -> None:
     engine.execute(FUNC.to_sql_statement_create())
     engine.execute(TRIG.to_sql_statement_create())
 
-    register_entities([FUNC, TRIG])
+    register_entities([FUNC, TRIG], entity_types=[PGTrigger])
 
     output = run_alembic_command(
         engine=engine,
@@ -145,7 +145,7 @@ def test_drop(sql_setup, engine) -> None:
     engine.execute(TRIG.to_sql_statement_create())
 
     # Register no functions locally
-    register_entities([], schemas=["public"])
+    register_entities([], schemas=["public"], entity_types=[PGTrigger])
 
     run_alembic_command(
         engine=engine,

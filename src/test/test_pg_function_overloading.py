@@ -24,7 +24,7 @@ TO_FLOAT_FROM_TEXT = PGFunction(
 
 
 def test_create_revision(engine) -> None:
-    register_entities([TO_FLOAT_FROM_INT, TO_FLOAT_FROM_TEXT])
+    register_entities([TO_FLOAT_FROM_INT, TO_FLOAT_FROM_TEXT], entity_types=[PGFunction])
 
     run_alembic_command(
         engine=engine,
@@ -62,7 +62,7 @@ def test_update_revision(engine) -> None:
             """,
     )
 
-    register_entities([UPDATE, TO_FLOAT_FROM_TEXT])
+    register_entities([UPDATE, TO_FLOAT_FROM_TEXT], entity_types=[PGFunction])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
