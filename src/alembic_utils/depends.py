@@ -79,11 +79,12 @@ def recreate_dropped(connection) -> Generator[Session, None, None]:
             )
     """
     from alembic_utils.pg_function import PGFunction
-    from alembic_utils.pg_grant_table import PGGrantTable
     from alembic_utils.pg_materialized_view import PGMaterializedView
     from alembic_utils.pg_trigger import PGTrigger
     from alembic_utils.pg_view import PGView
     from alembic_utils.replaceable_entity import ReplaceableEntity
+
+    # Do not include permissions here e.g. PGGrantTable. If columns granted to users are dropped, it will cause an error
 
     def collect_all_db_entities(sess: Session) -> List[ReplaceableEntity]:
         """Collect all entities from the database"""
@@ -93,7 +94,6 @@ def recreate_dropped(connection) -> Generator[Session, None, None]:
             *PGTrigger.from_database(sess, "%"),
             *PGView.from_database(sess, "%"),
             *PGMaterializedView.from_database(sess, "%"),
-            *PGGrantTable.from_database(sess, "%"),
         ]
 
     sess = Session(bind=connection)
