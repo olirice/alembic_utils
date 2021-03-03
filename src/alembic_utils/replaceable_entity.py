@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import List, Optional, Type, TypeVar
 
 from alembic.autogenerate import comparators
+from alembic.autogenerate.api import AutogenContext
+from alembic.operations import Operations
+
 from flupy import flu
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import TextClause
@@ -41,6 +44,15 @@ class ReplaceableEntity:
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = escape_colon_for_sql(strip_terminating_semicolon(definition))
+
+    @property
+    def type_(self) -> str:
+        """In order to support calls to `run_name_filters` and
+        `run_object_filters` on the AutogenContext object, each
+        entity needs to have a named type.
+        https://alembic.sqlalchemy.org/en/latest/api/autogenerate.html#alembic.autogenerate.api.AutogenContext.run_name_filters
+        """
+        raise NotImplementedError()
 
     @classmethod
     def from_sql(cls: Type[T], sql: str) -> T:
@@ -184,7 +196,7 @@ def register_entities(
 
     @comparators.dispatch_for("schema")
     def compare_registered_entities(
-        autogen_context,
+        autogen_context: AutogenContext,
         upgrade_ops,
         sqla_schemas: Optional[List[Optional[str]]],
     ):
@@ -232,6 +244,39 @@ def register_entities(
         # Note: used for drops
         local_entities = []
 
+        def include_entity(entity: T, reflected: bool) -> bool:
+            """The functions on the AutogenContext object
+            are described here:
+            https://alembic.sqlalchemy.org/en/latest/api/autogenerate.html#alembic.autogenerate.api.AutogenContext.run_name_filters
+
+            The meaning of the function parameters are explained in the corresponding
+            definitions in the EnvironmentContext object:
+            https://alembic.sqlalchemy.org/en/latest/api/runtime.html#alembic.runtime.environment.EnvironmentContext.configure.params.include_name
+
+            This will only have an impact for projects which set include_object and/or include_name in the configuration
+            of their Alembic env.
+            """
+            name = f"{entity.schema}.{entity.signature}"
+            parent_names = {
+                "schema_name": entity.schema,
+                # At the time of writing, the implementation of `run_name_filters` in Alembic assumes that every type of object
+                # will either be a table or have a table_name in its `parent_names` dict. This is true for columns and indexes,
+                # but not true for the type of objects supported in this library such as views as functions. Nevertheless, to avoid
+                # a KeyError when calling `run_name_filters`, we have to set some value.
+                "table_name": f"Not applicable for type {entity.type_}",
+            }
+            # According to the Alembic docs, the name filter is only relevant for reflected objects
+            if reflected:
+                name_result = autogen_context.run_name_filters(name, entity.type_, parent_names)
+            else:
+                name_result = True
+
+            # Object filters should be applied to object from local metadata and to reflected objects
+            object_result = autogen_context.run_object_filters(
+                entity, name, entity.type_, reflected=reflected, compare_to=None
+            )
+            return name_result and object_result
+
         # Required migration OPs, Create/Update/NoOp
         for entity in ordered_entities:
             logger.info(
@@ -256,7 +301,13 @@ def register_entities(
                 )
                 local_entities.append(local_db_def)
 
-                if maybe_op:
+                if not include_entity(entity, reflected=False):
+                    logger.info(
+                        "Ignoring local entity %s %s due to AutogenContext filters",
+                        entity.__class__.__name__,
+                        entity.identity,
+                    )
+                elif maybe_op:
                     upgrade_ops.ops.append(maybe_op)
                     has_create_or_update_op.append(entity)
 
@@ -304,12 +355,21 @@ def register_entities(
                                 break
                         else:
                             # No match was found locally
-                            upgrade_ops.ops.append(DropOp(db_entity))
-                            logger.info(
-                                "Detected DropOp op for %s %s",
-                                db_entity.__class__.__name__,
-                                db_entity.identity,
-                            )
+                            # If the entity passes the filters,
+                            # we should create a DropOp
+                            if include_entity(db_entity, reflected=True):
+                                upgrade_ops.ops.append(DropOp(db_entity))
+                                logger.info(
+                                    "Detected DropOp op for %s %s",
+                                    db_entity.__class__.__name__,
+                                    db_entity.identity,
+                                )
+                            else:
+                                logger.info(
+                                    "Ignoring local entity %s %s due to AutogenContext filters",
+                                    entity.__class__.__name__,
+                                    entity.identity,
+                                )
 
         finally:
             transaction.rollback()

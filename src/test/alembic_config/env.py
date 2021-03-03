@@ -2,6 +2,8 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import MetaData, engine_from_config, pool
+from alembic_utils.replaceable_entity import ReplaceableEntity
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,7 +27,23 @@ target_metadata = [MetaData()]
 
 def include_object(object, name, type_, reflected, compare_to) -> bool:
     # Do not generate migrations for non-alembic_utils entities
-    return False
+    if isinstance(object, ReplaceableEntity):
+        # In order to test the application if this filter within
+        # the autogeneration logic, apply a simple filter that
+        # unit tests can relate to.
+        #
+        # In a 'real' implementation, this could be for example
+        # ignoring entities from particular schemas.
+        return not "exclude_obj_" in name
+    else:
+        return False
+
+
+def include_name(name, type_, parent_names) -> bool:
+    # In order to test the application if this filter within
+    # the autogeneration logic, apply a simple filter that
+    # unit tests can relate to
+    return not "exclude_name_" in name if name else True
 
 
 def run_migrations_offline():
@@ -47,6 +65,7 @@ def run_migrations_offline():
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         include_object=include_object,
+        include_name=include_name,
     )
 
     with context.begin_transaction():
@@ -69,6 +88,7 @@ def run_migrations_online():
             connection=connection,
             target_metadata=target_metadata,
             include_object=include_object,
+            include_name=include_name,
         )
 
         with context.begin_transaction():

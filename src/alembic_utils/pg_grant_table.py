@@ -65,6 +65,8 @@ class PGGrantTable(ReplaceableEntity):
     grant: Grant
     with_grant_option: bool
 
+    type_ = "grant_table"
+
     def __init__(
         self,
         schema: str,
@@ -80,6 +82,7 @@ class PGGrantTable(ReplaceableEntity):
         self.role: str = coerce_to_unquoted(role)
         self.grant: Grant = Grant(grant)
         self.with_grant_option: bool = with_grant_option
+        self.signature = f"{self.schema}.{self.table}.{self.role}.{self.grant}"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGGrantTable":
