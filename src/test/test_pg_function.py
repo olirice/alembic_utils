@@ -190,3 +190,49 @@ def test_ignores_extension_functions(engine) -> None:
         assert "op.drop_entity" not in migration_contents
     finally:
         engine.execute("drop extension if exists unaccent;")
+
+
+def test_plpgsql_colon_esacpe(engine) -> None:
+    # PGFunction.__init__ overrides colon escapes for plpgsql
+    # because := should not be escaped for sqlalchemy.text
+    # if := is escaped, an exception would be raised
+
+    PLPGSQL_FUNC = PGFunction(
+        schema="public",
+        signature="some_func(some_text text)",
+        definition="""
+            returns text
+            as
+            $$
+            declare
+                copy_o_text text;
+            begin
+                copy_o_text := some_text;
+                return copy_o_text;
+            end;
+            $$ language plpgsql
+            """,
+    )
+
+    register_entities([PLPGSQL_FUNC], entity_types=[PGFunction])
+
+    run_alembic_command(
+        engine=engine,
+        command="revision",
+        command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
+    )
+
+    migration_create_path = TEST_VERSIONS_ROOT / "1_create.py"
+
+    with migration_create_path.open() as migration_file:
+        migration_contents = migration_file.read()
+
+    assert "op.create_entity" in migration_contents
+    assert "op.drop_entity" in migration_contents
+    assert "op.replace_entity" not in migration_contents
+    assert "from alembic_utils.pg_function import PGFunction" in migration_contents
+
+    # Execute upgrade
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    # Execute Downgrade
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})

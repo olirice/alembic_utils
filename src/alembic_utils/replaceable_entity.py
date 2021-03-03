@@ -24,7 +24,7 @@ from alembic_utils.simulate import simulate_entity
 from alembic_utils.statement import (
     coerce_to_quoted,
     coerce_to_unquoted,
-    escape_colon,
+    escape_colon_for_sql,
     normalize_whitespace,
     strip_terminating_semicolon,
 )
@@ -40,7 +40,7 @@ class ReplaceableEntity:
     def __init__(self, schema: str, signature: str, definition: str):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
-        self.definition: str = escape_colon(strip_terminating_semicolon(definition))
+        self.definition: str = escape_colon_for_sql(strip_terminating_semicolon(definition))
 
     @classmethod
     def from_sql(cls: Type[T], sql: str) -> T:
