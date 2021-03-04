@@ -14,8 +14,8 @@ nav:
     - Introduction: 'index.md'
     - Quickstart: 'quickstart.md'
     - API Reference: 'api.md'
+    - Configuration: 'config.md'
     - Examples: 'examples.md'
-    - Roadmap: 'roadmap.md'
 
 markdown_extensions:
   - codehilite

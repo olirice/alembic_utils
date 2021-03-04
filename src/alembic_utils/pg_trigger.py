@@ -30,6 +30,8 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         EXECUTE PROCEDURE function_name ( arguments )
     """
 
+    type_ = "trigger"
+
     _templates = [
         "create{:s}constraint{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}",
         "create{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}",

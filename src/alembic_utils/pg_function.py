@@ -26,6 +26,8 @@ class PGFunction(ReplaceableEntity):
     * **definition** - *str*:  The remainig function body and identifiers
     """
 
+    type_ = "function"
+
     def __init__(self, schema: str, signature: str, definition: str):
         super().__init__(schema, signature, definition)
         # Detect if function uses plpgsql and update escaping rules to not escape ":="
