@@ -52,7 +52,6 @@ class ReplaceableEntity:
         """
         raise NotImplementedError()
 
-
     @property
     def dialect(self) -> str:
         raise NotImplementedError("dialect must be set to match the type of DBAPI implementation / database")

@@ -30,6 +30,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         EXECUTE PROCEDURE function_name ( arguments )
     """
 
+    dialect = "postgresql"
     type_ = "trigger"
 
     _templates = [

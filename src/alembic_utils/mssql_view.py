@@ -21,6 +21,7 @@ class MSSQLView(ReplaceableEntity):
     """
 
     dialect = "mssql"
+    type_ = "view"
 
     @classmethod
     def from_sql(cls, sql: str) -> "MSSQLView":

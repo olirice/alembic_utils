@@ -65,6 +65,7 @@ class PGGrantTable(ReplaceableEntity):
     grant: Grant
     with_grant_option: bool
 
+    dialect = "postgresql"
     type_ = "grant_table"
 
     def __init__(
