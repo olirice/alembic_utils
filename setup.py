@@ -34,7 +34,7 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     install_requires=[
-        "alembic",
+        "alembic>=1.5.1",
         "psycopg2-binary",
         "flupy",
         "sqlalchemy",
