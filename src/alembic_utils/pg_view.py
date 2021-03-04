@@ -21,6 +21,7 @@ class PGView(ReplaceableEntity):
     """
 
     dialect = "postgresql"
+    type_ = "view"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGView":

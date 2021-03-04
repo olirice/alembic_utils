@@ -6,6 +6,14 @@ from sqlalchemy import text as sql_text
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
+from alembic_utils.statement import (
+    coerce_to_quoted,
+    coerce_to_unquoted,
+    escape_colon_for_plpgsql,
+    escape_colon_for_sql,
+    normalize_whitespace,
+    strip_terminating_semicolon,
+)
 
 
 class PGFunction(ReplaceableEntity):
@@ -19,6 +27,15 @@ class PGFunction(ReplaceableEntity):
     """
 
     dialect = "postgresql"
+    type_ = "function"
+
+    def __init__(self, schema: str, signature: str, definition: str):
+        super().__init__(schema, signature, definition)
+        # Detect if function uses plpgsql and update escaping rules to not escape ":="
+        is_plpgsql: bool = "language plpgsql" in normalize_whitespace(definition).lower()
+        escaping_callable = escape_colon_for_plpgsql if is_plpgsql else escape_colon_for_sql
+        # Override definition with correct escaping rules
+        self.definition: str = escaping_callable(strip_terminating_semicolon(definition))
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGFunction":

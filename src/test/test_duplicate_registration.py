@@ -17,7 +17,7 @@ TO_UPPER = PGFunction(
 
 
 def test_migration_create_function(engine) -> None:
-    register_entities([TO_UPPER, TO_UPPER])
+    register_entities([TO_UPPER, TO_UPPER], entity_types=[PGFunction])
 
     with pytest.raises(DuplicateRegistration):
         run_alembic_command(

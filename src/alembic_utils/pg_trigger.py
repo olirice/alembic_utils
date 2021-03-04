@@ -17,6 +17,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
     * **signature** - *str*: A SQL function's call signature
     * **definition** - *str*:  The remainig function body and identifiers
     * **on_entity** - *str*:  fully qualifed entity that the policy applies
+    * **is_constraint** - *bool*: Is the trigger a constraint trigger
 
     Postgres Create Trigger Specification:
 
@@ -29,35 +30,77 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         EXECUTE PROCEDURE function_name ( arguments )
     """
 
-    _template = "create{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}"
+    type_ = "trigger"
+
+    _templates = [
+        "create{:s}constraint{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}",
+        "create{:s}trigger{:s}{signature}{:s}{event}{:s}ON{:s}{on_entity}{:s}{action}",
+    ]
+
+    def __init__(
+        self,
+        schema: str,
+        signature: str,
+        definition: str,
+        on_entity: str,
+        is_constraint: bool = False,
+    ):
+        super().__init__(
+            schema=schema, signature=signature, definition=definition, on_entity=on_entity
+        )
+        self.is_constraint = is_constraint
+
+    def render_self_for_migration(self, omit_definition=False) -> str:
+        """Render a string that is valid python code to reconstruct self in a migration"""
+        var_name = self.to_variable_name()
+        class_name = self.__class__.__name__
+        escaped_definition = self.definition if not omit_definition else "# not required for op"
+
+        return f"""{var_name} = {class_name}(
+    schema="{self.schema}",
+    signature="{self.signature}",
+    on_entity="{self.on_entity}",
+    is_constraint={self.is_constraint},
+    definition={repr(escaped_definition)}
+)\n"""
+
+    @property
+    def identity(self) -> str:
+        """A string that consistently and globally identifies a function"""
+        return f"{self.__class__.__name__}: {self.schema}.{self.signature} {self.is_constraint} {self.on_entity}"
 
     dialect = "postgresql"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
         """Create an instance instance from a SQL string"""
-        result = parse(cls._template, sql, case_sensitive=False)
-        if result is not None:
-            # remove possible quotes from signature
-            signature = result["signature"]
-            event = result["event"]
-            on_entity = result["on_entity"]
-            action = result["action"]
+        for template in cls._templates:
+            result = parse(template, sql, case_sensitive=False)
+            if result is not None:
+                # remove possible quotes from signature
+                signature = result["signature"]
+                event = result["event"]
+                on_entity = result["on_entity"]
+                action = result["action"]
+                is_constraint = "constraint" in template
 
-            if "." not in on_entity:
-                on_entity = "public" + "." + on_entity
+                if "." not in on_entity:
+                    on_entity = "public" + "." + on_entity
 
-            schema = on_entity.split(".")[0]
+                schema = on_entity.split(".")[0]
 
-            definition_template = " {event} ON {on_entity} {action}"
-            definition = definition_template.format(event=event, on_entity=on_entity, action=action)
+                definition_template = " {event} ON {on_entity} {action}"
+                definition = definition_template.format(
+                    event=event, on_entity=on_entity, action=action
+                )
 
-            return cls(
-                schema=schema,
-                signature=signature,
-                on_entity=on_entity,
-                definition=definition,
-            )
+                return cls(
+                    schema=schema,
+                    signature=signature,
+                    on_entity=on_entity,
+                    definition=definition,
+                    is_constraint=is_constraint,
+                )
         raise SQLParseFailure(f'Failed to parse SQL into PGTrigger """{sql}"""')
 
     def to_sql_statement_create(self):
@@ -85,7 +128,9 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
             event=event, on_entity=on_entity, action=action
         )
 
-        return sql_text(f"CREATE TRIGGER {self.signature} {def_rendered}")
+        return sql_text(
+            f"CREATE{' CONSTRAINT ' if self.is_constraint else ' '}TRIGGER {self.signature} {def_rendered}"
+        )
 
     def to_sql_statement_drop(self, cascade=False):
         """Generates a SQL "drop function" statement for PGFunction"""

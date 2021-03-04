@@ -1,6 +1,6 @@
 name: pre-commit hooks
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
