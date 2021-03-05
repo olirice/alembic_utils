@@ -1,21 +1,20 @@
-import pytest
 import os
 import shutil
-import subprocess
 import time
-import docker
-from sqlalchemy.exc import ProgrammingError
 
+import docker
+import pytest
 from parse import parse
 from sqlalchemy import create_engine
+from sqlalchemy.exc import ProgrammingError
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.mssql_view import MSSQLView
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import (
     TEST_VERSIONS_ROOT,
-    run_alembic_command,
     reset_event_listener_registry,
+    run_alembic_command,
 )
 
 PYTEST_DB = (
@@ -24,7 +23,7 @@ PYTEST_DB = (
 
 
 @pytest.fixture(scope="session")
-def maybe_start_mssql() -> None:
+def maybe_start_mssql():
     """Creates a mssql docker container that can be connected
     to using the PYTEST_DB connection string"""
 
@@ -62,7 +61,7 @@ def maybe_start_mssql() -> None:
             "SA_PASSWORD": conn_args["pw"],
         },
         detach=True,
-        #auto_remove=True,
+        # auto_remove=True,
         command=[
             "/bin/bash",
             "-c",
