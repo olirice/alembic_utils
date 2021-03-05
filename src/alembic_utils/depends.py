@@ -84,6 +84,8 @@ def recreate_dropped(connection) -> Generator[Session, None, None]:
     from alembic_utils.pg_view import PGView
     from alembic_utils.replaceable_entity import ReplaceableEntity
 
+    # Do not include permissions here e.g. PGGrantTable. If columns granted to users are dropped, it will cause an error
+
     def collect_all_db_entities(sess: Session) -> List[ReplaceableEntity]:
         """Collect all entities from the database"""
 

@@ -46,7 +46,7 @@ TRIG = PGTrigger(
 def test_create_revision(sql_setup, engine) -> None:
     engine.execute(FUNC.to_sql_statement_create())
 
-    register_entities([FUNC, TRIG])
+    register_entities([FUNC, TRIG], entity_types=[PGTrigger])
     run_alembic_command(
         engine=engine,
         command="revision",
@@ -59,6 +59,8 @@ def test_create_revision(sql_setup, engine) -> None:
         migration_contents = migration_file.read()
 
     assert "op.create_entity" in migration_contents
+    # Make sure #is_constraint flag was populated
+    assert "is_constraint" in migration_contents
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
     assert "from alembic_utils.pg_trigger import PGTrigger" in migration_contents
@@ -83,7 +85,7 @@ def test_trig_update_revision(sql_setup, engine) -> None:
         """,
     )
 
-    register_entities([FUNC, UPDATED_TRIG])
+    register_entities([FUNC, UPDATED_TRIG], entity_types=[PGTrigger])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -114,7 +116,7 @@ def test_noop_revision(sql_setup, engine) -> None:
     engine.execute(FUNC.to_sql_statement_create())
     engine.execute(TRIG.to_sql_statement_create())
 
-    register_entities([FUNC, TRIG])
+    register_entities([FUNC, TRIG], entity_types=[PGTrigger])
 
     output = run_alembic_command(
         engine=engine,
@@ -143,7 +145,7 @@ def test_drop(sql_setup, engine) -> None:
     engine.execute(TRIG.to_sql_statement_create())
 
     # Register no functions locally
-    register_entities([], schemas=["public"])
+    register_entities([], schemas=["public"], entity_types=[PGTrigger])
 
     run_alembic_command(
         engine=engine,

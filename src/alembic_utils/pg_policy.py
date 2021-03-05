@@ -19,6 +19,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
     """
 
     dialect = "postgresql"
+    type_ = "policy"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGPolicy":

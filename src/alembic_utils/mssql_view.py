@@ -1,6 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 
-from typing import List
 
 from parse import parse
 from sqlalchemy import text as sql_text
@@ -21,6 +20,7 @@ class MSSQLView(ReplaceableEntity):
     """
 
     dialect = "mssql"
+    type_ = "view"
 
     @classmethod
     def from_sql(cls, sql: str) -> "MSSQLView":
@@ -55,17 +55,17 @@ class MSSQLView(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(cls, connection, schema) -> List["MSSQLView"]:
+    def from_database(cls, connection, schema):
         """Get a list of all functions defined in the db"""
         sql = sql_text(
             f"""
-            SELECT 
+            SELECT
                 TABLE_SCHEMA schema_name,
                 TABLE_NAME view_name,
 				right(VIEW_DEFINITION, len(VIEW_DEFINITION) - charindex('AS', VIEW_DEFINITION)-2) definition
-            FROM 
+            FROM
                 INFORMATION_SCHEMA.VIEWS
-            WHERE 
+            WHERE
                 TABLE_SCHEMA = '{schema}';
         """
         )

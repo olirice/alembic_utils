@@ -24,6 +24,9 @@ class PGMaterializedView(ReplaceableEntity):
     * **with_data** - *bool*: Should create and replace statements populate data
     """
 
+    dialect = "postgresql"
+    type_ = "materialized_view"
+
     def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True):
         super().__init__(schema=schema, signature=signature, definition=definition)
         self.with_data = with_data

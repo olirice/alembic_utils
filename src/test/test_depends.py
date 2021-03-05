@@ -58,7 +58,7 @@ def test_solve_resolution_order(sess, order) -> None:
 
 
 def test_create_revision(engine) -> None:
-    register_entities([B_A, E_AD, D_B, C_A, A])
+    register_entities([B_A, E_AD, D_B, C_A, A], entity_types=[PGView])
 
     output = run_alembic_command(
         engine=engine,

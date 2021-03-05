@@ -17,12 +17,24 @@ def strip_double_quotes(sql: str) -> str:
     return sql.strip().lstrip('"').strip()
 
 
-def escape_colon(sql: str) -> str:
-    """Escapes colons for for use in sqlalchemy.text"""
+def escape_colon_for_sql(sql: str) -> str:
+    """Escapes colons for use in sqlalchemy.text"""
     holder = str(uuid4())
     sql = sql.replace("::", holder)
     sql = sql.replace(":", "\:")
     sql = sql.replace(holder, "::")
+    return sql
+
+
+def escape_colon_for_plpgsql(sql: str) -> str:
+    """Escapes colons for plpgsql for use in sqlalchemy.text"""
+    holder1 = str(uuid4())
+    holder2 = str(uuid4())
+    sql = sql.replace("::", holder1)
+    sql = sql.replace(":=", holder2)
+    sql = sql.replace(":", "\:")
+    sql = sql.replace(holder1, "::")
+    sql = sql.replace(holder2, ":=")
     return sql
 
 

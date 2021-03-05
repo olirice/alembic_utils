@@ -114,6 +114,7 @@ def engine(raw_engine) -> Generator[Engine, None, None]:
         reset_event_listener_registry()
         raw_engine.execute("drop schema public cascade; create schema public;")
         raw_engine.execute('drop schema if exists "DEV" cascade; create schema "DEV";')
+        raw_engine.execute('drop role if exists "anon_user"')
         # Remove any migrations that were left behind
         TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
         shutil.rmtree(TEST_VERSIONS_ROOT)
