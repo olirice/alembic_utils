@@ -11,7 +11,7 @@ from alembic_utils.replaceable_entity import ReplaceableEntity
 from alembic_utils.statement import coerce_to_quoted, coerce_to_unquoted
 
 
-class Grant(str, Enum):
+class PGGrantColumnsChoice(str, Enum):
     SELECT = "SELECT"
     INSERT = "INSERT"
     UPDATE = "UPDATE"
@@ -29,7 +29,7 @@ class SchemaTableRole:
     schema: str
     table: str
     role: str
-    grant: Grant
+    grant: PGGrantColumnsChoice
     with_grant_option: str  # 'YES' or 'NO'
 
 
@@ -57,7 +57,7 @@ class PGGrantColumns(ReplaceableEntity):
     table: str
     columns: List[str]
     role: str
-    grant: Grant
+    grant: PGGrantColumnsChoice
     with_grant_option: bool
 
     type_ = "grant_table"
@@ -68,14 +68,14 @@ class PGGrantColumns(ReplaceableEntity):
         table: str,
         columns: List[str],
         role: str,
-        grant: Union[Grant, str],
+        grant: Union[PGGrantColumnsChoice, str],
         with_grant_option=False,
     ):
         self.schema: str = coerce_to_unquoted(schema)
         self.table: str = coerce_to_unquoted(table)
         self.columns: List[str] = sorted(columns)
         self.role: str = coerce_to_unquoted(role)
-        self.grant: Grant = Grant(grant)
+        self.grant: PGGrantColumnsChoice = PGGrantColumnsChoice(grant)
         self.with_grant_option: bool = with_grant_option
         self.signature = f"{self.schema}.{self.table}.{self.role}.{self.grant}"
 
@@ -155,8 +155,9 @@ class PGGrantColumns(ReplaceableEntity):
 
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create view" statement"""
+        with_grant_option = " WITH GRANT OPTION" if self.with_grant_option else ""
         return sql_text(
-            f'GRANT {self.grant} ( {", ".join(self.columns)} ) ON {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)}'
+            f'GRANT {self.grant} ( {", ".join(self.columns)} ) ON {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)} {with_grant_option}'
         )
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
