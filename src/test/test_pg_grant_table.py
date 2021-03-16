@@ -1,15 +1,9 @@
 import pytest
 
-from alembic_utils.pg_grant_columns import Grant, PGGrantColumns
+from alembic_utils.exceptions import BadInputException
+from alembic_utils.pg_grant_table import PGGrantTable, PGGrantTableChoice
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
-
-# TODO
-"""
-- Cant revoke permissions from superuser so they need to be filtered out
-- Multiple users may grant the same permsision to a role so we need a new
-    parameter for grantor and a check that "CURENT_USER == grantor"
-"""
 
 
 @pytest.fixture(scope="function")
@@ -29,23 +23,43 @@ def sql_setup(engine):
     conn.execute("drop table public.account cascade")
 
 
-TEST_GRANT = PGGrantColumns(
+TEST_GRANT = PGGrantTable(
     schema="public",
     table="account",
-    columns=["id", "email"],
     role="anon_user",
-    grant=Grant.SELECT,
+    grant=PGGrantTableChoice.DELETE,
     with_grant_option=False,
 )
 
 
 def test_repr():
-    go = Grant("SELECT")
-    assert go.__repr__() == "'SELECT'"
+    go = PGGrantTableChoice("TRUNCATE")
+    assert go.__repr__() == "'TRUNCATE'"
+
+
+def test_bad_input():
+
+    with pytest.raises(BadInputException):
+        PGGrantTable(
+            schema="public",
+            table="account",
+            role="anon_user",
+            grant=PGGrantTableChoice.DELETE,
+            columns=["id"],  # columns not allowed for delete
+        )
+
+    with pytest.raises(BadInputException):
+        PGGrantTable(
+            schema="public",
+            table="account",
+            role="anon_user",
+            grant=PGGrantTableChoice.SELECT,
+            # columns required for select
+        )
 
 
 def test_create_revision(sql_setup, engine) -> None:
-    register_entities([TEST_GRANT], entity_types=[PGGrantColumns])
+    register_entities([TEST_GRANT], entity_types=[PGGrantTable])
     run_alembic_command(
         engine=engine,
         command="revision",
@@ -60,7 +74,7 @@ def test_create_revision(sql_setup, engine) -> None:
     assert "op.create_entity" in migration_contents
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
-    assert "from alembic_utils.pg_grant_columns import PGGrantColumns" in migration_contents
+    assert "from alembic_utils.pg_grant_table import PGGrantTable" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
@@ -71,16 +85,15 @@ def test_create_revision(sql_setup, engine) -> None:
 def test_replace_revision(sql_setup, engine) -> None:
     engine.execute(TEST_GRANT.to_sql_statement_create())
 
-    UPDATED_GRANT = PGGrantColumns(
+    UPDATED_GRANT = PGGrantTable(
         schema="public",
         table="account",
-        columns=["id"],
         role="anon_user",
-        grant=Grant.SELECT,
+        grant=PGGrantTableChoice.DELETE,
         with_grant_option=True,
     )
 
-    register_entities([UPDATED_GRANT], entity_types=[PGGrantColumns])
+    register_entities([UPDATED_GRANT], entity_types=[PGGrantTable])
     run_alembic_command(
         engine=engine,
         command="revision",
@@ -96,7 +109,7 @@ def test_replace_revision(sql_setup, engine) -> None:
     assert "op.replace_entity" in migration_contents
     assert "op.create_entity" not in migration_contents
     assert "op.drop_entity" not in migration_contents
-    assert "from alembic_utils.pg_grant_columns import PGGrantColumns" in migration_contents
+    assert "from alembic_utils.pg_grant_table import PGGrantTable" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
@@ -108,7 +121,7 @@ def test_noop_revision(sql_setup, engine) -> None:
     # Create the view outside of a revision
     engine.execute(TEST_GRANT.to_sql_statement_create())
 
-    register_entities([TEST_GRANT], entity_types=[PGGrantColumns])
+    register_entities([TEST_GRANT], entity_types=[PGGrantTable])
 
     # Create a third migration without making changes.
     # This should result in no create, drop or replace statements
@@ -138,7 +151,7 @@ def test_noop_revision(sql_setup, engine) -> None:
 def test_drop_revision(sql_setup, engine) -> None:
 
     # Register no functions locally
-    register_entities([], schemas=["public"], entity_types=[PGGrantColumns])
+    register_entities([], schemas=["public"], entity_types=[PGGrantTable])
 
     # Manually create a SQL function
     engine.execute(TEST_GRANT.to_sql_statement_create())

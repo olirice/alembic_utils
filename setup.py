@@ -34,10 +34,10 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     install_requires=[
-        "alembic>=1.5.1",
+        "alembic>=1.5.7",
         "psycopg2-binary",
         "flupy",
-        "sqlalchemy",
+        "sqlalchemy<1.4",
         "parse",
         "typing_extensions",
     ],

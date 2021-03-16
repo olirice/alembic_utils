@@ -111,6 +111,7 @@ class ReplaceableEntity:
         for without_self, with_self in zip_longest(db_entities, all_w_self):
             if without_self is None or without_self.identity != with_self.identity:
                 return with_self
+
         raise UnreachableException()
 
     def render_self_for_migration(self, omit_definition=False) -> str:
