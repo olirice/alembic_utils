@@ -1,15 +1,9 @@
 import pytest
 
+from alembic_utils.exceptions import BadInputException
 from alembic_utils.pg_grant_table import PGGrantTable, PGGrantTableChoice
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
-
-# TODO
-"""
-- Cant revoke permissions from superuser so they need to be filtered out
-- Multiple users may grant the same permsision to a role so we need a new
-    parameter for grantor and a check that "CURENT_USER == grantor"
-"""
 
 
 @pytest.fixture(scope="function")
@@ -41,6 +35,27 @@ TEST_GRANT = PGGrantTable(
 def test_repr():
     go = PGGrantTableChoice("TRUNCATE")
     assert go.__repr__() == "'TRUNCATE'"
+
+
+def test_bad_input():
+
+    with pytest.raises(BadInputException):
+        PGGrantTable(
+            schema="public",
+            table="account",
+            role="anon_user",
+            grant=PGGrantTableChoice.DELETE,
+            columns=["id"],  # columns not allowed for delete
+        )
+
+    with pytest.raises(BadInputException):
+        PGGrantTable(
+            schema="public",
+            table="account",
+            role="anon_user",
+            grant=PGGrantTableChoice.SELECT,
+            # columns required for select
+        )
 
 
 def test_create_revision(sql_setup, engine) -> None:

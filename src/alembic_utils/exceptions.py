@@ -16,3 +16,7 @@ class FailedToGenerateComparable(AlembicUtilsException):
 
 class UnreachableException(AlembicUtilsException):
     """An exception no one should ever see"""
+
+
+class BadInputException(AlembicUtilsException):
+    """Invalid user input"""
