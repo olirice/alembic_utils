@@ -246,7 +246,7 @@ def register_entities(
             sess = Session(bind=connection)
             ordered_entities: List[T] = solve_resolution_order(sess, entities)
         finally:
-            transaction.rollback()
+            sess.rollback()
 
         # entities that are receiving a create or update op
         has_create_or_update_op: List[ReplaceableEntity] = []
@@ -305,7 +305,7 @@ def register_entities(
                     )
 
             finally:
-                transaction.rollback()
+                sess.rollback()
 
         # Required migration OPs, Drop
         try:
@@ -354,7 +354,7 @@ def register_entities(
                             )
 
         finally:
-            transaction.rollback()
+            sess.rollback()
 
 
 def include_entity(entity: T, autogen_context: AutogenContext, reflected: bool) -> bool:

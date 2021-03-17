@@ -37,7 +37,7 @@ setup(
         "alembic>=1.5.7",
         "psycopg2-binary",
         "flupy",
-        "sqlalchemy<1.4",
+        "sqlalchemy>=1.3.0",
         "parse",
         "typing_extensions",
     ],
