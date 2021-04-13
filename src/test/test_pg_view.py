@@ -86,6 +86,10 @@ def test_update_revision(engine) -> None:
     assert "op.drop_entity" not in migration_contents
     assert "from alembic_utils.pg_view import PGView" in migration_contents
 
+    assert "true" in migration_contents.lower()
+    assert "false" in migration_contents.lower()
+    assert migration_contents.lower().find("true") < migration_contents.lower().find("false")
+
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
     # Execute Downgrade

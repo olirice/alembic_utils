@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Optional, Type
 
 from alembic.autogenerate import renderers
 from alembic.operations import MigrateOperation, Operations
 from sqlalchemy.orm import Session
 from typing_extensions import Protocol
+
+from alembic_utils.exceptions import UnreachableException
 
 if TYPE_CHECKING:
     from alembic_utils.replaceable_entity import ReplaceableEntity
@@ -133,16 +135,40 @@ def render_replace_entity(autogen_context, op):
 def render_revert_entity(autogen_context, op):
     """Collect the entity definition currently live in the database and use its definition
     as the downgrade revert target"""
+
+    # Note: There can be differences in the local definition's identity property and the
+    # corresponding record in the database. To avoid that issue, we first retrieve the
+    # local definition's corresponding definition once its been rendered in the db
+    # and then use that identity property to find the existing definition.
+
+    # We should never reach this function call unless there is an existing definition
+    # so failing to find a match results in an unreachable exception
+
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
 
     context = autogen_context
+
     # The connection autogen_context engine is closed
     engine = autogen_context.connection.engine
 
     with engine.connect() as connection:
         sess = Session(bind=connection)
-        db_target = op.target.get_database_definition(sess)
+
+        db_def = target.get_database_definition(sess)
+
+        db_target: Optional["ReplaceableEntity"] = None
+
+        db_entities = sorted(
+            db_def.from_database(sess, schema=db_def.schema), key=lambda x: x.identity
+        )
+        for existing in db_entities:
+            if existing.identity == db_def.identity:
+                db_target = existing
+                break
+
+        if db_target is None:
+            raise UnreachableException
 
     variable_name = db_target.to_variable_name()
     return db_target.render_self_for_migration() + f"op.replace_entity({variable_name})"

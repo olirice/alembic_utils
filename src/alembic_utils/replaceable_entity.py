@@ -275,6 +275,7 @@ def register_entities(
                 continue
 
             try:
+
                 transaction = connection.begin()
                 sess = Session(bind=connection)
 
