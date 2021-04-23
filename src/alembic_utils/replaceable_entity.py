@@ -334,9 +334,9 @@ def register_entities(
 
                         if not include_entity(db_entity, autogen_context, reflected=True):
                             logger.debug(
-                                "Ignoring local entity %s %s due to AutogenContext filters",
-                                entity.__class__.__name__,
-                                entity.identity,
+                                "Ignoring remote entity %s %s due to AutogenContext filters",
+                                db_entity.__class__.__name__,
+                                db_entity.identity,
                             )
                             continue
 
