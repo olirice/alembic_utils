@@ -88,7 +88,9 @@ def test_update_revision(engine) -> None:
 
     assert "true" in migration_contents.lower()
     assert "false" in migration_contents.lower()
-    assert migration_contents.lower().find("true") < migration_contents.lower().find("false")
+    assert migration_contents.lower().find("true as is_updated") < migration_contents.lower().find(
+        "false as is_updated"
+    )
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})

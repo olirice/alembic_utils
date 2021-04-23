@@ -6,6 +6,7 @@ from typing import List, Optional, Set, Type, TypeVar
 
 from alembic.autogenerate import comparators
 from alembic.autogenerate.api import AutogenContext
+from alembic.operations import Operations
 from flupy import flu
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import TextClause
@@ -280,12 +281,11 @@ def register_entities(
                 sess = Session(bind=connection)
 
                 # Execute any operations that were produced by alembic proper
-                # in case we depend on them
+                # in case and replaceable entities depend on them
+                # https://alembic.sqlalchemy.org/en/latest/cookbook.html#run-alembic-operation-objects-directly-as-in-from-autogenerate
+                ops = Operations(autogen_context.migration_context)
                 for uop in upgrade_ops.ops:
-                    import pdb
-
-                    pdb.set_trace()
-                    sess.execute(uop)
+                    ops.invoke(uop)
 
                 maybe_op = entity.get_required_migration_op(
                     sess, dependencies=has_create_or_update_op

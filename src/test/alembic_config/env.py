@@ -25,7 +25,7 @@ metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 
 
-class SomeTable(Base):
+class SomeTable(Base):  # type: ignore
     __tablename__ = "some_table"
 
     id = Column(Integer(), primary_key=True)
@@ -54,7 +54,10 @@ def include_object(object, name, type_, reflected, compare_to) -> bool:
         # ignoring entities from particular schemas.
         return not "exclude_obj_" in name
     else:
-        return True
+        if name == "some_table":
+            return True
+
+        return False
 
 
 def include_name(name, type_, parent_names) -> bool:
