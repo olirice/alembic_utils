@@ -279,6 +279,14 @@ def register_entities(
                 transaction = connection.begin()
                 sess = Session(bind=connection)
 
+                # Execute any operations that were produced by alembic proper
+                # in case we depend on them
+                for uop in upgrade_ops.ops:
+                    import pdb
+
+                    pdb.set_trace()
+                    sess.execute(uop)
+
                 maybe_op = entity.get_required_migration_op(
                     sess, dependencies=has_create_or_update_op
                 )

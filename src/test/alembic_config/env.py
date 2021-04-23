@@ -1,7 +1,15 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import MetaData, engine_from_config, pool
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    Table,
+    engine_from_config,
+    pool,
+)
+from sqlalchemy.orm import declarative_base
 
 from alembic_utils.replaceable_entity import ReplaceableEntity
 
@@ -13,11 +21,21 @@ config = context.config
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)
 
+metadata = MetaData()
+Base = declarative_base(metadata=metadata)
+
+
+class SomeTable(Base):
+    __tablename__ = "some_table"
+
+    id = Column(Integer(), primary_key=True)
+
+
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = [MetaData()]
+target_metadata = [Base.metadata]
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -36,7 +54,7 @@ def include_object(object, name, type_, reflected, compare_to) -> bool:
         # ignoring entities from particular schemas.
         return not "exclude_obj_" in name
     else:
-        return False
+        return True
 
 
 def include_name(name, type_, parent_names) -> bool:
