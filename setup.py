@@ -18,6 +18,7 @@ DEV_REQUIRES = [
     "pre-commit",
     "mypy",
     "sqlalchemy-stubs",
+    "psycopg2-binary",
     "pytest",
     "pytest-cov",
     "mkdocs",
@@ -35,7 +36,6 @@ setup(
     package_dir={"": "src"},
     install_requires=[
         "alembic>=1.5.7",
-        "psycopg2-binary",
         "flupy",
         "sqlalchemy>=1.3.0",
         "parse",
