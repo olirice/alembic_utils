@@ -22,13 +22,17 @@ class PGMaterializedView(ReplaceableEntity):
     * **signature** - *str*: A SQL view's call signature
     * **definition** - *str*: The SQL select statement body of the view
     * **with_data** - *bool*: Should create and replace statements populate data
+    * **indizes** - *list of dict*: Should create all indizes for the materialized view
     """
 
     type_ = "materialized_view"
 
-    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True):
+# added new input parameter "indizes" as list of dictionaries to import a variable number of indizes along with the Materialized View
+    
+    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True, indizes: list = []):
         super().__init__(schema=schema, signature=signature, definition=definition)
         self.with_data = with_data
+        self.indizes = indizes
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGMaterializedView":
@@ -71,9 +75,15 @@ class PGMaterializedView(ReplaceableEntity):
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
         definition = self.definition.rstrip().rstrip(";")
 
-        return sql_text(
-            f'CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;'
-        )
+#changed build of statement to implement an variable number of indizes included in creation of Materialized Views
+
+        sql_text = (f'CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" '
+                    f'AS {definition} WITH {"NO" if not self.with_data else ""} DATA;')
+        for index in self.indizes:
+            sql_text = (f"{sql_text}" + \
+                        f"CREATE INDEX {index['name']} ON {self.signature}({index['columns']});")
+
+        return sql_text
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
@@ -82,17 +92,23 @@ class PGMaterializedView(ReplaceableEntity):
             f'DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}" {cascade}'
         )
 
-    def to_sql_statement_create_or_replace(self) -> TextClause:
+    def to_sql_statement_create_or_replace(self, cascade=False) -> TextClause:
         """Generates a SQL "create or replace view" statement"""
+        cascade = "cascade" if cascade else ""
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
         definition = self.definition.rstrip().rstrip(";")
 
-        return sql_text(
-            f"""
-            DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}";
-            CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;
-        """
-        )
+# changed build of statement to implement an variable number of indizes included in creation of Materialized Views
+
+        sql_text = (f"""
+                    DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}" {cascade};
+                    CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;
+                """)
+        for index in self.indizes:
+            sql_text = (f"{sql_text}" + \
+                        f"CREATE INDEX {index['name']} ON {self.signature}({index['columns']});")
+
+        return sql_text
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
@@ -104,7 +120,8 @@ class PGMaterializedView(ReplaceableEntity):
             schema="{self.schema}",
             signature="{self.signature}",
             definition={repr(escaped_definition)},
-            with_data={repr(self.with_data)}
+            with_data={repr(self.with_data)},
+            indizes={self.indizes}
         )\n\n"""
 
     @classmethod
