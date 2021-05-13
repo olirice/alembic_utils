@@ -64,3 +64,24 @@ def collect_instances(module: ModuleType, class_: Type[T]) -> List[T]:
                 if variable.__class__ == class_:
                     found.append(variable)
     return found
+
+
+def collect_subclasses(module: ModuleType, class_: Type[T]) -> List[Type[T]]:
+    """Collect all subclasses of *class_* defined in *module*
+
+    Note: Will import all submodules in *module*. Beware of import side effects
+    """
+
+    found: List[Type[T]] = []
+
+    for module_ in walk_modules(module):
+
+        for _, variable in module_.__dict__.items():
+            try:
+                if issubclass(variable, class_) and not class_ == variable:
+                    found.append(variable)
+            except TypeError:
+                # argument 2 to issubclass must be a class ....
+                pass
+
+    return list(set(found))

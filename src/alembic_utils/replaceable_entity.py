@@ -10,11 +10,13 @@ from flupy import flu
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import TextClause
 
+import alembic_utils
 from alembic_utils.depends import solve_resolution_order
 from alembic_utils.exceptions import (
     DuplicateRegistration,
     UnreachableException,
 )
+from alembic_utils.experimental import collect_subclasses
 from alembic_utils.reversible_op import (
     CreateOp,
     DropOp,
@@ -197,8 +199,8 @@ def register_entities(
     * **entity_types** - *Optional[List[str]]*: A list of ReplaceableEntity classes to consider during migrations. Other entity types are ignored
     """
 
-    allowed_entity_types: List[Type[ReplaceableEntity]] = (
-        entity_types or ReplaceableEntity.__subclasses__()
+    allowed_entity_types: List[Type[ReplaceableEntity]] = entity_types or collect_subclasses(
+        alembic_utils, ReplaceableEntity
     )
 
     @comparators.dispatch_for("schema")
@@ -317,7 +319,8 @@ def register_entities(
 
             # All database entities currently live
             # Check if anything needs to drop
-            for entity_class in ReplaceableEntity.__subclasses__():
+            subclasses = collect_subclasses(alembic_utils, ReplaceableEntity)
+            for entity_class in subclasses:
 
                 if entity_class not in allowed_entity_types:
                     continue
