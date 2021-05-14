@@ -4,6 +4,7 @@
 from parse import parse
 from sqlalchemy import text as sql_text
 from sqlalchemy.sql.elements import TextClause
+from sqlalchemy import Index
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
@@ -22,17 +23,17 @@ class PGMaterializedView(ReplaceableEntity):
     * **signature** - *str*: A SQL view's call signature
     * **definition** - *str*: The SQL select statement body of the view
     * **with_data** - *bool*: Should create and replace statements populate data
-    * **indizes** - *list of dict*: Should create all indizes for the materialized view
+    * **indexes** - *list of dict*: Should create all indexes for the materialized view
     """
 
     type_ = "materialized_view"
 
-# added new input parameter "indizes" as list of dictionaries to import a variable number of indizes along with the Materialized View
+# added new input parameter "indexes" as list of dictionaries to import a variable number of indexes along with the Materialized View
     
-    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True, indizes: list = []):
+    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True, indexes: list = []):
         super().__init__(schema=schema, signature=signature, definition=definition)
         self.with_data = with_data
-        self.indizes = indizes
+        self.indexzes = indexes
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGMaterializedView":
@@ -65,6 +66,7 @@ class PGMaterializedView(ReplaceableEntity):
                     signature=signature.replace('"', ""),
                     definition=result["definition"],
                     with_data=with_data,
+                    indexes=indexes,
                 )
 
         raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
@@ -75,13 +77,24 @@ class PGMaterializedView(ReplaceableEntity):
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
         definition = self.definition.rstrip().rstrip(";")
 
-#changed build of statement to implement an variable number of indizes included in creation of Materialized Views
+#changed build of statement to implement an variable number of indexes included in creation of Materialized Views
 
         sql_text = (f'CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" '
                     f'AS {definition} WITH {"NO" if not self.with_data else ""} DATA;')
-        for index in self.indizes:
-            sql_text = (f"{sql_text}" + \
-                        f"CREATE INDEX {index['name']} ON {self.signature}({index['columns']});")
+        index = Index
+        for index in self.indexes:
+            if index.unique:
+                sql_text = (f"{sql_text}" + \
+                        f"CREATE UNIQUE INDEX {index.name} ON {self.signature} ({index.expressions[0]}")
+                for x in range(len(index.expressions)-1):
+                    sql_text = (f"{sql_text}, {index.expressions[x]}")
+                sql_text = (f"{sql_text});")
+            else:
+                sql_text = (f"{sql_text}" + \
+                            f"CREATE INDEX {index.name} ON {self.signature} ({index.expressions[0]}")
+                for x in range(len(index.expressions)-1):
+                    sql_text = (f"{sql_text}, {index.expressions[x]}")
+                sql_text = (f"{sql_text});")
 
         return sql_text
 
@@ -98,15 +111,26 @@ class PGMaterializedView(ReplaceableEntity):
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
         definition = self.definition.rstrip().rstrip(";")
 
-# changed build of statement to implement an variable number of indizes included in creation of Materialized Views
+# changed build of statement to implement an variable number of indexes included in creation of Materialized Views
 
         sql_text = (f"""
                     DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}" {cascade};
                     CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;
                 """)
-        for index in self.indizes:
-            sql_text = (f"{sql_text}" + \
-                        f"CREATE INDEX {index['name']} ON {self.signature}({index['columns']});")
+        index = Index
+        for index in self.indexes:
+            if index.unique:
+                sql_text = (f"{sql_text}" + \
+                        f"CREATE UNIQUE INDEX {index.name} ON {self.signature} ({index.expressions[0]}")
+                for x in range(len(index.expressions)-1):
+                    sql_text = (f"{sql_text}, {index.expressions[x]}")
+                sql_text = (f"{sql_text});")
+            else:
+                sql_text = (f"{sql_text}" + \
+                            f"CREATE INDEX {index.name} ON {self.signature} ({index.expressions[0]}")
+                for x in range(len(index.expressions)-1):
+                    sql_text = (f"{sql_text}, {index.expressions[x]}")
+                sql_text = (f"{sql_text});")
 
         return sql_text
 
