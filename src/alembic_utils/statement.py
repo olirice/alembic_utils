@@ -30,11 +30,16 @@ def escape_colon_for_plpgsql(sql: str) -> str:
     """Escapes colons for plpgsql for use in sqlalchemy.text"""
     holder1 = str(uuid4())
     holder2 = str(uuid4())
+    holder3 = str(uuid4())
     sql = sql.replace("::", holder1)
     sql = sql.replace(":=", holder2)
-    sql = sql.replace(":", "\:")
-    sql = sql.replace(holder1, "::")
+    sql = sql.replace(r"\:", holder3)
+
+    sql = sql.replace(":", r"\:")
+
+    sql = sql.replace(holder3, r"\:")
     sql = sql.replace(holder2, ":=")
+    sql = sql.replace(holder1, "::")
     return sql
 
 
