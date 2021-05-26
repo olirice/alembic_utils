@@ -41,7 +41,7 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
                     # Example: elt.settings
                     module_import_path = str(module_path)[
                         len(str(top_path)) - len(top_module.__name__) :
-                    ].replace("/", ".")[:-3]
+                    ].replace("/", ".").replace("\\", ".")[:-3]
 
                     module = importlib.import_module(module_import_path)
                     yield module
