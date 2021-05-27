@@ -1,4 +1,5 @@
 import importlib
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Generator, List, Type, TypeVar
@@ -41,7 +42,7 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
                     # Example: elt.settings
                     module_import_path = str(module_path)[
                         len(str(top_path)) - len(top_module.__name__) :
-                    ].replace("/", ".").replace("\\", ".")[:-3]
+                    ].replace(os.path.sep, ".")[:-3]
 
                     module = importlib.import_module(module_import_path)
                     yield module
