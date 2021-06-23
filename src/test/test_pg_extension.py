@@ -1,3 +1,5 @@
+import pytest
+
 from alembic_utils.pg_extension import PGExtension
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
@@ -30,7 +32,16 @@ def test_create_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine) -> None:
+def test_create_or_replace_raises():
+    with pytest.raises(NotImplementedError):
+        TEST_EXT.to_sql_statement_create_or_replace()
+
+
+def test_update_is_unreachable(engine) -> None:
+    # Updates are not possible. The only parameter that may change is
+    # schema, and that will result in a drop and create due to schema
+    # scoping assumptions made for all other entities
+
     # Create the view outside of a revision
     engine.execute(TEST_EXT.to_sql_statement_create())
 
@@ -51,15 +62,8 @@ def test_update_revision(engine) -> None:
     with migration_replace_path.open() as migration_file:
         migration_contents = migration_file.read()
 
-    assert "op.replace_entity" in migration_contents
-    assert "op.create_entity" not in migration_contents
-    assert "op.drop_entity" not in migration_contents
+    assert "op.replace_entity" not in migration_contents
     assert "from alembic_utils.pg_extension import PGExtension" in migration_contents
-
-    # Execute upgrade
-    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
-    # Execute Downgrade
-    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
 def test_noop_revision(engine) -> None:

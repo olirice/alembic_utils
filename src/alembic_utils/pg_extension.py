@@ -37,13 +37,13 @@ class PGExtension(ReplaceableEntity):
         return sql_text(f'CREATE EXTENSION "{self.signature}" WITH SCHEMA {self.literal_schema};')
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
-        """Generates a SQL "drop view" statement"""
+        """Generates a SQL "drop extension" statement"""
         cascade = "CASCADE" if cascade else ""
         return sql_text(f'DROP EXTENSION "{self.signature}" {cascade}')
 
     def to_sql_statement_create_or_replace(self) -> TextClause:
         """Generates SQL equivalent to "create or replace" statement"""
-        return sql_text(f'ALTER EXTENSION "{self.signature}" SET SCHEMA {self.literal_schema};')
+        raise NotImplementedError()
 
     @property
     def identity(self) -> str:
