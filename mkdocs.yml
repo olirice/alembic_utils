@@ -9,6 +9,7 @@ extra_css:
 
 repo_name: olirice/alembic_utils
 repo_url: https://github.com/olirice/alembic_utils
+site_url: https://olirice.github.io/alembic_utils
 
 nav:
     - Introduction: 'index.md'

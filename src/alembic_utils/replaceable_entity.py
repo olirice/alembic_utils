@@ -143,7 +143,7 @@ class ReplaceableEntity:
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents """
         schema_name = self.schema.lower()
-        object_name = self.signature.split("(")[0].strip().lower()
+        object_name = self.signature.split("(")[0].strip().lower().replace("-", "_")
         return f"{schema_name}_{object_name}"
 
     def get_required_migration_op(
