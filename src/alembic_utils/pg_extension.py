@@ -20,7 +20,7 @@ class PGExtension(ReplaceableEntity):
     **Parameters:**
 
     * **schema** - *str*: A SQL schema name
-    * **signature** - *str*: A SQL extension's name
+    * **signature** - *str*: A PostgreSQL extension's name
     """
 
     type_ = "extension"

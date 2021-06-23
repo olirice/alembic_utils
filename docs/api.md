@@ -63,6 +63,19 @@ trigger = PGTrigger(
 )
 ```
 
+::: alembic_utils.pg_extension.PGExtension
+    :docstring:
+
+
+```python
+from alembic_utils.pg_extension import PGExtension
+
+extension = PGExtension(
+    schema="public",
+    signature="uuid-ossp",
+)
+```
+
 
 ::: alembic_utils.pg_policy.PGPolicy
     :docstring:
