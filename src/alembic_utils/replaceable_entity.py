@@ -79,15 +79,15 @@ class ReplaceableEntity:
         raise NotImplementedError()
 
     def to_sql_statement_create(self) -> TextClause:
-        """ Generates a SQL "create function" statement for PGFunction """
+        """Generates a SQL "create function" statement for PGFunction"""
         raise NotImplementedError()
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
-        """ Generates a SQL "drop function" statement for PGFunction """
+        """Generates a SQL "drop function" statement for PGFunction"""
         raise NotImplementedError()
 
     def to_sql_statement_create_or_replace(self) -> TextClause:
-        """ Generates a SQL "create or replace function" statement for PGFunction """
+        """Generates a SQL "create or replace function" statement for PGFunction"""
         raise NotImplementedError()
 
     def get_database_definition(
@@ -141,7 +141,7 @@ class ReplaceableEntity:
         return f"{self.__class__.__name__}: {self.schema}.{self.signature}"
 
     def to_variable_name(self) -> str:
-        """A deterministic variable name based on PGFunction's contents """
+        """A deterministic variable name based on PGFunction's contents"""
         schema_name = self.schema.lower()
         object_name = self.signature.split("(")[0].strip().lower().replace("-", "_")
         return f"{schema_name}_{object_name}"
