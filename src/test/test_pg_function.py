@@ -4,7 +4,7 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 import pytest
 
 
-@pytest.fixture(params=["public", "DEV"])
+@pytest.fixture(params=["public", "DEV", ""])
 def TO_UPPER(request):
     return PGFunction(
         schema=request.param,

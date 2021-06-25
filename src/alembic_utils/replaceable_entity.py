@@ -66,6 +66,16 @@ class ReplaceableEntity:
         """
         return coerce_to_quoted(self.schema)
 
+    @property
+    def literal_schema_and_dot(self) -> str:
+        """Wrap a schema name in literal quotes
+        Emits the schema including a trailing dot, except if no schema
+        is defined, then it returns an empty string
+        """
+        if self.schema == "":
+            return ""
+        return coerce_to_quoted(self.schema) + "."
+
     @classmethod
     def from_path(cls: Type[T], path: Path) -> T:
         """Create an instance instance from a SQL file path"""

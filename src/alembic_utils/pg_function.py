@@ -1,5 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List
+from typing import List, Optional
 
 from parse import parse
 from sqlalchemy import text as sql_text
@@ -39,18 +39,25 @@ class PGFunction(ReplaceableEntity):
     @classmethod
     def from_sql(cls, sql: str) -> "PGFunction":
         """Create an instance instance from a SQL string"""
-        template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
+        template = "create{}function{:s}{schema_and_or_signature}{:s}returns{:s}{definition}"
         result = parse(template, sql.strip(), case_sensitive=False)
+        if not result:
+            raise SQLParseFailure
+        if "." in result["schema_and_or_signature"]:
+            schema, signature = result["schema_and_or_signature"].split(".")
+        else:
+            signature = result["schema_and_or_signature"]
+            schema = ""
         if result is not None:
             # remove possible quotes from signature
-            raw_signature = result["signature"]
+            raw_signature = signature
             signature = (
                 "".join(raw_signature.split('"', 2))
                 if raw_signature.startswith('"')
                 else raw_signature
             )
             return cls(
-                schema=result["schema"],
+                schema=schema,
                 signature=signature,
                 definition="returns " + result["definition"],
             )
@@ -68,9 +75,9 @@ class PGFunction(ReplaceableEntity):
         return '"' + name + '"(' + remainder
 
     def to_sql_statement_create(self):
-        """ Generates a SQL "create function" statement for PGFunction """
+        """Generates a SQL "create function" statement for PGFunction"""
         return sql_text(
-            f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+            f"CREATE FUNCTION {self.literal_schema_and_dot}{self.literal_signature} {self.definition}"
         )
 
     def to_sql_statement_drop(self, cascade=False):
@@ -93,17 +100,17 @@ class PGFunction(ReplaceableEntity):
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
         return sql_text(
-            f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params}) {cascade}'
+            f'DROP FUNCTION {self.literal_schema_and_dot}"{function_name}"({drop_params}) {cascade}'
         )
 
     def to_sql_statement_create_or_replace(self):
-        """ Generates a SQL "create or replace function" statement for PGFunction """
+        """Generates a SQL "create or replace function" statement for PGFunction"""
         return sql_text(
-            f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+            f"CREATE OR REPLACE FUNCTION {self.literal_schema_and_dot}{self.literal_signature} {self.definition}"
         )
 
     @classmethod
-    def from_database(cls, sess, schema):
+    def from_database(cls, sess, schema: str = ""):
         """Get a list of all functions defined in the db"""
 
         # Prior to postgres 11, pg_proc had different columns
@@ -155,7 +162,7 @@ class PGFunction(ReplaceableEntity):
             n.nspname not in ('pg_catalog', 'information_schema')
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
-            and n.nspname = :schema
+            {'and n.nspname = :schema' if schema else ''}
         """
             + (PG_GTE_11 if pg_version >= 110000 else PG_LT_11)
         )
