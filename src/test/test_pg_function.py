@@ -1,19 +1,23 @@
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
+import pytest
 
-TO_UPPER = PGFunction(
-    schema="public",
-    signature="toUpper(some_text text default 'my text!')",
-    definition="""
+
+@pytest.fixture(params=["public", "DEV"])
+def TO_UPPER(request):
+    return PGFunction(
+        schema=request.param,
+        signature="toUpper(some_text text default 'my text!')",
+        definition="""
         returns text
         as
         $$ begin return upper(some_text) || 'abc'; end; $$ language PLPGSQL;
         """,
-)
+    )
 
 
-def test_create_revision(engine) -> None:
+def test_create_revision(engine, TO_UPPER) -> None:
     register_entities([TO_UPPER], entity_types=[PGFunction])
 
     run_alembic_command(
@@ -38,7 +42,7 @@ def test_create_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine) -> None:
+def test_update_revision(engine, TO_UPPER) -> None:
     engine.execute(TO_UPPER.to_sql_statement_create())
 
     # Update definition of TO_UPPER
@@ -78,7 +82,7 @@ def test_update_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_noop_revision(engine) -> None:
+def test_noop_revision(engine, TO_UPPER) -> None:
     engine.execute(TO_UPPER.to_sql_statement_create())
 
     register_entities([TO_UPPER], entity_types=[PGFunction])
@@ -104,7 +108,7 @@ def test_noop_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop(engine) -> None:
+def test_drop(engine, TO_UPPER) -> None:
     # Manually create a SQL function
     engine.execute(TO_UPPER.to_sql_statement_create())
 
@@ -133,7 +137,7 @@ def test_drop(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_has_no_parameters(engine) -> None:
+def test_has_no_parameters(engine, TO_UPPER) -> None:
     # Error was occuring in drop statement when function had no parameters
     # related to parameter parsing to drop default statements
 
@@ -169,7 +173,7 @@ def test_has_no_parameters(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_ignores_extension_functions(engine) -> None:
+def test_ignores_extension_functions(engine, TO_UPPER) -> None:
     # Extensions contain functions and don't have local representations
     # Unless they are excluded, every autogenerate migration will produce
     # drop statements for those functions
@@ -192,7 +196,7 @@ def test_ignores_extension_functions(engine) -> None:
         engine.execute("drop extension if exists unaccent;")
 
 
-def test_plpgsql_colon_esacpe(engine) -> None:
+def test_plpgsql_colon_esacpe(engine, TO_UPPER) -> None:
     # PGFunction.__init__ overrides colon escapes for plpgsql
     # because := should not be escaped for sqlalchemy.text
     # if := is escaped, an exception would be raised
