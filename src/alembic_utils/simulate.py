@@ -1,4 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
+import copy
 import logging
 from contextlib import ExitStack, contextmanager
 from typing import TYPE_CHECKING, List, Optional
@@ -21,6 +22,14 @@ def simulate_entity(
     """Creates *entiity* in a transaction so postgres rendered definition
     can be retrieved
     """
+
+    # When simulating materialized view, don't populate them with data
+    from alembic_utils.pg_materialized_view import PGMaterializedView
+
+    if isinstance(entity, PGMaterializedView) and entity.with_data:
+        entity = copy.deepcopy(entity)
+        entity.with_data = False
+
     deps: List["ReplaceableEntity"] = dependencies or []
 
     try:
