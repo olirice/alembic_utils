@@ -57,6 +57,38 @@ def test_create_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
+def test_create_revision_with_semicolon_escaped(engine) -> None:
+    """Ensure no regression where views escape colons
+    More info at: https://github.com/olirice/alembic_utils/issues/58
+    """
+    url = "https://something/"
+    query = f"SELECT concat('{url}', v::text) FROM generate_series(1,2) x(v)"
+    some_view = PGView(schema="public", signature="exa", definition=query)
+    register_entities([some_view], entity_types=[PGView])
+
+    output = run_alembic_command(
+        engine=engine,
+        command="revision",
+        command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
+    )
+
+    migration_create_path = TEST_VERSIONS_ROOT / "1_create.py"
+
+    with migration_create_path.open() as migration_file:
+        migration_contents = migration_file.read()
+
+    assert url in migration_contents
+    assert "op.create_entity" in migration_contents
+    assert "op.drop_entity" in migration_contents
+    assert "op.replace_entity" not in migration_contents
+    assert "from alembic_utils.pg_view import PGView" in migration_contents
+
+    # Execute upgrade
+    run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    # Execute Downgrade
+    run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
+
+
 def test_update_revision(engine) -> None:
     # Create the view outside of a revision
     engine.execute(TEST_VIEW.to_sql_statement_create())
@@ -215,7 +247,9 @@ def test_attempt_revision_on_unparsable(engine) -> None:
 
 def test_view_contains_semicolon(engine) -> None:
     TEST_SEMI_VIEW = PGView(
-        schema="public", signature="sample", definition="select ':a' as myfield, '1'::int as othi"
+        schema="public",
+        signature="sample",
+        definition="select 'http://asdf' as myfield, '1'::int as othi",
     )
 
     register_entities([TEST_SEMI_VIEW], entity_types=[PGView])

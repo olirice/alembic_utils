@@ -7,7 +7,13 @@ from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
-from alembic_utils.statement import strip_terminating_semicolon
+from alembic_utils.statement import (
+    coerce_to_quoted,
+    coerce_to_unquoted,
+    escape_colon_for_sql,
+    normalize_whitespace,
+    strip_terminating_semicolon,
+)
 
 
 class PGView(ReplaceableEntity):
@@ -21,6 +27,11 @@ class PGView(ReplaceableEntity):
     """
 
     type_ = "view"
+
+    def __init__(self, schema: str, signature: str, definition: str):
+        self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
+        self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
+        self.definition: str = strip_terminating_semicolon(definition)
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGView":
