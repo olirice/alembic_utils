@@ -74,6 +74,6 @@ The next time you autogenerate a revision with
 ```shell
 alembic revision --autogenerate -m 'some message'
 ```
-Alembic will detect if your entities are new, updated, or removed & populate the revison's `upgrade` and `downgrade` sections automatically.
+Alembic will detect if your entities are new, updated, or removed & populate the revision's `upgrade` and `downgrade` sections automatically.
 
 For example outputs, check the [examples](examples.md).
