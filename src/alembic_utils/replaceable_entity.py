@@ -243,9 +243,9 @@ def register_entities(
         }
 
         # Solve resolution order
+        transaction = connection.begin_nested()
+        sess = Session(bind=connection)
         try:
-            transaction = connection.begin()
-            sess = Session(bind=connection)
             ordered_entities: List[T] = solve_resolution_order(sess, entities)
         finally:
             sess.rollback()
@@ -276,11 +276,9 @@ def register_entities(
                 )
                 continue
 
+            transaction = connection.begin_nested()
+            sess = Session(bind=connection)
             try:
-
-                transaction = connection.begin()
-                sess = Session(bind=connection)
-
                 maybe_op = entity.get_required_migration_op(
                     sess, dependencies=has_create_or_update_op
                 )
@@ -311,12 +309,11 @@ def register_entities(
                 sess.rollback()
 
         # Required migration OPs, Drop
+        # Start a parent transaction
+        # Bind the session within the parent transaction
+        transaction = connection.begin_nested()
+        sess = Session(bind=connection)
         try:
-            # Start a parent transaction
-            # Bind the session within the parent transaction
-            transaction = connection.begin()
-            sess = Session(bind=connection)
-
             # All database entities currently live
             # Check if anything needs to drop
             subclasses = collect_subclasses(alembic_utils, ReplaceableEntity)
