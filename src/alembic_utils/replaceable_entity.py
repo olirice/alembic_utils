@@ -146,6 +146,8 @@ class ReplaceableEntity:
         object_name = self.signature.split("(")[0].strip().lower().replace("-", "_")
         return f"{schema_name}_{object_name}"
 
+    _version_to_replace: Optional[T] = None  # type: ignore
+
     def get_required_migration_op(
         self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
     ) -> Optional[ReversibleOp]:
@@ -164,6 +166,8 @@ class ReplaceableEntity:
                 return None
 
             if db_def.identity == x.identity:
+                # Cache the currently live copy to render a RevertOp without hitting DB again
+                self._version_to_replace = x
                 return ReplaceOp(self)
 
         return CreateOp(self)
