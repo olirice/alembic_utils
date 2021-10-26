@@ -2,7 +2,7 @@
 import logging
 from itertools import zip_longest
 from pathlib import Path
-from typing import List, Optional, Set, Type, TypeVar
+from typing import Generator, List, Optional, Set, Type, TypeVar
 
 from alembic.autogenerate import comparators
 from alembic.autogenerate.api import AutogenContext
@@ -86,7 +86,7 @@ class ReplaceableEntity:
         """ Generates a SQL "drop function" statement for PGFunction """
         raise NotImplementedError()
 
-    def to_sql_statement_create_or_replace(self) -> TextClause:
+    def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """ Generates a SQL "create or replace function" statement for PGFunction """
         raise NotImplementedError()
 

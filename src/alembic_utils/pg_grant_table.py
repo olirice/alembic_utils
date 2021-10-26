@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Generator, List, Optional, Union
 
 from flupy import flu
 from sqlalchemy import text as sql_text
@@ -224,14 +224,6 @@ class PGGrantTable(ReplaceableEntity):
             f"REVOKE {self.grant} ON {self.literal_schema}.{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
         )
 
-    def to_sql_statement_create_or_replace(self) -> TextClause:
-        return sql_text(
-            f"""
-        do $$
-            begin
-                {self.to_sql_statement_drop()};
-                {self.to_sql_statement_create()};
-            end;
-        $$ language 'plpgsql'
-        """
-        )
+    def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
+        yield self.to_sql_statement_drop()
+        yield self.to_sql_statement_create()

@@ -1,6 +1,8 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 
 
+from typing import Generator
+
 from parse import parse
 from sqlalchemy import text as sql_text
 from sqlalchemy.sql.elements import TextClause
@@ -8,9 +10,7 @@ from sqlalchemy.sql.elements import TextClause
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
 from alembic_utils.statement import (
-    coerce_to_quoted,
     coerce_to_unquoted,
-    escape_colon_for_sql,
     normalize_whitespace,
     strip_terminating_semicolon,
 )
@@ -61,13 +61,13 @@ class PGView(ReplaceableEntity):
         cascade = "cascade" if cascade else ""
         return sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}" {cascade}')
 
-    def to_sql_statement_create_or_replace(self) -> TextClause:
+    def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create or replace view" statement
 
         If the initial "CREATE OR REPLACE" statement does not succeed,
         fails over onto "DROP VIEW" followed by "CREATE VIEW"
         """
-        return sql_text(
+        yield sql_text(
             f"""
         do $$
             begin

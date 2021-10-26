@@ -7,8 +7,6 @@ from sqlalchemy import text as sql_text
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
 from alembic_utils.statement import (
-    coerce_to_quoted,
-    coerce_to_unquoted,
     escape_colon_for_plpgsql,
     escape_colon_for_sql,
     normalize_whitespace,
@@ -98,7 +96,7 @@ class PGFunction(ReplaceableEntity):
 
     def to_sql_statement_create_or_replace(self):
         """ Generates a SQL "create or replace function" statement for PGFunction """
-        return sql_text(
+        yield sql_text(
             f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 

@@ -46,7 +46,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         is_constraint: bool = False,
     ):
         super().__init__(
-            schema=schema, signature=signature, definition=definition, on_entity=on_entity
+            schema=schema, signature=signature, definition=definition, on_entity=on_entity  # type: ignore
         )
         self.is_constraint = is_constraint
 
@@ -137,10 +137,8 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
 
     def to_sql_statement_create_or_replace(self):
         """ Generates a SQL "create or replace function" statement for PGFunction """
-        return f"""
-        DROP TRIGGER IF EXISTS {self.signature} ON {self.on_entity};
-        {self.to_sql_statement_create()}
-        """
+        yield sql_text(f"DROP TRIGGER IF EXISTS {self.signature} ON {self.on_entity};")
+        yield self.to_sql_statement_create()
 
     @classmethod
     def from_database(cls, sess, schema):

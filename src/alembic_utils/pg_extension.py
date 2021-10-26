@@ -1,17 +1,13 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 
 
+from typing import Generator
+
 from sqlalchemy import text as sql_text
 from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.replaceable_entity import ReplaceableEntity
-from alembic_utils.statement import (
-    coerce_to_quoted,
-    coerce_to_unquoted,
-    escape_colon_for_sql,
-    normalize_whitespace,
-    strip_terminating_semicolon,
-)
+from alembic_utils.statement import coerce_to_unquoted, normalize_whitespace
 
 
 class PGExtension(ReplaceableEntity):
@@ -41,7 +37,7 @@ class PGExtension(ReplaceableEntity):
         cascade = "CASCADE" if cascade else ""
         return sql_text(f'DROP EXTENSION "{self.signature}" {cascade}')
 
-    def to_sql_statement_create_or_replace(self) -> TextClause:
+    def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates SQL equivalent to "create or replace" statement"""
         raise NotImplementedError()
 

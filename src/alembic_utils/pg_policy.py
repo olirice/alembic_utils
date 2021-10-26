@@ -35,7 +35,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
                 on_entity = schema + "." + on_entity
             schema, _, _ = on_entity.partition(".")
 
-            return cls(
+            return cls(  # type: ignore
                 schema=schema,
                 signature=result["signature"],
                 definition=result["definition"],
@@ -55,12 +55,8 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
 
     def to_sql_statement_create_or_replace(self):
         """Not implemented, postgres policies do not support replace."""
-        return sql_text(
-            f"""
-            DROP POLICY IF EXISTS {self.signature} on {self.on_entity};
-            CREATE POLICY {self.signature} on {self.on_entity} {self.definition};
-        """
-        )
+        yield sql_text(f"DROP POLICY IF EXISTS {self.signature} on {self.on_entity};")
+        yield sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition};")
 
     @classmethod
     def from_database(cls, connection, schema):

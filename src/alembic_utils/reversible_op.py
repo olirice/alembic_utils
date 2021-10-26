@@ -95,7 +95,8 @@ def drop_entity(operations, operation):
 @Operations.implementation_for(RevertOp)
 def replace_or_revert_entity(operations, operation):
     target: "ReplaceableEntity" = operation.target
-    operations.execute(target.to_sql_statement_create_or_replace())
+    for stmt in target.to_sql_statement_create_or_replace():
+        operations.execute(stmt)
 
 
 ##########
