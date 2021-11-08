@@ -9,7 +9,9 @@ from flupy import walk_files
 T = TypeVar("T")
 
 
-def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
+def walk_modules(
+    module: ModuleType, exclude_modules: List = []
+) -> Generator[ModuleType, None, None]:
     """Recursively yield python import paths to submodules in *module*
 
     Example:
@@ -44,20 +46,31 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
                         len(str(top_path)) - len(top_module.__name__) :
                     ].replace(os.path.sep, ".")[:-3]
 
+                    # Check if this is a module/submodule we want to exclude
+                    if exclude_modules and any(
+                        [module_import_path.startswith(x) for x in exclude_modules]
+                    ):
+                        continue
+
                     module = importlib.import_module(module_import_path)
                     yield module
 
 
-def collect_instances(module: ModuleType, class_: Type[T]) -> List[T]:
+def collect_instances(module: ModuleType, class_: Type[T], exclude_modules: List = []) -> List[T]:
     """Collect all instances of *class_* defined in *module*
+
+    Params:
+        * module: Module to search within for instances of class_
+        * class_: Type of object to search for
+        * exclude_modules (optional): List of modules to exclude from search. Submodules of
+          these modules will also be ignored.
 
     Note: Will import all submodules in *module*. Beware of import side effects
     """
 
     found: List[T] = []
 
-    for module_ in walk_modules(module):
-
+    for module_ in walk_modules(module, exclude_modules=exclude_modules):
         for _, variable in module_.__dict__.items():
 
             if isinstance(variable, class_):
@@ -67,7 +80,9 @@ def collect_instances(module: ModuleType, class_: Type[T]) -> List[T]:
     return found
 
 
-def collect_subclasses(module: ModuleType, class_: Type[T]) -> List[Type[T]]:
+def collect_subclasses(
+    module: ModuleType, class_: Type[T], exclude_modules: List = []
+) -> List[Type[T]]:
     """Collect all subclasses of *class_* defined in *module*
 
     Note: Will import all submodules in *module*. Beware of import side effects
@@ -75,7 +90,7 @@ def collect_subclasses(module: ModuleType, class_: Type[T]) -> List[Type[T]]:
 
     found: List[Type[T]] = []
 
-    for module_ in walk_modules(module):
+    for module_ in walk_modules(module, exclude_modules=exclude_modules):
 
         for _, variable in module_.__dict__.items():
             try:
