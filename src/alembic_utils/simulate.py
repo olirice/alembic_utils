@@ -42,17 +42,18 @@ def simulate_entity(
             for mgr in dependency_managers:
                 stack.enter_context(mgr)
 
-            did_yield = False
+            did_drop = False
             try:
                 sess.begin_nested()
                 sess.execute(entity.to_sql_statement_drop(cascade=True))
+                did_drop = True
                 sess.execute(entity.to_sql_statement_create())
-                did_yield = True
                 yield sess
             except:
-                if did_yield:
-                    # the error came from user code after the yield
-                    # so we can exit
+                if did_drop:
+                    # The drop was successful, so either create was not, or the
+                    # error came from user code after the yield.
+                    # Anyway, we can exit now.
                     raise
 
                 # Try again without the drop in case the drop raised
