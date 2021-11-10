@@ -28,11 +28,15 @@ class PGFunction(ReplaceableEntity):
 
     def __init__(self, schema: str, signature: str, definition: str):
         super().__init__(schema, signature, definition)
-        # Detect if function uses plpgsql and update escaping rules to not escape ":="
-        is_plpgsql: bool = "language plpgsql" in normalize_whitespace(definition).lower()
-        escaping_callable = escape_colon_for_plpgsql if is_plpgsql else escape_colon_for_sql
-        # Override definition with correct escaping rules
-        self.definition: str = escaping_callable(strip_terminating_semicolon(definition))
+
+        # Detect if function uses plpython or plpgsql and update escaping rules
+        normalized_definition: str = normalize_whitespace(definition).lower()
+        if "language plpython" in normalized_definition:
+            # Do not escape anything
+            self.definition = strip_terminating_semicolon(definition)
+        elif "language plpgsql" in normalized_definition:
+            # Do not escape ":="
+            self.definition = escape_colon_for_plpgsql(strip_terminating_semicolon(definition))
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGFunction":
