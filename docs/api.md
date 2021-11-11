@@ -43,6 +43,31 @@ scifi_books = PGView(
 )
 ```
 
+::: alembic_utils.pg_materialized_view.PGMaterializedView
+    :docstring:
+    :members: from_sql from_path
+
+
+```python
+from alembic_utils.pg_materialized_view import PGMaterializedView
+
+scifi_books = PGMaterializedView(
+    schema="public",
+    signature="scifi_books_with_authors",
+    definition="""
+        SELECT
+            b.title,
+            b.isbn,
+            a.name,
+            a.home_city
+        FROM books b
+        JOIN authors a ON b.author_id = a.id
+        where b.genre='scifi'
+    """,
+    with_data=False
+)
+```
+
 
 ::: alembic_utils.pg_trigger.PGTrigger
     :docstring:
