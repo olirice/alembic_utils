@@ -21,7 +21,7 @@ def escape_colon_for_sql(sql: str) -> str:
     """Escapes colons for use in sqlalchemy.text"""
     holder = str(uuid4())
     sql = sql.replace("::", holder)
-    sql = sql.replace(":", "\:")
+    sql = sql.replace(":", r"\:")
     sql = sql.replace(holder, "::")
     return sql
 
