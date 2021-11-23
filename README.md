@@ -48,7 +48,7 @@ from alembic_utils.replaceable_entity import register_entities
 
 to_upper = PGFunction(
   schema='public',
-  signature='to_upper(some_text text)'
+  signature='to_upper(some_text text)',
   definition="""
   RETURNS text as
   $$
