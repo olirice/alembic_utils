@@ -68,7 +68,7 @@ def collect_instances(module: ModuleType, class_: Type[T]) -> List[T]:
 
 
 def collect_subclasses(module: ModuleType, class_: Type[T]) -> List[Type[T]]:
-    """Collect all subclasses of *class_* defined in *module*
+    """Collect all subclasses of *class_* currently imported or defined in *module*
 
     Note: Will import all submodules in *module*. Beware of import side effects
     """
@@ -85,4 +85,6 @@ def collect_subclasses(module: ModuleType, class_: Type[T]) -> List[Type[T]]:
                 # argument 2 to issubclass must be a class ....
                 pass
 
-    return list(set(found))
+    imported: List[Type[T]] = list(class_.__subclasses__())  # type: ignore
+
+    return list(set(found + imported))
