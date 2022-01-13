@@ -164,7 +164,7 @@ class PGGrantTable(ReplaceableEntity):
             .collect()
         )
         for s_t_r, columns in grouped:
-            grant = PGGrantTable(
+            grant = cls(
                 schema=s_t_r.schema,
                 table=s_t_r.table,
                 role=s_t_r.role,
@@ -199,7 +199,7 @@ class PGGrantTable(ReplaceableEntity):
         rows = sess.execute(sql, params={"schema": schema}).fetchall()
 
         for schema_name, table_name, role_name, grant_option, is_grantable in rows:
-            grant = PGGrantTable(
+            grant = cls(
                 schema=schema_name,
                 table=table_name,
                 role=role_name,

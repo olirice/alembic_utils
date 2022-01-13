@@ -105,7 +105,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
             schema = coerce_to_quoted(schema)
             table = coerce_to_quoted(table)
             policy_name = coerce_to_quoted(policy_name)
-            policy = PGPolicy.from_sql(
+            policy = cls.from_sql(
                 f"create policy {policy_name} on {schema}.{table} {definition}"
             )
             db_policies.append(policy)

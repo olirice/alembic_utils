@@ -127,7 +127,7 @@ class PGMaterializedView(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql).fetchall()
-        db_views = [PGMaterializedView(x[0], x[1], x[2], with_data=x[3]) for x in rows]
+        db_views = [cls(x[0], x[1], x[2], with_data=x[3]) for x in rows]
 
         for view in db_views:
             assert view is not None

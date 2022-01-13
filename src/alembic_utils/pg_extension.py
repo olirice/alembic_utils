@@ -76,5 +76,5 @@ class PGExtension(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql, {"schema": schema}).fetchall()
-        db_exts = [PGExtension(x[0], x[1]) for x in rows]
+        db_exts = [cls(x[0], x[1]) for x in rows]
         return db_exts
