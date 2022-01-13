@@ -34,7 +34,7 @@ $$ language plpgsql;
 
 TRIG = PGTrigger(
     schema="public",
-    signature="lower_account_email",
+    signature="lower_account_EMAIL",
     on_entity="public.account",
     definition="""
         BEFORE INSERT ON public.account
@@ -67,6 +67,9 @@ def test_create_revision(sql_setup, engine) -> None:
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
+    import pdb
+
+    pdb.set_trace()
     # Execute Downgrade
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
@@ -76,9 +79,9 @@ def test_trig_update_revision(sql_setup, engine) -> None:
     engine.execute(TRIG.to_sql_statement_create())
 
     UPDATED_TRIG = PGTrigger(
-        schema="public",
-        signature="lower_account_email",
-        on_entity="public.account",
+        schema=TRIG.schema,
+        signature=TRIG.signature,
+        on_entity=TRIG.on_entity,
         definition="""
             AFTER INSERT ON public.account
             FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
@@ -181,9 +184,9 @@ def test_on_entity_schema_not_qualified() -> None:
 
 def test_fail_create_sql_statement_create():
     trig = PGTrigger(
-        schema="public",
-        signature="lower_account_email",
-        on_entity="public.sometab",
+        schema=TRIG.schema,
+        signature=TRIG.signature,
+        on_entity=TRIG.on_entity,
         definition="INVALID DEF",
     )
 
