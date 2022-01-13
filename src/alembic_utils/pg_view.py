@@ -99,7 +99,7 @@ class PGView(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql).fetchall()
-        db_views = [PGView(x[0], x[1], x[2]) for x in rows]
+        db_views = [cls(x[0], x[1], x[2]) for x in rows]
 
         for view in db_views:
             assert view is not None

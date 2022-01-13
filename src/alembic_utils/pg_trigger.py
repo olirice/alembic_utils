@@ -161,7 +161,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         )
         rows = sess.execute(sql, {"schema": schema}).fetchall()
 
-        db_triggers = [PGTrigger.from_sql(x[2]) for x in rows]
+        db_triggers = [cls.from_sql(x[2]) for x in rows]
 
         for trig in db_triggers:
             assert trig is not None

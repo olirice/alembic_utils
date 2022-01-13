@@ -159,7 +159,7 @@ class PGFunction(ReplaceableEntity):
         )
 
         rows = sess.execute(sql, {"schema": schema}).fetchall()
-        db_functions = [PGFunction.from_sql(x[3]) for x in rows]
+        db_functions = [cls.from_sql(x[3]) for x in rows]
 
         for func in db_functions:
             assert func is not None
