@@ -14,8 +14,8 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
     **Parameters:**
 
     * **schema** - *str*: A SQL schema name
-    * **signature** - *str*: A SQL function's call signature
-    * **definition** - *str*:  The remainig function body and identifiers
+    * **signature** - *str*: A SQL trigger's call signature
+    * **definition** - *str*:  The remainig trigger body and identifiers
     * **on_entity** - *str*:  fully qualifed entity that the policy applies
     * **is_constraint** - *bool*: Is the trigger a constraint trigger
 
@@ -66,7 +66,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
 
     @property
     def identity(self) -> str:
-        """A string that consistently and globally identifies a function"""
+        """A string that consistently and globally identifies a trigger"""
         return f"{self.__class__.__name__}: {self.schema}.{self.signature} {self.is_constraint} {self.on_entity}"
 
     @classmethod
@@ -102,7 +102,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         raise SQLParseFailure(f'Failed to parse SQL into PGTrigger """{sql}"""')
 
     def to_sql_statement_create(self):
-        """ Generates a SQL "create function" statement for PGFunction """
+        """ Generates a SQL "create trigger" statement for PGTrigger """
 
         # We need to parse and replace the schema qualifier on the table for simulate_entity to
         # operate
@@ -131,18 +131,18 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         )
 
     def to_sql_statement_drop(self, cascade=False):
-        """Generates a SQL "drop function" statement for PGFunction"""
+        """Generates a SQL "drop trigger" statement for PGTrigger"""
         cascade = "cascade" if cascade else ""
         return sql_text(f"DROP TRIGGER {self.signature} ON {self.on_entity} {cascade}")
 
     def to_sql_statement_create_or_replace(self):
-        """ Generates a SQL "create or replace function" statement for PGFunction """
+        """ Generates a SQL "replace trigger" statement for PGTrigger """
         yield sql_text(f"DROP TRIGGER IF EXISTS {self.signature} ON {self.on_entity};")
         yield self.to_sql_statement_create()
 
     @classmethod
     def from_database(cls, sess, schema):
-        """Get a list of all functions defined in the db"""
+        """Get a list of all triggers defined in the db"""
 
         sql = sql_text(
             """
