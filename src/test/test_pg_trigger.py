@@ -67,9 +67,6 @@ def test_create_revision(sql_setup, engine) -> None:
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
-    import pdb
-
-    pdb.set_trace()
     # Execute Downgrade
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
