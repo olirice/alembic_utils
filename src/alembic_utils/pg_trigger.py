@@ -127,17 +127,17 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         )
 
         return sql_text(
-            f"CREATE{' CONSTRAINT ' if self.is_constraint else ' '}TRIGGER {self.signature} {def_rendered}"
+            f"CREATE{' CONSTRAINT ' if self.is_constraint else ' '}TRIGGER \"{self.signature}\" {def_rendered}"
         )
 
     def to_sql_statement_drop(self, cascade=False):
         """Generates a SQL "drop trigger" statement for PGTrigger"""
         cascade = "cascade" if cascade else ""
-        return sql_text(f"DROP TRIGGER {self.signature} ON {self.on_entity} {cascade}")
+        return sql_text(f'DROP TRIGGER "{self.signature}" ON {self.on_entity} {cascade}')
 
     def to_sql_statement_create_or_replace(self):
         """ Generates a SQL "replace trigger" statement for PGTrigger """
-        yield sql_text(f"DROP TRIGGER IF EXISTS {self.signature} ON {self.on_entity};")
+        yield sql_text(f'DROP TRIGGER IF EXISTS "{self.signature}" ON {self.on_entity};')
         yield self.to_sql_statement_create()
 
     @classmethod
