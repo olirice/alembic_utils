@@ -28,10 +28,11 @@ class PGView(ReplaceableEntity):
 
     type_ = "view"
 
-    def __init__(self, schema: str, signature: str, definition: str):
+    def __init__(self, schema: str, signature: str, definition: str, depends_on: list['ReplaceableEntity'] = None):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = strip_terminating_semicolon(definition)
+        self.depends_on: list['ReplaceableEntity'] = depends_on or []
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGView":

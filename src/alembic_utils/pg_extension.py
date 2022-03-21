@@ -27,6 +27,7 @@ class PGExtension(ReplaceableEntity):
         # Include schema in definition since extensions can only exist once per
         # database and we want to detect schema changes and emit alter schema
         self.definition: str = f"{self.__class__.__name__}: {self.schema} {self.signature}"
+        self.depends_on = []
 
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create extension" statement"""

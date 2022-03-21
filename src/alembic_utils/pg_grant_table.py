@@ -87,6 +87,7 @@ class PGGrantTable(ReplaceableEntity):
         self.grant: PGGrantTableChoice = PGGrantTableChoice(grant)
         self.with_grant_option: bool = with_grant_option
         self.signature = self.identity
+        self.depends_on = []
 
         if PGGrantTableChoice(self.grant) in {C.SELECT, C.INSERT, C.UPDATE, C.REFERENCES}:
             if len(self.columns) == 0:
@@ -227,3 +228,8 @@ class PGGrantTable(ReplaceableEntity):
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         yield self.to_sql_statement_drop()
         yield self.to_sql_statement_create()
+
+    def __hash__(self):
+        # in order to add identity as node to TopologicalSorter object has to be hashable
+        # as identity is unique use it as hash source
+        return id(self.identity)
