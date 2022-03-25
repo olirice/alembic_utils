@@ -179,7 +179,20 @@ class EntityWithOp(NamedTuple):
     op: ReversibleOp
 
 
+def depends_on_expanded(entity: ReplaceableEntity) -> set[ReplaceableEntity]:
+    """return expanded set of objects entity depends_on including recursive deps
+    ie.: if A.depends_on=[B] and B.depends_on=[C] then depends_on_expanded(A) = {B, C}
+    """
+    expanded_deps = set()
+    for e in entity.depends_on:
+        expanded_deps.add(e)
+        expanded_deps.update(depends_on_expanded(e))
+
+    return expanded_deps
+
+
 def dependants(entities: list[ReplaceableEntity], known_obj_with_deps: list[ReplaceableEntity]) -> set[ReplaceableEntity]:
+    """return set of objects that directly on indirectly depend on any entity in entities"""
     depending_on_entity = set()
     for entity in entities:
 
@@ -309,7 +322,7 @@ def register_entities(
             transaction = connection.begin_nested()
             sess = Session(bind=connection)
             try:
-                entity_deps = sorted(set(has_create_or_update_op + entity.depends_on), key=ordered_entities.index)
+                entity_deps = sorted(set(has_create_or_update_op) | depends_on_expanded(entity), key=ordered_entities.index)
 
                 local_db_def = entity.get_database_definition(
                     sess, dependencies=entity_deps
