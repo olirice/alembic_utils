@@ -75,7 +75,7 @@ def test_create_revision_with_explicit_depends_on(engine) -> None:
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
     )
-    print(run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "1", "sql": True}))
+    # print(run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "1", "sql": True}))
     migration_create_path = TEST_VERSIONS_ROOT / "1_create.py"
 
     with migration_create_path.open() as migration_file:
@@ -107,7 +107,7 @@ def test_create_revision_with_explicit_depends_on(engine) -> None:
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "2", "message": "update"},
     )
-    print(run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "1:2", "sql": True}))
+    # print(run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "1:2", "sql": True}))
     migration_2_create_path = TEST_VERSIONS_ROOT / "2_update.py"
 
     with migration_2_create_path.open() as migration_file:
@@ -122,7 +122,7 @@ def test_create_revision_with_explicit_depends_on(engine) -> None:
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
 
-    print(run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "2:1", "sql": True}))
-    print(run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "1:base", "sql": True}))
+    # print(run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "2:1", "sql": True}))
+    # print(run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "1:base", "sql": True}))
     # Execute Downgrade
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
