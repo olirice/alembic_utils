@@ -1,11 +1,9 @@
+import pytest
+
 from alembic_utils.pg_materialized_view import PGMaterializedView
 from alembic_utils.pg_view import PGView
-from alembic_utils.replaceable_entity import register_entities
-from alembic_utils.testbase import (
-    TEST_VERSIONS_ROOT,
-    reset_event_listener_registry,
-    run_alembic_command,
-)
+from alembic_utils.replaceable_entity import dependants, depends_on_expanded, register_entities
+from alembic_utils.testbase import TEST_VERSIONS_ROOT, reset_event_listener_registry, run_alembic_command
 
 # NAME_DEPENDENCIES inc. explicit depends_on
 A = PGView(
@@ -42,6 +40,31 @@ E_AD = PGView(
     definition='select av.one, dv.one as two from public."A_view" as av join public."D_view" as dv on true',
     depends_on=[A, D_B],
 )
+
+
+@pytest.mark.parametrize("entity, result", [
+    (A, set()),
+    (B_A, {A}),
+    (C_A, {A}),
+    (D_B, {B_A, A}),
+    (E_AD, {D_B, B_A, A}),
+])
+def test_depends_on_expanded(entity, result):
+    assert depends_on_expanded(entity) == result
+
+
+@pytest.mark.parametrize("entities, result", [
+    ([A], {B_A, C_A, D_B, E_AD}),
+    ([B_A], {D_B, E_AD}),
+    ([C_A], set()),
+    ([D_B], {E_AD}),
+    ([E_AD], set()),
+    ([E_AD, C_A], set()),
+    ([B_A, C_A], {D_B, E_AD}),
+    ([A, C_A], {B_A, C_A, D_B, E_AD}),
+])
+def test_dependants(entities, result):
+    assert dependants(entities, [B_A, E_AD, D_B, C_A, A]) == result
 
 
 def test_create_revision_with_explicit_depends_on(engine) -> None:
