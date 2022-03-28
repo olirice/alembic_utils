@@ -192,7 +192,7 @@ def depends_on_expanded(entity: ReplaceableEntity) -> set[ReplaceableEntity]:
 
 
 def dependants(entities: list[ReplaceableEntity], known_obj_with_deps: list[ReplaceableEntity]) -> set[ReplaceableEntity]:
-    """return set of objects that directly on indirectly depend on any entity in entities"""
+    """return set of objects that directly or indirectly depend on any entity in entities"""
     depending_on_entity = set()
     for entity in entities:
 
@@ -366,7 +366,7 @@ def register_entities(
         # apply changes found
         upgrade_ops.ops.extend(e.op for e in changed_entities)
 
-        # recreate (crate) objects that depend on objects dropped before
+        # recreate (create) objects that depend on objects dropped before
         for create in sorted(depends_on_changed, key=ordered_entities.index):
             if create.identity in [le.identity for le in local_entities]:
                 upgrade_ops.ops.append(CreateOp(create))
