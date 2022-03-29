@@ -28,8 +28,8 @@ class PGMaterializedView(ReplaceableEntity):
 
     type_ = "materialized_view"
 
-    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True):
-        super().__init__(schema=schema, signature=signature, definition=definition)
+    def __init__(self, schema: str, signature: str, definition: str, *, depends_on: list['ReplaceableEntity'] = None, with_data: bool = True):
+        super().__init__(schema=schema, signature=signature, definition=definition, depends_on=depends_on)
         self.with_data = with_data
 
     @classmethod
