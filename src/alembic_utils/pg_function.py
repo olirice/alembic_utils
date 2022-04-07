@@ -66,7 +66,7 @@ class PGFunction(ReplaceableEntity):
         return '"' + name + '"(' + remainder
 
     def to_sql_statement_create(self):
-        """ Generates a SQL "create function" statement for PGFunction """
+        """Generates a SQL "create function" statement for PGFunction"""
         return sql_text(
             f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
@@ -95,7 +95,7 @@ class PGFunction(ReplaceableEntity):
         )
 
     def to_sql_statement_create_or_replace(self):
-        """ Generates a SQL "create or replace function" statement for PGFunction """
+        """Generates a SQL "create or replace function" statement for PGFunction"""
         yield sql_text(
             f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )

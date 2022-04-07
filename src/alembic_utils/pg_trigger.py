@@ -102,7 +102,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         raise SQLParseFailure(f'Failed to parse SQL into PGTrigger """{sql}"""')
 
     def to_sql_statement_create(self):
-        """ Generates a SQL "create trigger" statement for PGTrigger """
+        """Generates a SQL "create trigger" statement for PGTrigger"""
 
         # We need to parse and replace the schema qualifier on the table for simulate_entity to
         # operate
@@ -136,7 +136,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         return sql_text(f'DROP TRIGGER "{self.signature}" ON {self.on_entity} {cascade}')
 
     def to_sql_statement_create_or_replace(self):
-        """ Generates a SQL "replace trigger" statement for PGTrigger """
+        """Generates a SQL "replace trigger" statement for PGTrigger"""
         yield sql_text(f'DROP TRIGGER IF EXISTS "{self.signature}" ON {self.on_entity};')
         yield self.to_sql_statement_create()
 

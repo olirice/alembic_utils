@@ -2,7 +2,7 @@ from uuid import uuid4
 
 
 def normalize_whitespace(text, base_whitespace: str = " ") -> str:
-    """ Convert all whitespace to *base_whitespace* """
+    """Convert all whitespace to *base_whitespace*"""
     return base_whitespace.join(text.split()).strip()
 
 

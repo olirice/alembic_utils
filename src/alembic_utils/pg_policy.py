@@ -44,7 +44,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
         raise SQLParseFailure(f'Failed to parse SQL into PGPolicy """{sql}"""')
 
     def to_sql_statement_create(self):
-        """ Generates a SQL "create poicy" statement for PGPolicy """
+        """Generates a SQL "create poicy" statement for PGPolicy"""
 
         return sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition}")
 
