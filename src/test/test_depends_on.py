@@ -2,8 +2,8 @@ import pytest
 
 from alembic_utils.pg_materialized_view import PGMaterializedView
 from alembic_utils.pg_view import PGView
-from alembic_utils.replaceable_entity import dependants, depends_on_expanded, register_entities
-from alembic_utils.testbase import TEST_VERSIONS_ROOT, reset_event_listener_registry, run_alembic_command
+from alembic_utils.replaceable_entity import dependants, depends_on_expanded, register_entities, registry
+from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 # NAME_DEPENDENCIES inc. explicit depends_on
 A = PGView(
@@ -100,7 +100,7 @@ def test_create_revision_with_explicit_depends_on(engine) -> None:
     )
     E_AD.depends_on = [A, D_B_mod]  # update E's deps as D is new object
 
-    reset_event_listener_registry()
+    registry.clear()
     register_entities([B_A, E_AD, D_B_mod, C_A, A])
     run_alembic_command(
         engine=engine,
