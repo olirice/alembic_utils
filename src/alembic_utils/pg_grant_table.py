@@ -117,7 +117,7 @@ class PGGrantTable(ReplaceableEntity):
         return str(self)
 
     def to_variable_name(self) -> str:
-        """A deterministic variable name based on PGFunction's contents """
+        """A deterministic variable name based on PGFunction's contents"""
         schema_name = self.schema.lower()
         table_name = self.table.lower()
         role_name = self.role.lower()

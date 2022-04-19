@@ -13,10 +13,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from alembic_utils.testbase import (
-    TEST_VERSIONS_ROOT,
-    reset_event_listener_registry,
-)
+from alembic_utils.replaceable_entity import registry
+from alembic_utils.testbase import TEST_VERSIONS_ROOT
 
 PYTEST_DB = "postgresql://alem_user:password@localhost:5610/alem_db"
 
@@ -111,7 +109,7 @@ def engine(raw_engine) -> Generator[Engine, None, None]:
     """Engine that has been reset between tests"""
 
     def run_cleaners():
-        reset_event_listener_registry()
+        registry.clear()
         raw_engine.execute("drop schema public cascade; create schema public;")
         raw_engine.execute('drop schema if exists "DEV" cascade; create schema "DEV";')
         raw_engine.execute('drop role if exists "anon_user"')

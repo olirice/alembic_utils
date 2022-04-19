@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, NoReturn
 
 from alembic import command as alem_command
-from alembic.autogenerate.compare import comparators
 from alembic.config import Config
 from sqlalchemy.engine import Engine
 
@@ -45,11 +44,3 @@ def run_alembic_command(engine: Engine, command: str, command_kwargs: Dict[str, 
         with contextlib.redirect_stdout(stdout):
             command_func(alembic_cfg, **command_kwargs)
     return stdout.getvalue()
-
-
-def reset_event_listener_registry() -> None:
-    """Resets event listeners watching for changes when --autogenerate is used with revisions"""
-    comparators._registry = {
-        (target, qualifier): [func for func in funcs if "entities" not in func.__name__]
-        for (target, qualifier), funcs in comparators._registry.items()
-    }

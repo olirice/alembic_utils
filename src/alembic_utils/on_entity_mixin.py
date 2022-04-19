@@ -44,7 +44,7 @@ class OnEntityMixin(_Base):
 )\n"""
 
     def to_variable_name(self) -> str:
-        """A deterministic variable name based on PGFunction's contents """
+        """A deterministic variable name based on PGFunction's contents"""
         schema_name = self.schema.lower()
         object_name = self.signature.split("(")[0].strip().lower()
         _, _, unqualified_entity_name = self.on_entity.lower().partition(".")
