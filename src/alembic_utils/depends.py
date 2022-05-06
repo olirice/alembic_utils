@@ -19,6 +19,7 @@ def solve_resolution_order(sess: Session, entities):
     """
 
     resolved = []
+    unresolved = []
 
     # Resolve the entities with 0 dependencies first (faster)
     logger.info("Resolving entities with no dependencies")
@@ -26,31 +27,30 @@ def solve_resolution_order(sess: Session, entities):
         try:
             with simulate_entity(sess, entity):
                 resolved.append(entity)
-        except (sqla_exc.ProgrammingError, sqla_exc.InternalError) as exc:
+        except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
+            unresolved.append(entity)
             continue
 
+    if len(resolved) == len(entities):
+        return resolved
+
+    logger.info("Resolving entities with dependencies. This may take a minute")
     # Resolve entities with possible dependencies
-    for _ in range(len(entities)):
-        logger.info("Resolving entities with dependencies. This may take a minute")
-        n_resolved = len(resolved)
-
-        for entity in entities:
-            if entity in resolved:
-                continue
-
+    while len(unresolved) > 0:
+        watermark = len(resolved)
+        for entity in unresolved:
             try:
                 with simulate_entity(sess, entity, dependencies=resolved):
                     resolved.append(entity)
+                    unresolved.remove(entity)
             except (sqla_exc.ProgrammingError, sqla_exc.InternalError):
                 continue
-
-        if len(resolved) == n_resolved:
+        if len(resolved) == watermark:
             # No new entities resolved in the last iteration. Exit
             break
 
-    for entity in entities:
-        if entity not in resolved:
-            resolved.append(entity)
+    for entity in unresolved:
+        resolved.append(entity)
 
     return resolved
 
