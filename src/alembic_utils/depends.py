@@ -30,8 +30,8 @@ def solve_resolution_order(sess: Session, entities):
             continue
 
     # Resolve entities with possible dependencies
+    logger.info("Resolving entities with dependencies. This may take a minute")
     for _ in range(len(entities)):
-        logger.info("Resolving entities with dependencies. This may take a minute")
         n_resolved = len(resolved)
 
         for entity in entities:
