@@ -8,7 +8,7 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 TEST_MAT_VIEW = PGMaterializedView(
     schema="DEV",
     signature="test_mat_view",
-    definition="select *, FALSE as is_updated from pg_matviews",
+    definition="SELECT concat('https://something/', cast(x as text)) FROM generate_series(1,10) x",
     with_data=True,
 )
 
@@ -66,6 +66,10 @@ def test_create_revision(engine) -> None:
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
     assert "from alembic_utils.pg_materialized_view import PGMaterializedView" in migration_contents
+
+    # ensure colon was not quoted
+    # https://github.com/olirice/alembic_utils/issues/95
+    assert "https://" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
