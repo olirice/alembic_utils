@@ -9,7 +9,11 @@ from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
-from alembic_utils.statement import strip_terminating_semicolon
+from alembic_utils.statement import (
+    coerce_to_unquoted,
+    normalize_whitespace,
+    strip_terminating_semicolon,
+)
 
 
 class PGMaterializedView(ReplaceableEntity):
@@ -29,7 +33,9 @@ class PGMaterializedView(ReplaceableEntity):
     type_ = "materialized_view"
 
     def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True):
-        super().__init__(schema=schema, signature=signature, definition=definition)
+        self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
+        self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
+        self.definition: str = strip_terminating_semicolon(definition)
         self.with_data = with_data
 
     @classmethod
