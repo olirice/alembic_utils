@@ -246,7 +246,7 @@ def register_entities(
 
     * **schemas** - *Optional[List[str]]*: A list of SQL schema names to monitor. Note, schemas referenced in registered entities are automatically monitored.
     * **exclude_schemas** - *Optional[List[str]]*: A list of SQL schemas to ignore. Note, explicitly registered entities will still be monitored.
-    * **entity_types** - *Optional[List[str]]*: A list of ReplaceableEntity classes to consider during migrations. Other entity types are ignored
+    * **entity_types** - *Optional[List[Type[ReplaceableEntity]]]*: A list of ReplaceableEntity classes to consider during migrations. Other entity types are ignored
     """
     registry.register(entities, schemas, exclude_schemas, entity_types)
 
