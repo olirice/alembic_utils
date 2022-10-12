@@ -17,7 +17,6 @@ DEV_REQUIRES = [
     "pylint",
     "pre-commit",
     "mypy",
-    "sqlalchemy-stubs",
     "psycopg2-binary",
     "pytest",
     "pytest-cov",
