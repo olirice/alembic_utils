@@ -37,7 +37,7 @@ setup(
         "alembic>=1.5.7",
         "flupy",
         "sqlalchemy>=1.3.0",
-        "parse",
+        "parse>=1.8.4",
         "typing_extensions",
     ],
     extras_require={
