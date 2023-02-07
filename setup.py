@@ -36,8 +36,8 @@ setup(
     install_requires=[
         "alembic>=1.5.7",
         "flupy",
+        "parse>=1.8.4",
         "sqlalchemy>=1.3.0,<2",
-        "parse",
         "typing_extensions",
     ],
     extras_require={
