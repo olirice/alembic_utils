@@ -30,13 +30,13 @@ setup(
     author_email="oliver@oliverrice.com",
     license="MIT",
     description="A sqlalchemy/alembic extension for migrating procedures and views ",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     packages=find_packages("src"),
     package_dir={"": "src"},
     install_requires=[
         "alembic>=1.5.7",
         "flupy",
-        "sqlalchemy>=1.3.0",
+        "sqlalchemy>=1.3.0,<2",
         "parse",
         "typing_extensions",
     ],
@@ -55,6 +55,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Programming Language :: SQL",
     ],
 )
