@@ -1,6 +1,7 @@
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
+from sqlalchemy import text
 
 TO_UPPER = PGFunction(
     schema="public",
@@ -39,7 +40,8 @@ def test_create_revision(engine) -> None:
 
 
 def test_update_revision(engine) -> None:
-    engine.execute(TO_UPPER.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TO_UPPER.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TO_UPPER = PGFunction(
@@ -79,7 +81,8 @@ def test_update_revision(engine) -> None:
 
 
 def test_noop_revision(engine) -> None:
-    engine.execute(TO_UPPER.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TO_UPPER.to_sql_statement_create())
 
     register_entities([TO_UPPER], entity_types=[PGFunction])
 
@@ -106,7 +109,8 @@ def test_noop_revision(engine) -> None:
 
 def test_drop(engine) -> None:
     # Manually create a SQL function
-    engine.execute(TO_UPPER.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TO_UPPER.to_sql_statement_create())
 
     # Register no functions locally
     register_entities([], schemas=["public"], entity_types=[PGFunction])
@@ -174,7 +178,8 @@ def test_ignores_extension_functions(engine) -> None:
     # Unless they are excluded, every autogenerate migration will produce
     # drop statements for those functions
     try:
-        engine.execute("create extension if not exists unaccent;")
+        with engine.begin() as connection:
+            connection.execute(text("create extension if not exists unaccent;"))
         register_entities([], schemas=["public"], entity_types=[PGFunction])
         run_alembic_command(
             engine=engine,
@@ -189,7 +194,8 @@ def test_ignores_extension_functions(engine) -> None:
 
         assert "op.drop_entity" not in migration_contents
     finally:
-        engine.execute("drop extension if exists unaccent;")
+        with engine.begin() as connection:
+            connection.execute(text("drop extension if exists unaccent;"))
 
 
 def test_plpgsql_colon_esacpe(engine) -> None:

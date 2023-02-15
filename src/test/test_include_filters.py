@@ -75,8 +75,9 @@ registered_entities = [
 
 
 def test_create_revision_with_filters(engine) -> None:
-    for entity in reflected_entities:
-        engine.execute(entity.to_sql_statement_create())
+    with engine.begin() as connection:
+        for entity in reflected_entities:
+            connection.execute(entity.to_sql_statement_create())
     register_entities(registered_entities)
 
     run_alembic_command(

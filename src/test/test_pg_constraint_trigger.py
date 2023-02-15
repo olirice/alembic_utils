@@ -1,5 +1,5 @@
 import pytest
-
+from sqlalchemy import text
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
@@ -9,18 +9,19 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 @pytest.fixture(scope="function")
 def sql_setup(engine):
-    conn = engine
-    conn.execute(
+    with engine.begin() as connection:
+        connection.execute(text(
+            """
+        create table public.account (
+            id serial primary key,
+            email text not null
+        );
         """
-    create table public.account (
-        id serial primary key,
-        email text not null
-    );
-    """
-    )
+        ))
 
     yield
-    conn.execute("drop table public.account cascade")
+    with engine.begin() as connection:
+        connection.execute(text("drop table public.account cascade"))
 
 
 FUNC = PGFunction.from_sql(
@@ -45,7 +46,8 @@ TRIG = PGTrigger(
 
 
 def test_create_revision(sql_setup, engine) -> None:
-    engine.execute(FUNC.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(FUNC.to_sql_statement_create())
 
     register_entities([FUNC, TRIG], entity_types=[PGTrigger])
     run_alembic_command(
@@ -71,8 +73,9 @@ def test_create_revision(sql_setup, engine) -> None:
 
 
 def test_trig_update_revision(sql_setup, engine) -> None:
-    engine.execute(FUNC.to_sql_statement_create())
-    engine.execute(TRIG.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(FUNC.to_sql_statement_create())
+        connection.execute(TRIG.to_sql_statement_create())
 
     UPDATED_TRIG = PGTrigger(
         schema="public",
@@ -113,8 +116,9 @@ def test_trig_update_revision(sql_setup, engine) -> None:
 
 
 def test_noop_revision(sql_setup, engine) -> None:
-    engine.execute(FUNC.to_sql_statement_create())
-    engine.execute(TRIG.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(FUNC.to_sql_statement_create())
+        connection.execute(TRIG.to_sql_statement_create())
 
     register_entities([FUNC, TRIG], entity_types=[PGTrigger])
 
@@ -141,8 +145,9 @@ def test_noop_revision(sql_setup, engine) -> None:
 
 def test_drop(sql_setup, engine) -> None:
     # Manually create a SQL function
-    engine.execute(FUNC.to_sql_statement_create())
-    engine.execute(TRIG.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(FUNC.to_sql_statement_create())
+        connection.execute(TRIG.to_sql_statement_create())
 
     # Register no functions locally
     register_entities([], schemas=["public"], entity_types=[PGTrigger])

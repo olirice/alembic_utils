@@ -28,10 +28,11 @@ def test_fails_without_defering(sess: Session) -> None:
 
 def test_succeeds_when_defering(engine) -> None:
 
-    # Create the original view
-    engine.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
-    # Create the view that depends on it
-    engine.execute(TEST_DEPENDENT.to_sql_statement_create())
+    with engine.begin() as connection:
+        # Create the original view
+        connection.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
+        # Create the view that depends on it
+        connection.execute(TEST_DEPENDENT.to_sql_statement_create())
 
     # Try to update a column type of the base view from undeneath
     # the dependent view
@@ -41,10 +42,12 @@ def test_succeeds_when_defering(engine) -> None:
 
 
 def test_fails_gracefully_on_bad_user_statement(engine) -> None:
-    # Create the original view
-    engine.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
-    # Create the view that depends on it
-    engine.execute(TEST_DEPENDENT.to_sql_statement_create())
+    with engine.begin() as connection:
+        # Create the original view
+        connection.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
+        # Create the view that depends on it
+        connection.execute(TEST_DEPENDENT.to_sql_statement_create())
+
 
     # Execute a failing statement in the session
     with pytest.raises(Exception):
@@ -53,10 +56,12 @@ def test_fails_gracefully_on_bad_user_statement(engine) -> None:
 
 
 def test_fails_if_user_creates_new_entity(engine) -> None:
-    # Create the original view
-    engine.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
+    with engine.begin() as connection:
+        # Create the original view
+        connection.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
 
-    # User creates a brand new entity
-    with pytest.raises(Exception):
-        with recreate_dropped(connection=engine) as sess:
-            engine.execute(TEST_DEPENDENT.to_sql_statement_create())
+
+        # User creates a brand new entity
+        with pytest.raises(Exception):
+            with recreate_dropped(connection=connection) as sess:
+                connection.execute(TEST_DEPENDENT.to_sql_statement_create())

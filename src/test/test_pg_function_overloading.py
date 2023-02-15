@@ -49,8 +49,9 @@ def test_create_revision(engine) -> None:
 
 
 def test_update_revision(engine) -> None:
-    engine.execute(TO_FLOAT_FROM_INT.to_sql_statement_create())
-    engine.execute(TO_FLOAT_FROM_TEXT.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TO_FLOAT_FROM_INT.to_sql_statement_create())
+        connection.execute(TO_FLOAT_FROM_TEXT.to_sql_statement_create())
 
     UPDATE = PGFunction(
         schema="public",

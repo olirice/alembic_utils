@@ -9,8 +9,8 @@ from typing import Generator
 
 import pytest
 from parse import parse
-from sqlalchemy import create_engine
-from sqlalchemy.engine import Engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine, Connection
 from sqlalchemy.orm import Session, sessionmaker
 
 from alembic_utils.replaceable_entity import registry
@@ -105,14 +105,15 @@ def raw_engine(maybe_start_pg: None) -> Generator[Engine, None, None]:
 
 
 @pytest.fixture(scope="function")
-def engine(raw_engine) -> Generator[Engine, None, None]:
+def engine(raw_engine: Engine) -> Generator[Engine, None, None]:
     """Engine that has been reset between tests"""
 
     def run_cleaners():
         registry.clear()
-        raw_engine.execute("drop schema public cascade; create schema public;")
-        raw_engine.execute('drop schema if exists "DEV" cascade; create schema "DEV";')
-        raw_engine.execute('drop role if exists "anon_user"')
+        with raw_engine.begin() as connection:
+            connection.execute(text("drop schema public cascade; create schema public;"))
+            connection.execute(text('drop schema if exists "DEV" cascade; create schema "DEV";'))
+            connection.execute(text('drop role if exists "anon_user"'))
         # Remove any migrations that were left behind
         TEST_VERSIONS_ROOT.mkdir(exist_ok=True, parents=True)
         shutil.rmtree(TEST_VERSIONS_ROOT)
@@ -123,7 +124,6 @@ def engine(raw_engine) -> Generator[Engine, None, None]:
     yield raw_engine
 
     run_cleaners()
-
 
 @pytest.fixture(scope="function")
 def sess(engine) -> Generator[Session, None, None]:

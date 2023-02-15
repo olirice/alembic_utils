@@ -1,4 +1,5 @@
 from alembic_utils.pg_function import PGFunction
+from sqlalchemy import text
 
 to_upper = PGFunction(
     schema="public",
@@ -18,8 +19,9 @@ def test_create_and_drop(engine) -> None:
     down_sql = to_upper.to_sql_statement_drop()
 
     # Testing that the following two lines don't raise
-    engine.execute(up_sql)
-    result = engine.execute("select public.to_upper('hello');").fetchone()
-    assert result[0] == "HELLO"
-    engine.execute(down_sql)
-    assert True
+    with engine.begin() as connection:
+        connection.execute(up_sql)
+        result = connection.execute(text("select public.to_upper('hello');")).fetchone()
+        assert result[0] == "HELLO"
+        connection.execute(down_sql)
+        assert True
