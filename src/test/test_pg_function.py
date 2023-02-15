@@ -1,7 +1,8 @@
+from sqlalchemy import text
+
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
-from sqlalchemy import text
 
 TO_UPPER = PGFunction(
     schema="public",

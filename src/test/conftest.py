@@ -10,7 +10,7 @@ from typing import Generator
 import pytest
 from parse import parse
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine, Connection
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from alembic_utils.replaceable_entity import registry
@@ -124,6 +124,7 @@ def engine(raw_engine: Engine) -> Generator[Engine, None, None]:
     yield raw_engine
 
     run_cleaners()
+
 
 @pytest.fixture(scope="function")
 def sess(engine) -> Generator[Session, None, None]:

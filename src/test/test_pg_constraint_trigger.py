@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import text
+
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
@@ -10,14 +11,16 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 @pytest.fixture(scope="function")
 def sql_setup(engine):
     with engine.begin() as connection:
-        connection.execute(text(
-            """
+        connection.execute(
+            text(
+                """
         create table public.account (
             id serial primary key,
             email text not null
         );
         """
-        ))
+            )
+        )
 
     yield
     with engine.begin() as connection:

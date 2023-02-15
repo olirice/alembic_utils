@@ -1,6 +1,7 @@
 from typing import Generator
-from sqlalchemy import text
+
 import pytest
+from sqlalchemy import text
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_policy import PGPolicy
@@ -23,8 +24,9 @@ TEST_POLICY = PGPolicy(
 @pytest.fixture()
 def schema_setup(engine) -> Generator[None, None, None]:
     with engine.begin() as connection:
-        connection.execute(text(
-            """
+        connection.execute(
+            text(
+                """
         create table public.some_tab (
             id serial primary key,
             name text
@@ -32,15 +34,18 @@ def schema_setup(engine) -> Generator[None, None, None]:
 
         create user anon_user;
         """
-        ))
+            )
+        )
     yield
     with engine.begin() as connection:
-        connection.execute(text(
-            """
+        connection.execute(
+            text(
+                """
         drop table public.some_tab;
         drop user anon_user;
         """
-        ))
+            )
+        )
 
 
 def test_unparsable() -> None:
