@@ -20,8 +20,9 @@ B_A = PGView(
 
 def test_drop_fails_without_cascade(engine) -> None:
 
-    engine.execute(A.to_sql_statement_create())
-    engine.execute(B_A.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(A.to_sql_statement_create())
+        connection.execute(B_A.to_sql_statement_create())
 
     register_entities([B_A], schemas=["DEV"], entity_types=[PGView])
 
@@ -48,8 +49,9 @@ def test_drop_fails_without_cascade(engine) -> None:
 
 def test_drop_fails_with_cascade(engine, sess) -> None:
 
-    engine.execute(A.to_sql_statement_create())
-    engine.execute(B_A.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(A.to_sql_statement_create())
+        connection.execute(B_A.to_sql_statement_create())
 
     register_entities([B_A], schemas=["DEV"], entity_types=[PGView])
 

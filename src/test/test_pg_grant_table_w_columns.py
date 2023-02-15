@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import text
 
 from alembic_utils.pg_grant_table import PGGrantTable, PGGrantTableChoice
 from alembic_utils.replaceable_entity import register_entities
@@ -14,19 +15,22 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 @pytest.fixture(scope="function")
 def sql_setup(engine):
-    conn = engine
-    conn.execute(
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+        create table public.account (
+            id serial primary key,
+            email text not null
+        );
+        create role anon_user
         """
-    create table public.account (
-        id serial primary key,
-        email text not null
-    );
-    create role anon_user
-    """
-    )
+            )
+        )
 
     yield
-    conn.execute("drop table public.account cascade")
+    with engine.begin() as connection:
+        connection.execute(text("drop table public.account cascade"))
 
 
 TEST_GRANT = PGGrantTable(
@@ -69,7 +73,8 @@ def test_create_revision(sql_setup, engine) -> None:
 
 
 def test_replace_revision(sql_setup, engine) -> None:
-    engine.execute(TEST_GRANT.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_GRANT.to_sql_statement_create())
 
     UPDATED_GRANT = PGGrantTable(
         schema="public",
@@ -106,7 +111,8 @@ def test_replace_revision(sql_setup, engine) -> None:
 
 def test_noop_revision(sql_setup, engine) -> None:
     # Create the view outside of a revision
-    engine.execute(TEST_GRANT.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_GRANT.to_sql_statement_create())
 
     register_entities([TEST_GRANT], entity_types=[PGGrantTable])
 
@@ -141,7 +147,8 @@ def test_drop_revision(sql_setup, engine) -> None:
     register_entities([], schemas=["public"], entity_types=[PGGrantTable])
 
     # Manually create a SQL function
-    engine.execute(TEST_GRANT.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_GRANT.to_sql_statement_create())
 
     output = run_alembic_command(
         engine=engine,

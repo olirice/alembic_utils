@@ -116,3 +116,23 @@ def downgrade():
 Visit the [quickstart guide](https://olirice.github.io/alembic_utils/quickstart/) for usage instructions.
 
 <p align="center">&mdash;&mdash;  &mdash;&mdash;</p>
+
+### Contributing
+
+To run the tests
+```
+# install pip dependencies
+pip install wheel && pip install -e ".[dev]"
+
+# run the tests
+pytest src/test
+```
+
+To invoke the linter automated formatting and generally make use of precommit checks:
+```
+pip install pre-commit
+pre-commit install
+
+# manually run
+pre-commit run --all
+```

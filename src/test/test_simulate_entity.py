@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,7 @@ def test_simulate_entity_shows_user_code_error(sess: Session) -> None:
     with pytest.raises(DataError):
         with simulate_entity(sess, TEST_VIEW):
             # Raises a sql error
-            sess.execute("select 1/0").fetchone()
+            sess.execute(text("select 1/0")).fetchone()
 
     # Confirm context manager exited gracefully
     assert True

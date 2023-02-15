@@ -1,6 +1,7 @@
 from typing import Generator
 
 import pytest
+from sqlalchemy import text
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_policy import PGPolicy
@@ -22,23 +23,29 @@ TEST_POLICY = PGPolicy(
 
 @pytest.fixture()
 def schema_setup(engine) -> Generator[None, None, None]:
-    engine.execute(
-        """
-    create table public.some_tab (
-        id serial primary key,
-        name text
-    );
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+        create table public.some_tab (
+            id serial primary key,
+            name text
+        );
 
-    create user anon_user;
-    """
-    )
-    yield
-    engine.execute(
+        create user anon_user;
         """
-    drop table public.some_tab;
-    drop user anon_user;
-    """
-    )
+            )
+        )
+    yield
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+        drop table public.some_tab;
+        drop user anon_user;
+        """
+            )
+        )
 
 
 def test_unparsable() -> None:
@@ -88,7 +95,8 @@ def test_create_revision(engine, schema_setup) -> None:
 
 def test_update_revision(engine, schema_setup) -> None:
     # Create the view outside of a revision
-    engine.execute(TEST_POLICY.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_POLICY.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TEST_POLICY = PGPolicy(
@@ -130,7 +138,8 @@ def test_update_revision(engine, schema_setup) -> None:
 
 def test_noop_revision(engine, schema_setup) -> None:
     # Create the view outside of a revision
-    engine.execute(TEST_POLICY.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_POLICY.to_sql_statement_create())
 
     register_entities([TEST_POLICY], entity_types=[PGPolicy])
 
@@ -166,8 +175,8 @@ def test_drop_revision(engine, schema_setup) -> None:
     register_entities([], schemas=["public"], entity_types=[PGPolicy])
 
     # Manually create a SQL function
-    engine.execute(TEST_POLICY.to_sql_statement_create())
-
+    with engine.begin() as connection:
+        connection.execute(TEST_POLICY.to_sql_statement_create())
     output = run_alembic_command(
         engine=engine,
         command="revision",

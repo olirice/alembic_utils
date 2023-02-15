@@ -79,7 +79,8 @@ def test_create_revision(engine) -> None:
 
 def test_update_revision(engine) -> None:
     # Create the view outside of a revision
-    engine.execute(TEST_MAT_VIEW.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_MAT_VIEW.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TEST_MAT_VIEW = PGMaterializedView(
@@ -117,7 +118,8 @@ def test_update_revision(engine) -> None:
 
 def test_noop_revision(engine) -> None:
     # Create the view outside of a revision
-    engine.execute(TEST_MAT_VIEW.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_MAT_VIEW.to_sql_statement_create())
 
     register_entities([TEST_MAT_VIEW], entity_types=[PGMaterializedView])
 
@@ -152,7 +154,8 @@ def test_drop_revision(engine) -> None:
     register_entities([], schemas=["DEV"], entity_types=[PGMaterializedView])
 
     # Manually create a SQL function
-    engine.execute(TEST_MAT_VIEW.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_MAT_VIEW.to_sql_statement_create())
 
     output = run_alembic_command(
         engine=engine,

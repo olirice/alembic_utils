@@ -43,7 +43,8 @@ def test_update_is_unreachable(engine) -> None:
     # scoping assumptions made for all other entities
 
     # Create the view outside of a revision
-    engine.execute(TEST_EXT.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_EXT.to_sql_statement_create())
 
     UPDATED_TEST_EXT = PGExtension("DEV", TEST_EXT.signature)
 
@@ -68,7 +69,8 @@ def test_update_is_unreachable(engine) -> None:
 
 def test_noop_revision(engine) -> None:
     # Create the view outside of a revision
-    engine.execute(TEST_EXT.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_EXT.to_sql_statement_create())
 
     register_entities([TEST_EXT], entity_types=[PGExtension])
 
@@ -102,7 +104,8 @@ def test_drop_revision(engine) -> None:
     register_entities([], entity_types=[PGExtension])
 
     # Manually create a SQL function
-    engine.execute(TEST_EXT.to_sql_statement_create())
+    with engine.begin() as connection:
+        connection.execute(TEST_EXT.to_sql_statement_create())
 
     output = run_alembic_command(
         engine=engine,
