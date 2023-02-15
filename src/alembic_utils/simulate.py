@@ -32,9 +32,8 @@ def simulate_entity(
 
     deps: List["ReplaceableEntity"] = dependencies or []
 
+    outer_transaction = sess.begin_nested()
     try:
-        sess.begin_nested()
-
         dependency_managers = [simulate_entity(sess, x) for x in deps]
 
         with ExitStack() as stack:
@@ -43,8 +42,8 @@ def simulate_entity(
                 stack.enter_context(mgr)
 
             did_drop = False
+            inner_transaction = sess.begin_nested()
             try:
-                inner_transaction = sess.begin_nested()
                 sess.execute(entity.to_sql_statement_drop(cascade=True))
                 did_drop = True
                 sess.execute(entity.to_sql_statement_create())
@@ -59,10 +58,10 @@ def simulate_entity(
                 # Try again without the drop in case the drop raised
                 # a does not exist error
                 inner_transaction.rollback()
-                sess.begin_nested()
+                inner_transaction = sess.begin_nested()
                 sess.execute(entity.to_sql_statement_create())
                 yield sess
             finally:
-                sess.rollback()
+                inner_transaction.rollback()
     finally:
-        sess.rollback()
+        outer_transaction.rollback()
