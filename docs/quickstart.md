@@ -29,7 +29,7 @@ from alembic_utils.pg_function import PGFunction
 
 to_upper = PGFunction(
   schema='public',
-  signature='to_upper(some_text text)'
+  signature='to_upper(some_text text)',
   definition="""
   RETURNS text as
   $$
