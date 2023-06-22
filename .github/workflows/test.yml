@@ -36,7 +36,7 @@ jobs:
         pip install --upgrade pip
         pip install wheel
         pip install -e ".[dev]"
-        pip install ${{ matrix.sqlalchemy-version }}
+        pip install "sqlalchemy==${{ matrix.sqlalchemy-version }}"
 
     - name: Test with Coverage
       run: |
