@@ -78,19 +78,18 @@ class ReplaceOp(ReversibleOp):
         return (
             "replace_or_revert_entity",
             self.target.identity,
-            str(self.target.to_sql_statement_create_or_replace()),
+            str([str(x) for x in self.target.to_sql_statement_create_or_replace()]),
         )
 
 
 class RevertOp(ReversibleOp):
     # Revert is never in an upgrade, so no need to implement reverse
-    pass
 
     def to_diff_tuple(self) -> tuple[Any, ...]:
         return (
             "replace_or_revert_entity",
             self.target.identity,
-            str(self.target.to_sql_statement_create_or_replace()),
+            str([str(x) for x in self.target.to_sql_statement_create_or_replace()]),
         )
 
 
