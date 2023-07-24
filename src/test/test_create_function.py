@@ -14,7 +14,7 @@ to_upper = PGFunction(
 
 
 def test_create_and_drop(engine) -> None:
-    """Test that the alembic current command does not erorr"""
+    """Test that the alembic current command does not error"""
     # Runs with no error
     up_sql = to_upper.to_sql_statement_create()
     down_sql = to_upper.to_sql_statement_drop()

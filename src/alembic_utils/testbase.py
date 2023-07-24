@@ -19,6 +19,7 @@ ALEMBIC_COMMAND_MAP: Dict[str, Callable[..., NoReturn]] = {
     "downgrade": alem_command.downgrade,
     "revision": alem_command.revision,
     "current": alem_command.current,
+    "check": alem_command.check,
 }
 
 
