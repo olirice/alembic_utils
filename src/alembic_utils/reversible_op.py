@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Type
+from typing import TYPE_CHECKING, Any, Tuple, Type
 
 from alembic.autogenerate import renderers
 from alembic.operations import MigrateOperation, Operations
@@ -52,7 +52,7 @@ class CreateOp(ReversibleOp):
     def reverse(self):
         return DropOp(self.target)
 
-    def to_diff_tuple(self) -> tuple[Any, ...]:
+    def to_diff_tuple(self) -> Tuple[Any, ...]:
         return "create_entity", self.target.identity, str(self.target.to_sql_statement_create())
 
 
@@ -65,7 +65,7 @@ class DropOp(ReversibleOp):
     def reverse(self):
         return CreateOp(self.target)
 
-    def to_diff_tuple(self) -> tuple[Any, ...]:
+    def to_diff_tuple(self) -> Tuple[Any, ...]:
         return "drop_entity", self.target.identity
 
 
@@ -74,7 +74,7 @@ class ReplaceOp(ReversibleOp):
     def reverse(self):
         return RevertOp(self.target)
 
-    def to_diff_tuple(self) -> tuple[Any, ...]:
+    def to_diff_tuple(self) -> Tuple[Any, ...]:
         return (
             "replace_or_revert_entity",
             self.target.identity,
@@ -85,7 +85,7 @@ class ReplaceOp(ReversibleOp):
 class RevertOp(ReversibleOp):
     # Revert is never in an upgrade, so no need to implement reverse
 
-    def to_diff_tuple(self) -> tuple[Any, ...]:
+    def to_diff_tuple(self) -> Tuple[Any, ...]:
         return (
             "replace_or_revert_entity",
             self.target.identity,
