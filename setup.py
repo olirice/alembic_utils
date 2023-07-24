@@ -34,7 +34,7 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     install_requires=[
-        "alembic>=1.5.7",
+        "alembic>=1.9",
         "flupy",
         "parse>=1.8.4",
         "sqlalchemy>=1.4",
