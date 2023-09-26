@@ -7,8 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
         matrix:
-            python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+            python-version: ['3.8', '3.9', '3.10', '3.11']
             postgres-version: ['11', '12', '13', '14', '15']
+            sqlalchemy-version: ['1.4', '2.0']
 
     services:
 
@@ -35,6 +36,7 @@ jobs:
         pip install --upgrade pip
         pip install wheel
         pip install -e ".[dev]"
+        pip install "sqlalchemy==${{ matrix.sqlalchemy-version }}"
 
     - name: Test with Coverage
       run: |
