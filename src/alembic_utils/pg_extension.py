@@ -54,9 +54,10 @@ class PGExtension(ReplaceableEntity):
         class_name = self.__class__.__name__
 
         code = f"{var_name} = {class_name}("
-        if self.schema:
-            code += f'\n    schema="{self.schema}"'
-        code += f'\n    signature="{self.signature}\n)\n"'
+        if self.schema and self.schema != "public":
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += '\n)\n'
         return code
 
     @classmethod

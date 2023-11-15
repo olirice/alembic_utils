@@ -69,7 +69,7 @@ class ReplaceableEntity:
         """Wrap a schema name in literal quotes
         Useful for emitting SQL statements
         """
-        return coerce_to_quoted(self.schema) + "." if self.schema else ""
+        return coerce_to_quoted(self.schema) + "." if self.schema and self.schema != 'public' else ""
 
     @classmethod
     def from_path(cls: Type[T], path: Path) -> T:
@@ -127,11 +127,13 @@ class ReplaceableEntity:
         class_name = self.__class__.__name__
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}",
-    definition={repr(escaped_definition)}
-)\n"""
+        code: str = f"{var_name} = {class_name}("
+        if self.schema and self.schema != "public":
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += f'\n    definition={repr(escaped_definition)},'
+        code += '\n)\n'
+        return code
 
     @classmethod
     def render_import_statement(cls) -> str:

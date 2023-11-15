@@ -56,13 +56,15 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         class_name = self.__class__.__name__
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}",
-    on_entity="{self.on_entity}",
-    is_constraint={self.is_constraint},
-    definition={repr(escaped_definition)}
-)\n"""
+        code: str = f"{var_name} = {class_name}("
+        if self.schema and self.schema != "public":
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += f'\n    on_entity="{self.on_entity}",'
+        code += f'\n    is_constraint="{self.is_constraint}",'
+        code += f'\n    definition={repr(escaped_definition)},'
+        code += '\n)\n'
+        return code
 
     @property
     def identity(self) -> str:

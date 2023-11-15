@@ -108,12 +108,14 @@ class PGMaterializedView(ReplaceableEntity):
         class_name = self.__class__.__name__
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
-        return f"""{var_name} = {class_name}(
-            schema="{self.schema}",
-            signature="{self.signature}",
-            definition={repr(escaped_definition)},
-            with_data={repr(self.with_data)}
-        )\n\n"""
+        code: str = f"{var_name} = {class_name}("
+        if self.schema and self.schema != "public":
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += f'\n    definition={repr(escaped_definition)},'
+        code += f'\n    with_data={repr(self.with_data)},'
+        code += '\n)\n'
+        return code
 
     @classmethod
     def from_database(cls, sess, schema):
