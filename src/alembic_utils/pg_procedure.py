@@ -14,21 +14,21 @@ from alembic_utils.statement import (
 )
 
 
-class PGFunction(ReplaceableEntity):
-    """A PostgreSQL Function compatible with `alembic revision --autogenerate`
+class PGProcedure(ReplaceableEntity):
+    """A PostgreSQL Stored Procedure compatible with `alembic revision --autogenerate`
 
     **Parameters:**
 
     * **schema** - *str*: A SQL schema name
-    * **signature** - *str*: A SQL function's call signature
-    * **definition** - *str*:  The remainig function body and identifiers
+    * **signature** - *str*: A SQL procedure's call signature
+    * **definition** - *str*:  The remainig procedure body and identifiers
     """
 
-    type_ = "function"
+    type_ = "procedure"
 
     def __init__(self, schema: str, signature: str, definition: str):
         super().__init__(schema, signature, definition)
-        # Detect if function uses plpgsql and update escaping rules to not escape ":="
+        # Detect if procedure uses plpgsql and update escaping rules to not escape ":="
         is_plpgsql: bool = "language plpgsql" in normalize_whitespace(definition).lower().replace(
             "'", ""
         )
@@ -37,9 +37,9 @@ class PGFunction(ReplaceableEntity):
         self.definition: str = escaping_callable(strip_terminating_semicolon(definition))
 
     @classmethod
-    def from_sql(cls, sql: str) -> "PGFunction":
+    def from_sql(cls, sql: str) -> "PGProcedure":
         """Create an instance instance from a SQL string"""
-        template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
+        template = "create{}procedure{:s}{schema}.{signature}{:s}{definition}"
         result = parse(template, sql.strip(), case_sensitive=False)
         if result is not None:
             # remove possible quotes from signature
@@ -52,13 +52,13 @@ class PGFunction(ReplaceableEntity):
             return cls(
                 schema=result["schema"],
                 signature=signature,
-                definition="returns " + result["definition"],
+                definition=result["definition"],
             )
-        raise SQLParseFailure(f'Failed to parse SQL into PGFunction """{sql}"""')
+        raise SQLParseFailure(f'Failed to parse SQL into PGProcedure """{sql}"""')
 
     @property
     def literal_signature(self) -> str:
-        """Adds quoting around the functions name when emitting SQL statements
+        """Adds quoting around the procedure's name when emitting SQL statements
 
         e.g.
         'toUpper(text) returns text' -> '"toUpper"(text) returns text'
@@ -68,23 +68,23 @@ class PGFunction(ReplaceableEntity):
         return '"' + name + '"(' + remainder
 
     def to_sql_statement_create(self):
-        """Generates a SQL "create function" statement for PGFunction"""
+        """Generates a SQL "create procedure" statement for PGProcedure"""
         return sql_text(
-            f"CREATE FUNCTION {self.literal_schema_prefix}{self.literal_signature} {self.definition}"
+            f"CREATE PROCEDURE {self.literal_schema_prefix}{self.literal_signature} {self.definition}"
         )
 
     def to_sql_statement_drop(self, cascade=False):
-        """Generates a SQL "drop function" statement for PGFunction"""
+        """Generates a SQL "drop procedure" statement for PGProcedure"""
         cascade = "cascade" if cascade else ""
-        template = "{function_name}({parameters})"
+        template = "{procedure_name}({parameters})"
         result = parse(template, self.signature, case_sensitive=False)
         try:
-            function_name = result["function_name"]
+            procedure_name = result["procedure_name"]
             parameters_str = result["parameters"].strip()
         except TypeError:
             # Did not match, NoneType is not scriptable
-            result = parse("{function_name}()", self.signature, case_sensitive=False)
-            function_name = result["function_name"]
+            result = parse("{procedure_name}()", self.signature, case_sensitive=False)
+            procedure_name = result["procedure_name"]
             parameters_str = ""
 
         # NOTE: Will fail if a text field has a default and that deafult contains a comma...
@@ -93,23 +93,23 @@ class PGFunction(ReplaceableEntity):
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
         return sql_text(
-            f'DROP FUNCTION {self.literal_schema_prefix}"{function_name}"({drop_params}) {cascade}'
+            f'DROP PROCEDURE {self.literal_schema_prefix}"{procedure_name}"({drop_params}) {cascade}'
         )
 
     def to_sql_statement_create_or_replace(self):
-        """Generates a SQL "create or replace function" statement for PGFunction"""
+        """Generates a SQL "create or replace procedure" statement for PGProcedure"""
         yield sql_text(
-            f"CREATE OR REPLACE FUNCTION {self.literal_schema_prefix}{self.literal_signature} {self.definition}"
+            f"CREATE OR REPLACE PROCEDURE {self.literal_schema_prefix}{self.literal_signature} {self.definition}"
         )
 
     @classmethod
     def from_database(cls, sess, schema):
-        """Get a list of all functions defined in the db"""
+        """Get a list of all procedures defined in the db"""
 
         # Prior to postgres 11, pg_proc had different columns
         # https://github.com/olirice/alembic_utils/issues/12
         PG_GTE_11 = """
-            and p.prokind = 'f'
+            and p.prokind = 'p'
         """
 
         PG_LT_11 = """
@@ -137,7 +137,7 @@ class PGFunction(ReplaceableEntity):
 
         select
             n.nspname as function_schema,
-            p.proname as function_name,
+            p.proname as procedure_name,
             pg_get_function_arguments(p.oid) as function_arguments,
             case
                 when l.lanname = 'internal' then p.prosrc
@@ -161,9 +161,9 @@ class PGFunction(ReplaceableEntity):
         )
 
         rows = sess.execute(sql, {"schema": schema}).fetchall()
-        db_functions = [cls.from_sql(x[3]) for x in rows]
+        db_procedures = [cls.from_sql(x[3]) for x in rows]
 
-        for func in db_functions:
+        for func in db_procedures:
             assert func is not None
 
-        return db_functions
+        return db_procedures

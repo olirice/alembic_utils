@@ -80,14 +80,14 @@ class PGMaterializedView(ReplaceableEntity):
         definition = self.definition.rstrip().rstrip(";")
 
         return sql_text(
-            f'CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;'
+            f'CREATE MATERIALIZED VIEW {self.literal_schema_prefix}"{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;'
         )
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
         cascade = "cascade" if cascade else ""
         return sql_text(
-            f'DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}" {cascade}'
+            f'DROP MATERIALIZED VIEW {self.literal_schema_prefix}"{self.signature}" {cascade}'
         )
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
@@ -96,10 +96,10 @@ class PGMaterializedView(ReplaceableEntity):
         definition = self.definition.rstrip().rstrip(";")
 
         yield sql_text(
-            f"""DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}"; """
+            f"""DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema_prefix}"{self.signature}"; """
         )
         yield sql_text(
-            f"""CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA"""
+            f"""CREATE MATERIALIZED VIEW {self.literal_schema_prefix}"{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA"""
         )
 
     def render_self_for_migration(self, omit_definition=False) -> str:

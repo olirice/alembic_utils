@@ -30,7 +30,7 @@ class PGExtension(ReplaceableEntity):
 
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create extension" statement"""
-        return sql_text(f'CREATE EXTENSION "{self.signature}" WITH SCHEMA {self.literal_schema};')
+        return sql_text(f'CREATE EXTENSION "{self.signature}" WITH SCHEMA {self.literal_schema_prefix};')
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop extension" statement"""
@@ -53,10 +53,11 @@ class PGExtension(ReplaceableEntity):
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}"
-)\n"""
+        code = f"{var_name} = {class_name}("
+        if self.schema:
+            code += f'\n    schema="{self.schema}"'
+        code += f'\n    signature="{self.signature}\n)\n"'
+        return code
 
     @classmethod
     def from_database(cls, sess, schema):
