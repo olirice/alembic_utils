@@ -70,7 +70,7 @@ class PGFunction(ReplaceableEntity):
     def to_sql_statement_create(self):
         """Generates a SQL "create function" statement for PGFunction"""
         return sql_text(
-            f"CREATE FUNCTION {self.literal_schema_prefix}{self.literal_signature} {self.definition}"
+            f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
     def to_sql_statement_drop(self, cascade=False):
@@ -93,13 +93,13 @@ class PGFunction(ReplaceableEntity):
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
         return sql_text(
-            f'DROP FUNCTION {self.literal_schema_prefix}"{function_name}"({drop_params}) {cascade}'
+            f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params}) {cascade}'
         )
 
     def to_sql_statement_create_or_replace(self):
         """Generates a SQL "create or replace function" statement for PGFunction"""
         yield sql_text(
-            f"CREATE OR REPLACE FUNCTION {self.literal_schema_prefix}{self.literal_signature} {self.definition}"
+            f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
     @classmethod

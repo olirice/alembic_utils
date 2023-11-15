@@ -214,14 +214,14 @@ class PGGrantTable(ReplaceableEntity):
         with_grant_option = " WITH GRANT OPTION" if self.with_grant_option else ""
         maybe_columns_clause = f'( {", ".join(self.columns)} )' if self.columns else ""
         return sql_text(
-            f"GRANT {self.grant} {maybe_columns_clause} ON {self.literal_schema_prefix}{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)} {with_grant_option}"
+            f"GRANT {self.grant} {maybe_columns_clause} ON {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)} {with_grant_option}"
         )
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
         # cascade has no impact
         return sql_text(
-            f"REVOKE {self.grant} ON {self.literal_schema_prefix}{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
+            f"REVOKE {self.grant} ON {self.literal_schema}.{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
         )
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:

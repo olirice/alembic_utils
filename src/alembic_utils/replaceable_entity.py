@@ -65,11 +65,11 @@ class ReplaceableEntity:
         raise NotImplementedError()
 
     @property
-    def literal_schema_prefix(self) -> str:
+    def literal_schema(self) -> str:
         """Wrap a schema name in literal quotes
         Useful for emitting SQL statements
         """
-        return coerce_to_quoted(self.schema) + "." if self.schema else ""
+        return coerce_to_quoted(self.schema)
 
     @classmethod
     def from_path(cls: Type[T], path: Path) -> T:

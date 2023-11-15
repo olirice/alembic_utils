@@ -53,13 +53,13 @@ class PGView(ReplaceableEntity):
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create view" statement"""
         return sql_text(
-            f'CREATE VIEW {self.literal_schema_prefix}"{self.signature}" AS {self.definition};'
+            f'CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};'
         )
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
         cascade = "cascade" if cascade else ""
-        return sql_text(f'DROP VIEW {self.literal_schema_prefix}"{self.signature}" {cascade}')
+        return sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}" {cascade}')
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create or replace view" statement
@@ -71,12 +71,12 @@ class PGView(ReplaceableEntity):
             f"""
         do $$
             begin
-                CREATE OR REPLACE VIEW {self.literal_schema_prefix}"{self.signature}" AS {self.definition};
+                CREATE OR REPLACE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
 
             exception when others then
-                DROP VIEW IF EXISTS {self.literal_schema_prefix}"{self.signature}";
+                DROP VIEW IF EXISTS {self.literal_schema}."{self.signature}";
 
-                CREATE VIEW {self.literal_schema_prefix}"{self.signature}" AS {self.definition};
+                CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
             end;
         $$ language 'plpgsql'
         """
