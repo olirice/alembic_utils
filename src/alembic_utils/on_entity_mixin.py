@@ -17,7 +17,7 @@ class OnEntityMixin(_Base):
         if "." not in on_entity:
             schema = "public"
         else:
-            schema, _, _ = on_entity.partition(".")
+            schema = on_entity.split(".")[0]
 
         self.include_schema_prefix: bool = schema != "public"
         super().__init__(schema=schema, signature=signature, definition=definition)

@@ -45,6 +45,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         schema: str = "public",
         is_constraint: bool = False,
     ):
+        self.include_schema_prefix: bool = schema != "public"
         super().__init__(
             signature=signature, definition=definition, schema=schema, on_entity=on_entity,
         )
