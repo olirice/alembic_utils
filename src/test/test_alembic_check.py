@@ -16,7 +16,6 @@ TEST_VIEW_after = PGView(
     definition="select feature_name, is_supported from information_schema.sql_features",
 )
 
-
 def test_check_diff_create(engine) -> None:
     register_entities([TEST_VIEW_before])
 
@@ -26,7 +25,7 @@ def test_check_diff_create(engine) -> None:
     exp = (
         "New upgrade operations detected: "
         "[('create_entity', 'PGView: public.testExample', "
-        '\'CREATE VIEW "public"."testExample" AS select feature_name from information_schema.sql_features;\')]'
+        '\'CREATE VIEW "testExample" AS select feature_name from information_schema.sql_features;\')]'
     )
     assert e_info.value.args[0] == exp
 

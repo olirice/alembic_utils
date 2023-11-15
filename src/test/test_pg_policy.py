@@ -61,7 +61,7 @@ def test_parse_without_schema_on_entity() -> None:
     policy = PGPolicy.from_sql(sql)
     assert policy.schema == "public"
     assert policy.signature == "mypol"
-    assert policy.on_entity == "public.accOunt"
+    assert policy.on_entity == "accOunt"
     assert (
         policy.definition
         == "as PERMISSIVE for SELECT to account_creator using (true) wiTh CHECK (true)"

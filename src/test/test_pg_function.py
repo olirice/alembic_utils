@@ -46,9 +46,9 @@ def test_update_revision(engine) -> None:
 
     # Update definition of TO_UPPER
     UPDATED_TO_UPPER = PGFunction(
-        TO_UPPER.schema,
-        TO_UPPER.signature,
-        r'''returns text as
+        schema= TO_UPPER.schema,
+        signature=TO_UPPER.signature,
+        definition=r'''returns text as
     $$
     select upper(some_text) || 'def'  -- """ \n \\
     $$ language SQL immutable strict;''',

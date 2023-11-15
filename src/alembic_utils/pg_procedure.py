@@ -26,8 +26,8 @@ class PGProcedure(ReplaceableEntity):
 
     type_ = "procedure"
 
-    def __init__(self, schema: str, signature: str, definition: str):
-        super().__init__(schema, signature, definition)
+    def __init__(self, signature: str, definition: str, schema: str = "public"):
+        super().__init__(signature=signature, definition=definition, schema=schema)
         # Detect if procedure uses plpgsql and update escaping rules to not escape ":="
         is_plpgsql: bool = "language plpgsql" in normalize_whitespace(definition).lower().replace(
             "'", ""
@@ -39,21 +39,26 @@ class PGProcedure(ReplaceableEntity):
     @classmethod
     def from_sql(cls, sql: str) -> "PGProcedure":
         """Create an instance instance from a SQL string"""
-        template = "create{}procedure{:s}{schema}.{signature}{:s}{definition}"
-        result = parse(template, sql.strip(), case_sensitive=False)
-        if result is not None:
-            # remove possible quotes from signature
-            raw_signature = result["signature"]
-            signature = (
-                "".join(raw_signature.split('"', 2))
-                if raw_signature.startswith('"')
-                else raw_signature
-            )
-            return cls(
-                schema=result["schema"],
-                signature=signature,
-                definition=result["definition"],
-            )
+        templates: list[str] = [
+            "create{}procedure{:s}{schema}.{signature}{:s}{definition}",
+            "create{}procedure{:s}{signature}{:s}{definition}",
+        ]
+        for template in templates:
+            result = parse(template, sql.strip(), case_sensitive=False)
+            if result is not None:
+                # remove possible quotes from signature
+                raw_signature = result["signature"]
+                schema = result.named.get("schema", "public")
+                signature = (
+                    "".join(raw_signature.split('"', 2))
+                    if raw_signature.startswith('"')
+                    else raw_signature
+                )
+                return cls(
+                    schema=schema,
+                    signature=signature,
+                    definition=result["definition"],
+                )        
         raise SQLParseFailure(f'Failed to parse SQL into PGProcedure """{sql}"""')
 
     @property

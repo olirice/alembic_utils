@@ -64,7 +64,9 @@ def test_update_revision(engine) -> None:
 
     # Update definition of TO_UPPER
     UPDATED_TEST_VIEW = PGView(
-        TEST_VIEW.schema, TEST_VIEW.signature, """select *, TRUE as is_updated from pg_views;"""
+        schema=TEST_VIEW.schema, 
+        signature=TEST_VIEW.signature, 
+        definition="""select *, TRUE as is_updated from pg_views;""",
     )
 
     register_entities([UPDATED_TEST_VIEW], entity_types=[PGView])
@@ -175,7 +177,9 @@ def test_update_create_or_replace_failover_to_drop_add(engine) -> None:
     # on pgview
 
     UPDATED_TEST_VIEW = PGView(
-        TEST_VIEW.schema, TEST_VIEW.signature, """select TRUE as is_updated from pg_views"""
+        schema=TEST_VIEW.schema, 
+        signature=TEST_VIEW.signature, 
+        definition="""select TRUE as is_updated from pg_views"""
     )
 
     register_entities([UPDATED_TEST_VIEW], entity_types=[PGView])

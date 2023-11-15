@@ -38,6 +38,7 @@ setup(
         "flupy",
         "parse>=1.8.4",
         "sqlalchemy>=1.3",
+        "psycopg2-binary>=2.9.3",
         "typing_extensions",
     ],
     extras_require={

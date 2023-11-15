@@ -73,10 +73,10 @@ class PGGrantTable(ReplaceableEntity):
 
     def __init__(
         self,
-        schema: str,
         table: str,
         role: str,
         grant: Union[PGGrantTableChoice, str],
+        schema: str = "public",
         columns: Optional[List[str]] = None,
         with_grant_option=False,
     ):
@@ -87,6 +87,7 @@ class PGGrantTable(ReplaceableEntity):
         self.grant: PGGrantTableChoice = PGGrantTableChoice(grant)
         self.with_grant_option: bool = with_grant_option
         self.signature = self.identity
+        self.include_schema_prefix: bool = schema != "public"
 
         if PGGrantTableChoice(self.grant) in {C.SELECT, C.INSERT, C.UPDATE, C.REFERENCES}:
             if len(self.columns) == 0:
@@ -117,10 +118,10 @@ class PGGrantTable(ReplaceableEntity):
 
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents"""
-        schema_name = self.schema.lower()
+        schema_name = self.schema.lower() + "_" if self.schema and self.include_schema_prefix else ""
         table_name = self.table.lower()
         role_name = self.role.lower()
-        return f"{schema_name}_{table_name}_{role_name}_{str(self.grant)}".lower()
+        return f"{schema_name}{table_name}_{role_name}_{str(self.grant)}".lower()
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""

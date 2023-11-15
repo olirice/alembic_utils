@@ -32,11 +32,12 @@ class PGMaterializedView(ReplaceableEntity):
 
     type_ = "materialized_view"
 
-    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True):
+    def __init__(self, signature: str, definition: str, schema: str = "public", with_data: bool = True):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = strip_terminating_semicolon(definition)
         self.with_data = with_data
+        self.include_schema_prefix: bool = schema != "public"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGMaterializedView":
@@ -52,6 +53,9 @@ class PGMaterializedView(ReplaceableEntity):
             "create{}materialized{}view{:s}{schema}.{signature}{:s}as{:s}{definition}{:s}with{:s}data",
             "create{}materialized{}view{:s}{schema}.{signature}{:s}as{:s}{definition}{}with{:s}{no_data}{:s}data",
             "create{}materialized{}view{:s}{schema}.{signature}{:s}as{:s}{definition}",
+            "create{}materialized{}view{:s}{signature}{:s}as{:s}{definition}{:s}with{:s}data",
+            "create{}materialized{}view{:s}{signature}{:s}as{:s}{definition}{}with{:s}{no_data}{:s}data",
+            "create{}materialized{}view{:s}{signature}{:s}as{:s}{definition}",
         ]
 
         for template in templates:
@@ -64,7 +68,7 @@ class PGMaterializedView(ReplaceableEntity):
                 signature = result["signature"].split("(")[0]
 
                 return cls(
-                    schema=result["schema"],
+                    schema=result.named.get("schema", "public"),
                     # strip quote characters
                     signature=signature.replace('"', ""),
                     definition=result["definition"],
@@ -109,7 +113,7 @@ class PGMaterializedView(ReplaceableEntity):
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
         code: str = f"{var_name} = {class_name}("
-        if self.schema and self.schema != "public":
+        if self.schema and self.include_schema_prefix:
             code += f'\n    schema="{self.schema}",'
         code += f'\n    signature="{self.signature}",'
         code += f'\n    definition={repr(escaped_definition)},'
@@ -135,7 +139,7 @@ class PGMaterializedView(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql).fetchall()
-        db_views = [cls(x[0], x[1], x[2], with_data=x[3]) for x in rows]
+        db_views = [cls(schema=x[0], signature=x[1], definition=x[2], with_data=x[3]) for x in rows]
 
         for view in db_views:
             assert view is not None

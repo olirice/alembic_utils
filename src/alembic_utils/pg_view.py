@@ -28,10 +28,11 @@ class PGView(ReplaceableEntity):
 
     type_ = "view"
 
-    def __init__(self, schema: str, signature: str, definition: str):
+    def __init__(self, signature: str, definition: str, schema: str = "public"):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = strip_terminating_semicolon(definition)
+        self.include_schema_prefix: bool = schema != "public"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGView":
@@ -99,7 +100,7 @@ class PGView(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql).fetchall()
-        db_views = [cls(x[0], x[1], x[2]) for x in rows]
+        db_views = [cls(schema=x[0], signature=x[1], definition=x[2]) for x in rows]
 
         for view in db_views:
             assert view is not None

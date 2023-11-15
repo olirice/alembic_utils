@@ -91,15 +91,15 @@ def test_create_revision_with_filters(engine) -> None:
     with migration_create_path.open() as migration_file:
         migration_contents = migration_file.read()
 
-    assert "op.create_entity(public_a_view)" in migration_contents
-    assert "op.create_entity(public_toupper)" in migration_contents
-    assert "op.drop_entity(public_reflected_view)" in migration_contents
-    assert "op.drop_entity(public_reflected_toupper)" in migration_contents
+    assert "op.create_entity(a_view)" in migration_contents
+    assert "op.create_entity(toupper)" in migration_contents
+    assert "op.drop_entity(reflected_view)" in migration_contents
+    assert "op.drop_entity(reflected_toupper)" in migration_contents
 
-    assert not "op.create_entity(public_exclude_obj_view)" in migration_contents
-    assert not "op.create_entity(public_exclude_obj_toupper)" in migration_contents
-    assert not "op.drop_entity(public_exclude_name_reflected_view)" in migration_contents
-    assert not "op.drop_entity(public_exclude_obj_reflected_toupper)" in migration_contents
+    assert not "op.create_entity(exclude_obj_view)" in migration_contents
+    assert not "op.create_entity(exclude_obj_toupper)" in migration_contents
+    assert not "op.drop_entity(exclude_name_reflected_view)" in migration_contents
+    assert not "op.drop_entity(exclude_obj_reflected_toupper)" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})

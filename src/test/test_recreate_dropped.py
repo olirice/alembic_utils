@@ -59,7 +59,7 @@ def test_fails_if_user_creates_new_entity(engine) -> None:
         # Create the original view
         connection.execute(TEST_ROOT_BIGINT.to_sql_statement_create())
 
-        # User creates a brand new entity
-        with pytest.raises(Exception):
-            with recreate_dropped(connection=connection) as sess:
-                connection.execute(TEST_DEPENDENT.to_sql_statement_create())
+    # User creates a brand new entity
+    with pytest.raises(Exception):
+        with recreate_dropped(connection=connection) as sess:
+            connection.execute(TEST_DEPENDENT.to_sql_statement_create())
