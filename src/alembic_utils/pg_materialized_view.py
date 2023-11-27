@@ -102,6 +102,19 @@ class PGMaterializedView(ReplaceableEntity):
             f"""CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA"""
         )
 
+    def to_sql_statement_create_or_replace_(self):
+        """Generates a SQL "create or replace view" statement"""
+        # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
+        definition = self.definition.rstrip().rstrip(";")
+
+        a = sql_text(
+            f"""DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}"; """
+        )
+        b = sql_text(
+            f"""CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA"""
+        )
+        return a, b
+
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()

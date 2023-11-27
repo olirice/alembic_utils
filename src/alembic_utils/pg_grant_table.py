@@ -227,3 +227,9 @@ class PGGrantTable(ReplaceableEntity):
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         yield self.to_sql_statement_drop()
         yield self.to_sql_statement_create()
+
+    def to_sql_statement_create_or_replace_(self):
+        a= self.to_sql_statement_drop()
+        b= self.to_sql_statement_create()
+        return a,b
+

@@ -101,6 +101,12 @@ class PGFunction(ReplaceableEntity):
         yield sql_text(
             f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
+    def to_sql_statement_create_or_replace_(self):
+        """Generates a SQL "create or replace function" statement for PGFunction"""
+        return sql_text(
+            f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+        )
+
 
     @classmethod
     def from_database(cls, sess, schema):

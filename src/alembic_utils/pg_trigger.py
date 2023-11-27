@@ -67,7 +67,7 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
     @property
     def identity(self) -> str:
         """A string that consistently and globally identifies a trigger"""
-        return f"{self.__class__.__name__}: {self.schema}.{self.signature} {self.is_constraint} {self.on_entity}"
+        return f"{self.__class__.__name__}: {self.schema}.{self.signature} {self.on_entity}"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGTrigger":
@@ -139,6 +139,12 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         """Generates a SQL "replace trigger" statement for PGTrigger"""
         yield sql_text(f'DROP TRIGGER IF EXISTS "{self.signature}" ON {self.on_entity};')
         yield self.to_sql_statement_create()
+
+    def to_sql_statement_create_or_replace_(self):
+        """Generates a SQL "replace trigger" statement for PGTrigger"""
+        a= sql_text(f'DROP TRIGGER IF EXISTS "{self.signature}" ON {self.on_entity};')
+        b= self.to_sql_statement_create()
+        return a,b
 
     @classmethod
     def from_database(cls, sess, schema):

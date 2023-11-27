@@ -58,6 +58,13 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
         yield sql_text(f"DROP POLICY IF EXISTS {self.signature} on {self.on_entity};")
         yield sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition};")
 
+    def to_sql_statement_create_or_replace_(self):
+        """Not implemented, postgres policies do not support replace."""
+        a= sql_text(f"DROP POLICY IF EXISTS {self.signature} on {self.on_entity};")
+        b= sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition};")
+        return a,b
+
+
     @classmethod
     def from_database(cls, connection, schema):
         """Get a list of all policies defined in the db"""

@@ -1,5 +1,6 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 import logging
+import time
 from itertools import zip_longest
 from pathlib import Path
 from typing import (
@@ -95,12 +96,17 @@ class ReplaceableEntity:
         """Generates a SQL "create or replace function" statement for PGFunction"""
         raise NotImplementedError()
 
+    def to_sql_statement_create_or_replace_(self):
+        """Generates a SQL "create or replace function" statement for PGFunction"""
+        raise NotImplementedError()
+
     def get_database_definition(
-        self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
+            self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
     ) -> T:  # $Optional[T]:
         """Creates the entity in the database, retrieves its 'rendered' then rolls it back"""
         with simulate_entity(sess, self, dependencies) as sess:
             # Drop self
+
             sess.execute(self.to_sql_statement_drop())
 
             # collect all remaining entities
@@ -154,7 +160,7 @@ class ReplaceableEntity:
     _version_to_replace: Optional[T] = None  # type: ignore
 
     def get_required_migration_op(
-        self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
+            self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
     ) -> Optional[ReversibleOp]:
         """Get the migration operation required for autogenerate"""
         # All entities in the database for self's schema
@@ -165,8 +171,8 @@ class ReplaceableEntity:
         for x in entities_in_database:
 
             if (db_def.identity, normalize_whitespace(db_def.definition)) == (
-                x.identity,
-                normalize_whitespace(x.definition),
+                    x.identity,
+                    normalize_whitespace(x.definition),
             ):
                 return None
 
@@ -192,11 +198,11 @@ class ReplaceableEntityRegistry:
         self.entity_types.clear()
 
     def register(
-        self,
-        entities: Iterable[ReplaceableEntity],
-        schemas: Optional[List[str]] = None,
-        exclude_schemas: Optional[Iterable[str]] = None,
-        entity_types: Optional[Iterable[Type[ReplaceableEntity]]] = None,
+            self,
+            entities: Iterable[ReplaceableEntity],
+            schemas: Optional[List[str]] = None,
+            exclude_schemas: Optional[Iterable[str]] = None,
+            entity_types: Optional[Iterable[Type[ReplaceableEntity]]] = None,
     ) -> None:
         self._entities.update({e.identity: e for e in entities})
 
@@ -228,10 +234,10 @@ registry = ReplaceableEntityRegistry()
 
 
 def register_entities(
-    entities: Iterable[ReplaceableEntity],
-    schemas: Optional[List[str]] = None,
-    exclude_schemas: Optional[Iterable[str]] = None,
-    entity_types: Optional[Iterable[Type[ReplaceableEntity]]] = None,
+        entities: Iterable[ReplaceableEntity],
+        schemas: Optional[List[str]] = None,
+        exclude_schemas: Optional[Iterable[str]] = None,
+        entity_types: Optional[Iterable[Type[ReplaceableEntity]]] = None,
 ) -> None:
     """Register entities to be monitored for changes when alembic is invoked with `revision --autogenerate`.
 
@@ -248,14 +254,15 @@ def register_entities(
     * **exclude_schemas** - *Optional[List[str]]*: A list of SQL schemas to ignore. Note, explicitly registered entities will still be monitored.
     * **entity_types** - *Optional[List[Type[ReplaceableEntity]]]*: A list of ReplaceableEntity classes to consider during migrations. Other entity types are ignored
     """
+
     registry.register(entities, schemas, exclude_schemas, entity_types)
 
 
 @comparators.dispatch_for("schema")
 def compare_registered_entities(
-    autogen_context: AutogenContext,
-    upgrade_ops,
-    schemas: List[Optional[str]],
+        autogen_context: AutogenContext,
+        upgrade_ops,
+        schemas: List[Optional[str]],
 ):
     connection = autogen_context.connection
 
@@ -273,18 +280,18 @@ def compare_registered_entities(
     manual_schemas = set(registry.schemas or set())  # Deprecated for remove in 0.6.0
     entity_schemas = {x.schema for x in entities}  # from ReplaceableEntity instances
     all_schema_references = reflected_schemas | sqla_schemas | manual_schemas | entity_schemas  # type: ignore
-
+    all_schema_references.add('public')
     # Remove excluded schemas
     observed_schemas: Set[str] = {
         schema_name
         for schema_name in all_schema_references
         if (
-            schema_name
-            is not None
-            not in (
-                registry.exclude_schemas or set()
-            )  # user defined. Deprecated for remove in 0.6.0
-            and schema_name not in {"information_schema", None}
+                schema_name
+                is not None
+                not in (
+                        registry.exclude_schemas or set()
+                )  # user defined. Deprecated for remove in 0.6.0
+                and schema_name not in {"information_schema", None}
         )
     }
 
@@ -292,7 +299,11 @@ def compare_registered_entities(
     transaction = connection.begin_nested()
     sess = Session(bind=connection)
     try:
-        ordered_entities: List[ReplaceableEntity] = solve_resolution_order(sess, entities)
+
+        # ordered_entities: List[ReplaceableEntity] = solve_resolution_order(sess, entities)
+        ordered_entities = entity_sort(sess, entities, mode="upgrade")
+
+
     finally:
         sess.rollback()
 
@@ -305,21 +316,14 @@ def compare_registered_entities(
 
     # Required migration OPs, Create/Update/NoOp
     for entity in ordered_entities:
-        logger.info(
-            "Detecting required migration op %s %s",
-            entity.__class__.__name__,
-            entity.identity,
-        )
+        logger.info(f'Detecting required migration op {entity.__class__.__name__} {entity.identity}')
 
         if entity.__class__ not in registry.allowed_entity_types:
             continue
 
         if not include_entity(entity, autogen_context, reflected=False):
-            logger.debug(
-                "Ignoring local entity %s %s due to AutogenContext filters",
-                entity.__class__.__name__,
-                entity.identity,
-            )
+            logger.info(f'Ignoring local entity {entity.__class__.__name__} {entity.identity} due to AutogenContext '
+                        f'filters')
             continue
 
         transaction = connection.begin_nested()
@@ -330,24 +334,16 @@ def compare_registered_entities(
             local_db_def = entity.get_database_definition(
                 sess, dependencies=has_create_or_update_op
             )
-            local_entities.append(local_db_def)
+
+            local_entities.append(local_db_def.identity)
 
             if maybe_op:
                 upgrade_ops.ops.append(maybe_op)
                 has_create_or_update_op.append(entity)
 
-                logger.info(
-                    "Detected %s op for %s %s",
-                    maybe_op.__class__.__name__,
-                    entity.__class__.__name__,
-                    entity.identity,
-                )
+                logger.info(f'Detected {maybe_op.__class__.__name__} {entity.__class__.__name__} {entity.identity}')
             else:
-                logger.debug(
-                    "Detected NoOp op for %s %s",
-                    entity.__class__.__name__,
-                    entity.identity,
-                )
+                logger.info(f'Detected NoOp op for {entity.__class__.__name__} {entity.identity}')
 
         finally:
             sess.rollback()
@@ -357,16 +353,19 @@ def compare_registered_entities(
     # Bind the session within the parent transaction
     transaction = connection.begin_nested()
     sess = Session(bind=connection)
+
+    db_entities_to_be_dropped = []
     try:
         # All database entities currently live
         # Check if anything needs to drop
+        allowed_entity_types = registry.allowed_entity_types
         subclasses = collect_subclasses(alembic_utils, ReplaceableEntity)
         for entity_class in subclasses:
-
-            if entity_class not in registry.allowed_entity_types:
+            if entity_class not in allowed_entity_types:
                 continue
 
             # Entities within the schemas that are live
+
             for schema in observed_schemas:
 
                 db_entities: List[ReplaceableEntity] = entity_class.from_database(
@@ -376,34 +375,63 @@ def compare_registered_entities(
                 # Check for functions that were deleted locally
                 for db_entity in db_entities:
 
-                    if not include_entity(db_entity, autogen_context, reflected=True):
-                        logger.debug(
-                            "Ignoring remote entity %s %s due to AutogenContext filters",
-                            db_entity.__class__.__name__,
-                            db_entity.identity,
-                        )
-                        continue
+                    if include_entity(db_entity, autogen_context, reflected=True):
 
-                    for local_entity in local_entities:
-                        if db_entity.identity == local_entity.identity:
-                            break
-                    else:
-                        # No match was found locally
-                        # If the entity passes the filters,
-                        # we should create a DropOp
-                        upgrade_ops.ops.append(DropOp(db_entity))
-                        logger.info(
-                            "Detected DropOp op for %s %s",
-                            db_entity.__class__.__name__,
-                            db_entity.identity,
-                        )
+                        if db_entity.identity not in local_entities:
+                            db_entities_to_be_dropped.append(db_entity)
 
+        sorted_entity_list = entity_sort(sess, db_entities_to_be_dropped, mode="drop")
+
+        for db_entity in sorted_entity_list:
+            upgrade_ops.ops.append(DropOp(db_entity))
+            logger.info(f'Detected DropOp op for {db_entity.__class__.__name__} {db_entity.identity}')
     finally:
         sess.rollback()
 
 
+def entity_sort(session: Session, entity_list: List[ReplaceableEntity], mode):
+    i = 0
+    sorted_entity_list = []
+    outer_transaction = session.begin_nested()
+    while len(entity_list) != 0 and i < len(entity_list):
+
+        try:
+            inner_transaction = session.begin_nested()
+            if mode == "upgrade":
+                result = entity_list[i].to_sql_statement_create_or_replace_()
+
+                if type(result) is tuple:
+                    for x in result:
+                        session.execute(x)
+                else:
+                    session.execute(result)
+
+                # session.execute(result[1])
+            elif mode == "drop":
+                session.execute(entity_list[i].to_sql_statement_drop())
+
+            sorted_entity_list.append(entity_list.pop(i))
+            i = 0
+            inner_transaction.commit()
+        except:
+            i = i + 1
+            inner_transaction.rollback()
+
+    outer_transaction.rollback()
+    if len(entity_list):
+        if mode == "upgrade":
+            logger.error("The following entities cannot be created or upgraded.Dependencies may be missing")
+        if mode == "drop":
+            logger.error("The following entities cannot be dropped due to existing dependencies")
+        for x in entity_list:
+            logger.error(f'{x.identity}')
+        time.sleep(10)
+
+    return sorted_entity_list
+
+
 def include_entity(
-    entity: ReplaceableEntity, autogen_context: AutogenContext, reflected: bool
+        entity: ReplaceableEntity, autogen_context: AutogenContext, reflected: bool
 ) -> bool:
     """The functions on the AutogenContext object
     are described here:

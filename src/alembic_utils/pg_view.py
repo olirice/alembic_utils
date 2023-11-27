@@ -82,6 +82,28 @@ class PGView(ReplaceableEntity):
         """
         )
 
+    def to_sql_statement_create_or_replace_(self):
+        """Generates a SQL "create or replace view" statement
+
+        If the initial "CREATE OR REPLACE" statement does not succeed,
+        fails over onto "DROP VIEW" followed by "CREATE VIEW"
+        """
+        return sql_text(
+            f"""
+        do $$
+            begin
+                CREATE OR REPLACE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
+
+            exception when others then
+                DROP VIEW IF EXISTS {self.literal_schema}."{self.signature}";
+
+                CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
+            end;
+        $$ language 'plpgsql'
+        """
+        )
+
+
     @classmethod
     def from_database(cls, sess, schema):
         """Get a list of all functions defined in the db"""
