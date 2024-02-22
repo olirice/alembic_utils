@@ -84,9 +84,9 @@ def test_update_revision(engine) -> None:
 
     # Update definition of TO_UPPER
     UPDATED_TEST_MAT_VIEW = PGMaterializedView(
-        TEST_MAT_VIEW.schema,
-        TEST_MAT_VIEW.signature,
-        """select *, TRUE as is_updated from pg_matviews""",
+        schema=TEST_MAT_VIEW.schema,
+        signature=TEST_MAT_VIEW.signature,
+        definition="""select *, TRUE as is_updated from pg_matviews""",
         with_data=TEST_MAT_VIEW.with_data,
     )
 

@@ -45,10 +45,11 @@ T = TypeVar("T", bound="ReplaceableEntity")
 class ReplaceableEntity:
     """A SQL Entity that can be replaced"""
 
-    def __init__(self, schema: str, signature: str, definition: str):
+    def __init__(self, signature: str, definition: str, schema: str = "public"):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = escape_colon_for_sql(strip_terminating_semicolon(definition))
+        self.include_schema_prefix: bool = schema != "public"
 
     @property
     def type_(self) -> str:
@@ -65,11 +66,11 @@ class ReplaceableEntity:
         raise NotImplementedError()
 
     @property
-    def literal_schema(self) -> str:
+    def literal_schema_prefix(self) -> str:
         """Wrap a schema name in literal quotes
         Useful for emitting SQL statements
         """
-        return coerce_to_quoted(self.schema)
+        return coerce_to_quoted(self.schema) + "." if self.schema and self.include_schema_prefix else ""
 
     @classmethod
     def from_path(cls: Type[T], path: Path) -> T:
@@ -127,11 +128,13 @@ class ReplaceableEntity:
         class_name = self.__class__.__name__
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}",
-    definition={repr(escaped_definition)}
-)\n"""
+        code: str = f"{var_name} = {class_name}("
+        if self.schema and self.include_schema_prefix:
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += f'\n    definition={repr(escaped_definition)},'
+        code += '\n)\n'
+        return code
 
     @classmethod
     def render_import_statement(cls) -> str:
@@ -147,9 +150,9 @@ class ReplaceableEntity:
 
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents"""
-        schema_name = self.schema.lower()
+        schema_name = self.schema.lower() + "_" if self.schema and self.include_schema_prefix else ""
         object_name = self.signature.split("(")[0].strip().lower().replace("-", "_")
-        return f"{schema_name}_{object_name}"
+        return f"{schema_name}{object_name}"
 
     _version_to_replace: Optional[T] = None  # type: ignore
 

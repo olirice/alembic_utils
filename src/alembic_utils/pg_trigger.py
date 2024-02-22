@@ -39,14 +39,15 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
 
     def __init__(
         self,
-        schema: str,
         signature: str,
         definition: str,
         on_entity: str,
+        schema: str = "public",
         is_constraint: bool = False,
     ):
+        self.include_schema_prefix: bool = schema != "public"
         super().__init__(
-            schema=schema, signature=signature, definition=definition, on_entity=on_entity  # type: ignore
+            signature=signature, definition=definition, schema=schema, on_entity=on_entity,
         )
         self.is_constraint = is_constraint
 
@@ -56,13 +57,15 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         class_name = self.__class__.__name__
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}",
-    on_entity="{self.on_entity}",
-    is_constraint={self.is_constraint},
-    definition={repr(escaped_definition)}
-)\n"""
+        code: str = f"{var_name} = {class_name}("
+        if self.schema and self.include_schema_prefix:
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += f'\n    on_entity="{self.on_entity}",'
+        code += f'\n    is_constraint={self.is_constraint},'
+        code += f'\n    definition={repr(escaped_definition)},'
+        code += '\n)\n'
+        return code
 
     @property
     def identity(self) -> str:
@@ -83,9 +86,9 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
                 is_constraint = "constraint" in template
 
                 if "." not in on_entity:
-                    on_entity = "public" + "." + on_entity
-
-                schema = on_entity.split(".")[0]
+                    schema = "public"
+                else:
+                    schema = on_entity.split(".")[0]
 
                 definition_template = " {event} ON {on_entity} {action}"
                 definition = definition_template.format(
@@ -119,7 +122,9 @@ class PGTrigger(OnEntityMixin, ReplaceableEntity):
         on_entity = match["on_entity"]
         if "." in on_entity:
             _, _, on_entity = on_entity.partition(".")
-        on_entity = f"{self.schema}.{on_entity}"
+        
+        if self.schema and self.include_schema_prefix:
+            on_entity = f"{self.schema}.{on_entity}"
 
         # Re-render the definition ensuring the table is qualified with
         def_rendered = _template.replace("{:s}", " ").format(

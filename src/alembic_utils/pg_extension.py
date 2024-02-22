@@ -21,16 +21,18 @@ class PGExtension(ReplaceableEntity):
 
     type_ = "extension"
 
-    def __init__(self, schema: str, signature: str):
+    def __init__(self, signature: str, schema: str = "public"):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         # Include schema in definition since extensions can only exist once per
         # database and we want to detect schema changes and emit alter schema
         self.definition: str = f"{self.__class__.__name__}: {self.schema} {self.signature}"
+        self.include_schema_prefix: bool = schema != "public"
 
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create extension" statement"""
-        return sql_text(f'CREATE EXTENSION "{self.signature}" WITH SCHEMA {self.literal_schema};')
+        with_schema = f"WITH SCHEMA {self.literal_schema_prefix.strip('.')}" if self.schema and self.include_schema_prefix else ""
+        return sql_text(f'CREATE EXTENSION "{self.signature}" {with_schema};')
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop extension" statement"""
@@ -53,10 +55,12 @@ class PGExtension(ReplaceableEntity):
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}"
-)\n"""
+        code = f"{var_name} = {class_name}("
+        if self.schema and self.include_schema_prefix:
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += '\n)\n'
+        return code
 
     @classmethod
     def from_database(cls, sess, schema):
@@ -76,5 +80,5 @@ class PGExtension(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql, {"schema": schema}).fetchall()
-        db_exts = [cls(x[0], x[1]) for x in rows]
+        db_exts = [cls(schema=x[0], signature=x[1]) for x in rows]
         return db_exts

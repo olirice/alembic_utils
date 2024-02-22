@@ -112,6 +112,7 @@ def engine(raw_engine: Engine) -> Generator[Engine, None, None]:
         registry.clear()
         with raw_engine.begin() as connection:
             connection.execute(text("drop schema public cascade; create schema public;"))
+            connection.execute(text("drop schema myschema cascade; create schema myschema;"))
             connection.execute(text('drop schema if exists "DEV" cascade; create schema "DEV";'))
             connection.execute(text('drop role if exists "anon_user"'))
         # Remove any migrations that were left behind

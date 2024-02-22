@@ -30,7 +30,7 @@ def build_alembic_config(engine: Engine) -> Config:
     alembic_cfg = Config(path_to_alembic_ini)
 
     # Make double sure alembic references the test database
-    alembic_cfg.set_main_option("sqlalchemy.url", engine.url.render_as_string(hide_password=False))
+    alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
 
     alembic_cfg.set_main_option("script_location", str((Path("src") / "test" / "alembic_config")))
     return alembic_cfg

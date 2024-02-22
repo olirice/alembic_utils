@@ -32,8 +32,8 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
             on_entity = result["on_entity"]
             if "." not in on_entity:
                 schema = "public"
-                on_entity = schema + "." + on_entity
-            schema, _, _ = on_entity.partition(".")
+            else:
+                schema = on_entity.split(".")[0]
 
             return cls(  # type: ignore
                 schema=schema,

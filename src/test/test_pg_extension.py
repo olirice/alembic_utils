@@ -46,7 +46,10 @@ def test_update_is_unreachable(engine) -> None:
     with engine.begin() as connection:
         connection.execute(TEST_EXT.to_sql_statement_create())
 
-    UPDATED_TEST_EXT = PGExtension("DEV", TEST_EXT.signature)
+    UPDATED_TEST_EXT = PGExtension(
+        schema="DEV", 
+        signature=TEST_EXT.signature
+    )
 
     register_entities([UPDATED_TEST_EXT], schemas=["public", "DEV"], entity_types=[PGExtension])
 

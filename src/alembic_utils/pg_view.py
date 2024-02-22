@@ -28,10 +28,11 @@ class PGView(ReplaceableEntity):
 
     type_ = "view"
 
-    def __init__(self, schema: str, signature: str, definition: str):
+    def __init__(self, signature: str, definition: str, schema: str = "public"):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = strip_terminating_semicolon(definition)
+        self.include_schema_prefix: bool = schema != "public"
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGView":
@@ -53,13 +54,13 @@ class PGView(ReplaceableEntity):
     def to_sql_statement_create(self) -> TextClause:
         """Generates a SQL "create view" statement"""
         return sql_text(
-            f'CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};'
+            f'CREATE VIEW {self.literal_schema_prefix}"{self.signature}" AS {self.definition};'
         )
 
     def to_sql_statement_drop(self, cascade=False) -> TextClause:
         """Generates a SQL "drop view" statement"""
         cascade = "cascade" if cascade else ""
-        return sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}" {cascade}')
+        return sql_text(f'DROP VIEW {self.literal_schema_prefix}"{self.signature}" {cascade}')
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create or replace view" statement
@@ -71,12 +72,12 @@ class PGView(ReplaceableEntity):
             f"""
         do $$
             begin
-                CREATE OR REPLACE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
+                CREATE OR REPLACE VIEW {self.literal_schema_prefix}"{self.signature}" AS {self.definition};
 
             exception when others then
-                DROP VIEW IF EXISTS {self.literal_schema}."{self.signature}";
+                DROP VIEW IF EXISTS {self.literal_schema_prefix}"{self.signature}";
 
-                CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};
+                CREATE VIEW {self.literal_schema_prefix}"{self.signature}" AS {self.definition};
             end;
         $$ language 'plpgsql'
         """
@@ -99,7 +100,7 @@ class PGView(ReplaceableEntity):
         """
         )
         rows = sess.execute(sql).fetchall()
-        db_views = [cls(x[0], x[1], x[2]) for x in rows]
+        db_views = [cls(schema=x[0], signature=x[1], definition=x[2]) for x in rows]
 
         for view in db_views:
             assert view is not None

@@ -13,11 +13,17 @@ else:
 class OnEntityMixin(_Base):
     """Mixin to ReplaceableEntity providing setup for entity types requiring an "ON" clause"""
 
-    def __init__(self, schema: str, signature: str, definition: str, on_entity: str):
-        super().__init__(schema=schema, signature=signature, definition=definition)
-
+    def __init__(self, signature: str, definition: str, on_entity: str, schema: str = "public"):
         if "." not in on_entity:
-            on_entity = "public." + on_entity
+            schema = "public"
+        else:
+            schema = on_entity.split(".")[0]
+        
+        if schema == "public":
+            on_entity = on_entity.split(".")[1]
+
+        self.include_schema_prefix: bool = schema != "public"
+        super().__init__(schema=schema, signature=signature, definition=definition)
 
         # Guarenteed to have a schema
         self.on_entity = coerce_to_unquoted(on_entity)
@@ -36,16 +42,22 @@ class OnEntityMixin(_Base):
         class_name = self.__class__.__name__
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}",
-    on_entity="{self.on_entity}",
-    definition={repr(escaped_definition)}
-)\n"""
+        code: str = f"{var_name} = {class_name}("
+        if self.schema and self.include_schema_prefix:
+            code += f'\n    schema="{self.schema}",'
+        code += f'\n    signature="{self.signature}",'
+        code += f'\n    on_entity="{self.on_entity}",'
+        code += f'\n    definition={repr(escaped_definition)},'
+        code += '\n)\n'
+        return code
 
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents"""
-        schema_name = self.schema.lower()
+        schema_name = self.schema.lower() + "_" if self.schema and self.include_schema_prefix else ""
         object_name = self.signature.split("(")[0].strip().lower()
-        _, _, unqualified_entity_name = self.on_entity.lower().partition(".")
-        return f"{schema_name}_{unqualified_entity_name}_{object_name}"
+        unqualified_entity_name = (
+            self.on_entity.lower().split(".") 
+            if "." in self.on_entity 
+            else self.on_entity.lower()
+        )
+        return f"{schema_name}{unqualified_entity_name}_{object_name}"
