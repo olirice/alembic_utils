@@ -18,6 +18,9 @@ class OnEntityMixin(_Base):
             schema = "public"
         else:
             schema = on_entity.split(".")[0]
+        
+        if schema == "public":
+            on_entity = on_entity.split(".")[1]
 
         self.include_schema_prefix: bool = schema != "public"
         super().__init__(schema=schema, signature=signature, definition=definition)
@@ -52,5 +55,9 @@ class OnEntityMixin(_Base):
         """A deterministic variable name based on PGFunction's contents"""
         schema_name = self.schema.lower() + "_" if self.schema and self.include_schema_prefix else ""
         object_name = self.signature.split("(")[0].strip().lower()
-        _, _, unqualified_entity_name = self.on_entity.lower().partition(".")
+        unqualified_entity_name = (
+            self.on_entity.lower().split(".") 
+            if "." in self.on_entity 
+            else self.on_entity.lower()
+        )
         return f"{schema_name}{unqualified_entity_name}_{object_name}"
