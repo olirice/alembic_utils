@@ -121,17 +121,28 @@ class ReplaceableEntity:
 
         raise UnreachableException()
 
-    def render_self_for_migration(self, omit_definition=False) -> str:
+    def render_self_for_migration(self, omit_definition=False, *, arg_to_value=None) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
         escaped_definition = self.definition if not omit_definition else "# not required for op"
 
-        return f"""{var_name} = {class_name}(
-    schema="{self.schema}",
-    signature="{self.signature}",
-    definition={repr(escaped_definition)}
-)\n"""
+        if arg_to_value is None:
+            arg_to_value = {}
+
+        arg_to_value.update(
+            {
+                "schema": self.schema,
+                "signature": self.signature,
+                "definition": escaped_definition,
+            }
+        )
+
+        code: str = f"{var_name} = {class_name}("
+        for key, value in arg_to_value.items():
+            code += f"\n    {key}={repr(value)},"
+        code += '\n)\n'
+        return code
 
     @classmethod
     def render_import_statement(cls) -> str:

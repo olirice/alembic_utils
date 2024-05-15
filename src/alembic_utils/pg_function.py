@@ -1,17 +1,20 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List
+import logging
 
-from parse import parse
 from sqlalchemy import text as sql_text
 
-from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
 from alembic_utils.statement import (
     escape_colon_for_plpgsql,
     escape_colon_for_sql,
     normalize_whitespace,
     strip_terminating_semicolon,
+    render_drop_statement,
+    split_function,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class PGFunction(ReplaceableEntity):
@@ -26,7 +29,7 @@ class PGFunction(ReplaceableEntity):
 
     type_ = "function"
 
-    def __init__(self, schema: str, signature: str, definition: str):
+    def __init__(self, schema: str, signature: str, definition: str, is_proc=False):
         super().__init__(schema, signature, definition)
         # Detect if function uses plpgsql and update escaping rules to not escape ":="
         is_plpgsql: bool = "language plpgsql" in normalize_whitespace(definition).lower().replace(
@@ -34,27 +37,20 @@ class PGFunction(ReplaceableEntity):
         )
         escaping_callable = escape_colon_for_plpgsql if is_plpgsql else escape_colon_for_sql
         # Override definition with correct escaping rules
+        self.is_proc = is_proc
         self.definition: str = escaping_callable(strip_terminating_semicolon(definition))
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGFunction":
         """Create an instance instance from a SQL string"""
-        template = "create{}function{:s}{schema}.{signature}{:s}returns{:s}{definition}"
-        result = parse(template, sql.strip(), case_sensitive=False)
-        if result is not None:
-            # remove possible quotes from signature
-            raw_signature = result["signature"]
-            signature = (
-                "".join(raw_signature.split('"', 2))
-                if raw_signature.startswith('"')
-                else raw_signature
-            )
-            return cls(
-                schema=result["schema"],
-                signature=signature,
-                definition="returns " + result["definition"],
-            )
-        raise SQLParseFailure(f'Failed to parse SQL into PGFunction """{sql}"""')
+        signature, returns, schema, body, is_proc = split_function(sql)
+
+        return cls(
+            schema=schema,
+            signature=signature,
+            definition=f"{returns} {body}".strip(),
+            is_proc=is_proc,
+        )
 
     @property
     def literal_signature(self) -> str:
@@ -67,39 +63,33 @@ class PGFunction(ReplaceableEntity):
         name, remainder = self.signature.split("(", 1)
         return '"' + name + '"(' + remainder
 
+    def render_self_for_migration(self, omit_definition=False, **kwargs) -> str:
+        arg_to_value_init = {
+            "is_proc": self.is_proc,
+        }
+        return super().render_self_for_migration(omit_definition=omit_definition, arg_to_value=arg_to_value_init, **kwargs)
+
     def to_sql_statement_create(self):
         """Generates a SQL "create function" statement for PGFunction"""
+        entity_type = "PROCEDURE" if self.is_proc else "FUNCTION"
         return sql_text(
-            f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+            f"CREATE {entity_type} {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
     def to_sql_statement_drop(self, cascade=False):
-        """Generates a SQL "drop function" statement for PGFunction"""
-        cascade = "cascade" if cascade else ""
-        template = "{function_name}({parameters})"
-        result = parse(template, self.signature, case_sensitive=False)
-        try:
-            function_name = result["function_name"]
-            parameters_str = result["parameters"].strip()
-        except TypeError:
-            # Did not match, NoneType is not scriptable
-            result = parse("{function_name}()", self.signature, case_sensitive=False)
-            function_name = result["function_name"]
-            parameters_str = ""
-
-        # NOTE: Will fail if a text field has a default and that deafult contains a comma...
-        parameters: List[str] = parameters_str.split(",")
-        parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
-        parameters = [x.strip() for x in parameters]
-        drop_params = ", ".join(parameters)
-        return sql_text(
-            f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params}) {cascade}'
-        )
+        """Generates a SQL "drop function/procedure" statement for PGFunction"""
+        entity_kind = "PROCEDURE" if self.is_proc else "FUNCTION"
+        full_sql = f"CREATE {entity_kind} {self.literal_schema}.{self.literal_signature} {self.definition}"
+        drop_stmt = render_drop_statement(full_sql, self.is_proc)
+        if cascade:
+            drop_stmt += " cascade"
+        return sql_text(drop_stmt)
 
     def to_sql_statement_create_or_replace(self):
-        """Generates a SQL "create or replace function" statement for PGFunction"""
+        """Generates a SQL "create or replace function/procedure" statement for PGFunction"""
+        entity_type = "PROCEDURE" if self.is_proc else "FUNCTION"
         yield sql_text(
-            f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+            f"CREATE OR REPLACE {entity_type} {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
     @classmethod
@@ -109,7 +99,7 @@ class PGFunction(ReplaceableEntity):
         # Prior to postgres 11, pg_proc had different columns
         # https://github.com/olirice/alembic_utils/issues/12
         PG_GTE_11 = """
-            and p.prokind = 'f'
+            and p.prokind in ('f', 'p')
         """
 
         PG_LT_11 = """
@@ -122,7 +112,7 @@ class PGFunction(ReplaceableEntity):
         pg_version = int(pg_version_str)
 
         sql = sql_text(
-            f"""
+            """
         with extension_functions as (
             select
                 objid as extension_function_oid
