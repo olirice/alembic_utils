@@ -1,6 +1,7 @@
 # pylint: disable=redefined-outer-name,no-member
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -16,7 +17,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from alembic_utils.replaceable_entity import registry
 from alembic_utils.testbase import TEST_VERSIONS_ROOT
 
-PYTEST_DB = "postgresql://alem_user:password@localhost:5610/alem_db"
+PYTEST_DB = "postgresql://alem_user:mysecretpassword@localhost:5432/alem_db"
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="session")
@@ -91,6 +96,22 @@ def maybe_start_pg() -> Generator[None, None, None]:
             time.sleep(1)
     else:
         raise Exception("Could not reach postgres comtainer. Check docker installation")
+
+    engine = create_engine(PYTEST_DB)
+
+    for _ in range(10):
+        try:
+            conn = engine.connect()
+            result = conn.execute(text("select 1;"))
+            assert result.scalar() == 1
+        except Exception as e:
+            logger.error("Could not connect to postgres: %s", e)
+            time.sleep(5)
+            continue
+        break
+    else:
+        raise Exception("Could not connect to postgres in time")
+
     yield
     # subprocess.call(["docker", "stop", container_name])
     return
@@ -111,7 +132,8 @@ def engine(raw_engine: Engine) -> Generator[Engine, None, None]:
     def run_cleaners():
         registry.clear()
         with raw_engine.begin() as connection:
-            connection.execute(text("drop schema public cascade; create schema public;"))
+            connection.execute(text("drop schema if exists public cascade; create schema public;"))
+            connection.execute(text("drop schema if exists myschema cascade; create schema myschema;"))
             connection.execute(text('drop schema if exists "DEV" cascade; create schema "DEV";'))
             connection.execute(text('drop role if exists "anon_user"'))
         # Remove any migrations that were left behind

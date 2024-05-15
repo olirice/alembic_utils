@@ -37,7 +37,9 @@ setup(
         "alembic>=1.9",
         "flupy",
         "parse>=1.8.4",
+        "pglast>=6.2",
         "sqlalchemy>=1.4",
+        "psycopg2-binary>=2.9.3",
         "typing_extensions",
     ],
     extras_require={
