@@ -1,3 +1,5 @@
+from typing import List
+
 from sqlalchemy import text
 
 from alembic_utils.pg_function import PGFunction
@@ -6,13 +8,26 @@ from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 TO_UPPER = PGFunction(
     schema="public",
-    signature="toUpper(some_text text default 'my text!')",
+    signature="toUpper (some_text text default 'my text!')",
     definition="""
         returns text
         as
         $$ begin return upper(some_text) || 'abc'; end; $$ language PLPGSQL;
         """,
 )
+
+
+def test_trailing_whitespace_stripped():
+    sql_statements: List[str] = [
+        str(TO_UPPER.to_sql_statement_create()),
+        str(next(iter(TO_UPPER.to_sql_statement_create_or_replace()))),
+        str(TO_UPPER.to_sql_statement_drop()),
+    ]
+
+    for statement in sql_statements:
+        print(statement)
+        assert '"toUpper"' in statement
+        assert not '"toUpper "' in statement
 
 
 def test_create_revision(engine) -> None:
