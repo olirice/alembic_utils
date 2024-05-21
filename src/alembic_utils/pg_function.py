@@ -65,7 +65,7 @@ class PGFunction(ReplaceableEntity):
         """
         # May already be quoted if loading from database or SQL file
         name, remainder = self.signature.split("(", 1)
-        return '"' + name + '"(' + remainder
+        return '"' + name.strip() + '"(' + remainder
 
     def to_sql_statement_create(self):
         """Generates a SQL "create function" statement for PGFunction"""
@@ -79,12 +79,12 @@ class PGFunction(ReplaceableEntity):
         template = "{function_name}({parameters})"
         result = parse(template, self.signature, case_sensitive=False)
         try:
-            function_name = result["function_name"]
+            function_name = result["function_name"].strip()
             parameters_str = result["parameters"].strip()
         except TypeError:
             # Did not match, NoneType is not scriptable
             result = parse("{function_name}()", self.signature, case_sensitive=False)
-            function_name = result["function_name"]
+            function_name = result["function_name"].strip()
             parameters_str = ""
 
         # NOTE: Will fail if a text field has a default and that deafult contains a comma...
