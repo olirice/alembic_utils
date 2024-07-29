@@ -45,6 +45,7 @@ setup(
         "nvim": ["neovim", "python-language-server"],
         "docs": ["mkdocs", "pygments", "pymdown-extensions", "mkautodoc"],
     },
+    package_data={"": ["py.typed"]},
     include_package_data=True,
     classifiers=[
         "Development Status :: 4 - Beta",
