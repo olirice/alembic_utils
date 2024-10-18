@@ -24,7 +24,7 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
         # ...
     """
     top_module = module
-    top_path = top_module.__path__[0]  # type: ignore
+    top_path = Path(top_module.__path__[0])
 
     directories = (
         walk_files(str(top_path))
