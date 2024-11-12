@@ -13,8 +13,7 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
     """Recursively yield python import paths to submodules in *module*
 
     Example:
-        import alembic_utils
-        module_iter = iter_module_pathes(alembic_utils)
+        module_iter = walk_modules(alembic_utils)
 
         for module_path in module_iter:
             print(module_path)
@@ -25,9 +24,10 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
     """
     top_module = module
     top_path = Path(top_module.__path__[0])
+    top_path_absolute = top_path.resolve()
 
     directories = (
-        walk_files(str(top_path.resolve()))
+        walk_files(str(top_path_absolute))
         .filter(lambda x: x.endswith(".py"))
         .map(Path)
         .group_by(lambda x: x.parent)
@@ -41,7 +41,7 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
 
                     # Example: elt.settings
                     module_import_path = str(module_path)[
-                        len(str(top_path)) - len(top_module.__name__) :
+                        len(str(top_path_absolute)) - len(top_module.__name__) :
                     ].replace(os.path.sep, ".")[:-3]
 
                     module = importlib.import_module(module_import_path)
