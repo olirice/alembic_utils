@@ -53,7 +53,74 @@ class PGCompositeType(ReplaceableEntity):
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create or replace type" statement"""
-        yield sql_text(f'CREATE OR REPLACE TYPE {self.literal_schema}."{self.signature}" AS {self.definition};')
+        attributes = [
+            attr.split() for attr in self.definition.split("(", 1)[1].rsplit(")")[0].split(",")
+        ]
+        new_names = ", ".join([f"'{attr[0]}'" for attr in attributes])
+        new_types = ", ".join([f"'{attr[1]}'" for attr in attributes])
+
+        # if the type already exists, we need to alter it because types don't support "or replace"
+        yield sql_text(f"""
+            DO $$
+            DECLARE
+                v_type_name VARCHAR;
+                v_schema VARCHAR;
+                v_new_names VARCHAR[];
+                v_new_types VARCHAR[];
+                v_old_attrs pg_attribute[];
+                v_position INTEGER;
+            BEGIN
+                CREATE TYPE {self.literal_schema}.{self.signature} AS {self.definition};
+            EXCEPTION WHEN duplicate_object THEN
+                v_schema := '{self.schema}';
+                v_type_name := '{self.signature}';
+                v_new_names := ARRAY[{new_names}]::VARCHAR[];
+                v_new_types := ARRAY[{new_types}]::VARCHAR[];
+            
+                -- get old attributes
+                SELECT
+                    array_agg(a)
+                INTO v_old_attrs
+                FROM pg_type
+                LEFT JOIN pg_namespace ON pg_type.typnamespace = pg_namespace.oid
+                LEFT JOIN pg_class ON pg_type.typrelid = pg_class.oid
+                LEFT JOIN pg_attribute a ON a.attrelid = pg_type.typrelid
+                WHERE
+                    typtype = 'c'
+                    AND (pg_class.relkind IS NULL OR pg_class.relkind <> 'r')
+                    AND nspname NOT IN ('pg_catalog', 'information_schema')
+                    AND pg_type.typname = v_type_name
+                    AND nspname::text like v_schema
+                    AND a.attisdropped = false;
+            
+                IF v_old_attrs IS NOT NULL THEN
+                    FOR i IN 1..cardinality(v_old_attrs) LOOP
+                        v_position := array_position(v_new_names, v_old_attrs[i].attname);
+                        IF v_position IS NOT NULL THEN
+                            IF v_old_attrs[i].atttypid != to_regtype(v_new_types[v_position])
+                            THEN
+                                -- type of attribute changed
+                                RAISE NOTICE 'Type % is not %', format_type(v_old_attrs[i].atttypid, v_old_attrs[i].atttypmod), v_new_types[v_position];
+                                EXECUTE format('ALTER TYPE "%s".%s ALTER ATTRIBUTE %s SET DATA TYPE %s', v_schema, v_type_name, v_old_attrs[i].attname, v_new_types[v_position]);
+                            END IF;
+                        ELSE
+                            -- attribute removed
+                            RAISE NOTICE 'ALTER TYPE %.% DROP ATTRIBUTE %', v_schema, v_type_name, v_old_attrs[i].attname;
+                            EXECUTE format('ALTER TYPE "%s".%s DROP ATTRIBUTE %s', v_schema, v_type_name, v_old_attrs[i].attname);
+                        END IF;
+                    END LOOP;
+                END IF;
+                FOR i IN 1..cardinality(v_new_names) LOOP
+                    v_position := array_position(ARRAY(SELECT attname FROM unnest(v_old_attrs)), v_new_names[i]);
+                    IF v_position IS NULL THEN
+                        -- attribute added
+                        RAISE NOTICE 'ALTER TYPE %.% ADD ATTRIBUTE % %', v_schema, v_type_name, v_new_names[i], v_new_types[i];
+                        EXECUTE format('ALTER TYPE "%s".%s ADD ATTRIBUTE %s %s', v_schema, v_type_name, v_new_names[i], v_new_types[i]);
+                    END IF;
+                END LOOP;
+            END;
+            $$;
+        """)
 
     @classmethod
     def from_database(cls, sess: Session, schema: str = "%"):
@@ -72,7 +139,8 @@ class PGCompositeType(ReplaceableEntity):
                 typtype = 'c'
                 AND (pg_class.relkind IS NULL OR pg_class.relkind <> 'r')
                 AND nspname NOT IN ('pg_catalog', 'information_schema')
-                and nspname::text like '{schema}'
+                AND nspname::text like '{schema}'
+                AND a.attisdropped = false
             GROUP BY pg_type.typname, pg_namespace.nspname, pg_type.oid;
         """)
         rows = sess.execute(sql).fetchall()
