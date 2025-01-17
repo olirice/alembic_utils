@@ -1,5 +1,4 @@
 import importlib
-import os
 from pathlib import Path
 from types import ModuleType
 from typing import Generator, List, Type, TypeVar
@@ -35,17 +34,17 @@ def walk_modules(module: ModuleType) -> Generator[ModuleType, None, None]:
     )
 
     for base_path, files in directories:
-        if str(base_path / "__init__.py") in [str(x) for x in files]:
-            for module_path in files:
-                if "__init__.py" not in str(module_path):
+        # ensure this directory is a package
+        if str(base_path / "__init__.py") in [str(f) for f in files]:
+            for py_file in files:
+                if py_file.name == "__init__.py":
+                    continue
 
-                    # Example: elt.settings
-                    module_import_path = str(module_path)[
-                        len(str(top_path_absolute)) - len(top_module.__name__) :
-                    ].replace(os.path.sep, ".")[:-3]
+                # build the import path by taking the relative path to the top-level package
+                relative = py_file.relative_to(top_path).with_suffix("")
+                import_path = ".".join([module.__name__] + list(relative.parts))
 
-                    module = importlib.import_module(module_import_path)
-                    yield module
+                yield importlib.import_module(import_path)
 
 
 def collect_instances(module: ModuleType, class_: Type[T]) -> List[T]:
