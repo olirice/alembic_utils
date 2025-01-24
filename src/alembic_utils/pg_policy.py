@@ -46,17 +46,17 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
     def to_sql_statement_create(self):
         """Generates a SQL "create poicy" statement for PGPolicy"""
 
-        return sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition}")
+        return sql_text(f'CREATE POLICY "{self.signature}" on {coerce_to_quoted(self.on_entity)} {self.definition}')
 
     def to_sql_statement_drop(self, cascade=False):
         """Generates a SQL "drop policy" statement for PGPolicy"""
         cascade = "cascade" if cascade else ""
-        return sql_text(f"DROP POLICY {self.signature} on {self.on_entity} {cascade}")
+        return sql_text(f'DROP POLICY "{self.signature}" on {coerce_to_quoted(self.on_entity)} {cascade}')
 
     def to_sql_statement_create_or_replace(self):
         """Not implemented, postgres policies do not support replace."""
-        yield sql_text(f"DROP POLICY IF EXISTS {self.signature} on {self.on_entity};")
-        yield sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition};")
+        yield sql_text(f'DROP POLICY IF EXISTS "{self.signature}" on {coerce_to_quoted(self.on_entity)};')
+        yield sql_text(f'CREATE POLICY "{self.signature}" on {coerce_to_quoted(self.on_entity)} {self.definition};')
 
     @classmethod
     def from_database(cls, connection, schema):
