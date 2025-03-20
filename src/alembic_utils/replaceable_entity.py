@@ -281,7 +281,7 @@ def compare_registered_entities(
         if (
             schema_name
             is not None
-            not in (
+            and schema_name not in (
                 registry.exclude_schemas or set()
             )  # user defined. Deprecated for remove in 0.6.0
             and schema_name not in {"information_schema", None}
