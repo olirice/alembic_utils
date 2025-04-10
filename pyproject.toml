@@ -25,6 +25,7 @@ classifiers = [
 
 [tool.poetry.urls]
 "PyPI" = "https://pypi.org/project/alembic-utils/"
+"GitHub" = "https://github.com/olirice/alembic_utils"
 
 [tool.poetry.dependencies]
 python = ">=3.9"
