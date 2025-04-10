@@ -31,16 +31,19 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install
+    - name: Install Poetry
       run: |
-        pip install --upgrade pip
-        pip install wheel
-        pip install -e ".[dev]"
-        pip install "sqlalchemy==${{ matrix.sqlalchemy-version }}"
+        curl -sSL https://install.python-poetry.org | python3 -
+        export PATH="$HOME/.local/bin:$PATH"
+
+    - name: Install Dependencies
+      run: |
+        poetry install
+        poetry add sqlalchemy==${{ matrix.sqlalchemy-version }}
 
     - name: Test with Coverage
       run: |
-        pytest --cov=alembic_utils src/test --cov-report=xml
+        poetry run pytest --cov=alembic_utils src/test --cov-report=xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
