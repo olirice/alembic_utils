@@ -1,3 +1,65 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "alembic_utils"
+version = "0.8.7"
+description = "A sqlalchemy/alembic extension for migrating procedures and views"
+authors = ["Oliver Rice <oliver@oliverrice.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "alembic_utils", from = "src"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: SQL",
+]
+
+[tool.poetry.urls]
+"PyPI" = "https://pypi.org/project/alembic-utils/"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+alembic = ">=1.9"
+flupy = "*"
+parse = ">=1.8.4"
+sqlalchemy = ">=1.4"
+typing_extensions = "*"
+
+[tool.poetry.group.dev.dependencies]
+black = "*"
+pylint = "*"
+pre-commit = "*"
+mypy = "*"
+psycopg2-binary = "*"
+pytest = "*"
+pytest-cov = "*"
+mkdocs = "*"
+
+[tool.poetry.group.nvim.dependencies]
+neovim = "*"
+python-language-server = "*"
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = "*"
+pygments = "*"
+pymdown-extensions = "*"
+mkautodoc = "*"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
 [tool.black]
 line-length = 100
 exclude = '''
@@ -13,3 +75,17 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.isort]
+known_third_party = ["alembic", "flupy", "parse", "pytest", "setuptools", "sqlalchemy"]
+
+[tool.mypy]
+follow_imports = "skip"
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+ignore_missing_imports = true
+# disallow_untyped_defs = true
