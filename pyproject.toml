@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "alembic_utils"
-version = "0.1.0"  # Replace with the actual version from __init__.py
+version = "0.8.7"
 description = "A sqlalchemy/alembic extension for migrating procedures and views"
 authors = ["Oliver Rice <oliver@oliverrice.com>"]
 license = "MIT"
@@ -15,11 +15,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: SQL",
 ]
 
@@ -27,7 +27,7 @@ classifiers = [
 "PyPI" = "https://pypi.org/project/alembic-utils/"
 
 [tool.poetry.dependencies]
-python = ">=3.7"
+python = ">=3.9"
 alembic = ">=1.9"
 flupy = "*"
 parse = ">=1.8.4"

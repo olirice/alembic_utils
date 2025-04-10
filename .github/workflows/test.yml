@@ -7,9 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
         matrix:
-            python-version: ['3.8', '3.11']
-            postgres-version: ['13', '14', '15']
-            sqlalchemy-version: ['1.4', '2.0']
+            python-version: ['3.9', '3.13']
+            postgres-version: ['13', '17']
 
     services:
 
@@ -39,7 +38,6 @@ jobs:
     - name: Install Dependencies
       run: |
         poetry install
-        poetry add sqlalchemy==${{ matrix.sqlalchemy-version }}
 
     - name: Test with Coverage
       run: |
