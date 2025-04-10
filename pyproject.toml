@@ -1,12 +1,11 @@
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
+[project]
 name = "alembic_utils"
-version = "0.8.7"
+version = "0.8.8"
 description = "A sqlalchemy/alembic extension for migrating procedures and views"
-authors = ["Oliver Rice <oliver@oliverrice.com>"]
+requires-python = ">=3.9"
+authors = [
+    {"name" = "Oliver Rice", "email" = "oliver@oliverrice.com"}
+]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "alembic_utils", from = "src"}]
@@ -22,18 +21,21 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: SQL",
 ]
+dependencies = [
+    "alembic>=1.9",
+    "flupy",
+    "parse>=1.8.4",
+    "sqlalchemy>=1.4",
+    "typing_extensions>=0.1.0",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.urls]
 "PyPI" = "https://pypi.org/project/alembic-utils/"
 "GitHub" = "https://github.com/olirice/alembic_utils"
-
-[tool.poetry.dependencies]
-python = ">=3.9"
-alembic = ">=1.9"
-flupy = "*"
-parse = ">=1.8.4"
-sqlalchemy = ">=1.4"
-typing_extensions = "*"
 
 [tool.poetry.group.dev.dependencies]
 black = "*"
