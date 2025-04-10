@@ -18,6 +18,9 @@ classifiers = [
     "Programming Language :: SQL",
 ]
 
+[project.urls]
+"PyPI" = "https://pypi.org/project/alembic-utils/"
+
 [tool.poetry.dependencies]
 python = ">=3.7"
 alembic = ">=1.9"
