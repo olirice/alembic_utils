@@ -1,3 +1,7 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.poetry]
 name = "alembic_utils"
 version = "0.1.0"  # Replace with the actual version from __init__.py
@@ -5,6 +9,7 @@ description = "A sqlalchemy/alembic extension for migrating procedures and views
 authors = ["Oliver Rice <oliver@oliverrice.com>"]
 license = "MIT"
 readme = "README.md"
+packages = [{include = "alembic_utils", from = "src"}]
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
@@ -18,7 +23,7 @@ classifiers = [
     "Programming Language :: SQL",
 ]
 
-[project.urls]
+[tool.poetry.urls]
 "PyPI" = "https://pypi.org/project/alembic-utils/"
 
 [tool.poetry.dependencies]
@@ -29,33 +34,31 @@ parse = ">=1.8.4"
 sqlalchemy = ">=1.4"
 typing_extensions = "*"
 
-[tool.poetry.extras]
-dev = [
-    "black",
-    "pylint",
-    "pre-commit",
-    "mypy",
-    "psycopg2-binary",
-    "pytest",
-    "pytest-cov",
-    "mkdocs",
-]
-nvim = ["neovim", "python-language-server"]
-docs = ["mkdocs", "pygments", "pymdown-extensions", "mkautodoc"]
+[tool.poetry.group.dev.dependencies]
+black = "*"
+pylint = "*"
+pre-commit = "*"
+mypy = "*"
+psycopg2-binary = "*"
+pytest = "*"
+pytest-cov = "*"
+mkdocs = "*"
 
-[project.optional-dependencies]
-dev = [
-    "black",
-    "pylint",
-    "pre-commit",
-    "mypy",
-    "psycopg2-binary",
-    "pytest",
-    "pytest-cov",
-    "mkdocs",
-]
-nvim = ["neovim", "python-language-server"]
-docs = ["mkdocs", "pygments", "pymdown-extensions", "mkautodoc"]
+[tool.poetry.group.nvim.dependencies]
+neovim = "*"
+python-language-server = "*"
+
+[tool.poetry.group.docs.dependencies]
+mkdocs = "*"
+pygments = "*"
+pymdown-extensions = "*"
+mkautodoc = "*"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
 
 [tool.black]
 line-length = 100
