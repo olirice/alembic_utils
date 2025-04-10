@@ -1,3 +1,59 @@
+[tool.poetry]
+name = "alembic_utils"
+version = "0.1.0"  # Replace with the actual version from __init__.py
+description = "A sqlalchemy/alembic extension for migrating procedures and views"
+authors = ["Oliver Rice <oliver@oliverrice.com>"]
+license = "MIT"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: SQL",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.7"
+alembic = ">=1.9"
+flupy = "*"
+parse = ">=1.8.4"
+sqlalchemy = ">=1.4"
+typing_extensions = "*"
+
+[tool.poetry.extras]
+dev = [
+    "black",
+    "pylint",
+    "pre-commit",
+    "mypy",
+    "psycopg2-binary",
+    "pytest",
+    "pytest-cov",
+    "mkdocs",
+]
+nvim = ["neovim", "python-language-server"]
+docs = ["mkdocs", "pygments", "pymdown-extensions", "mkautodoc"]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "pylint",
+    "pre-commit",
+    "mypy",
+    "psycopg2-binary",
+    "pytest",
+    "pytest-cov",
+    "mkdocs",
+]
+nvim = ["neovim", "python-language-server"]
+docs = ["mkdocs", "pygments", "pymdown-extensions", "mkautodoc"]
+
 [tool.black]
 line-length = 100
 exclude = '''
@@ -13,3 +69,17 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.isort]
+known_third_party = ["alembic", "flupy", "parse", "pytest", "setuptools", "sqlalchemy"]
+
+[tool.mypy]
+follow_imports = "skip"
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+ignore_missing_imports = true
+# disallow_untyped_defs = true

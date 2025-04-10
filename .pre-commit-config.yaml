@@ -36,4 +36,4 @@ repos:
     hooks:
     - id: mypy
       files: src/
-      args: ["--config-file", "mypy.ini"]
+      args: ["--config-file=pyproject.toml"]
