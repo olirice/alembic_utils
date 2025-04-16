@@ -115,10 +115,6 @@ class PGFunction(ReplaceableEntity):
         PG_LT_11 = """
             and not p.proisagg
             and not p.proiswindow
-            and case
-                    when l.lanname = 'internal' then p.prosrc
-                    else pg_get_functiondef(p.oid)
-                end similar to '%CREATE FUNCTION|CREATE OR REPLACE FUNCTION%'
         """
 
         # Retrieve the postgres server version e.g. 90603 for 9.6.3 or 120003 for 12.3

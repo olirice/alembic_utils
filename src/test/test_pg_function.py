@@ -214,6 +214,31 @@ def test_ignores_extension_functions(engine) -> None:
             connection.execute(text("drop extension if exists unaccent;"))
 
 
+def test_ignores_procedures(engine) -> None:
+    # Procedures should be handled separately from functions
+    # Unless they are excluded, every autogenerate migration will produce
+    # drop statements for those functions
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("create procedure toUpper (some_text text default 'my text!') as $$ begin execute format('set application_name= %L', UPPER(some_text)); end; $$ language PLPGSQL;"))
+        register_entities([], schemas=["public"], entity_types=[PGFunction])
+        run_alembic_command(
+            engine=engine,
+            command="revision",
+            command_kwargs={"autogenerate": True, "rev_id": "1", "message": "no_drops"},
+        )
+
+        migration_create_path = TEST_VERSIONS_ROOT / "1_no_drops.py"
+
+        with migration_create_path.open() as migration_file:
+            migration_contents = migration_file.read()
+
+        assert "op.drop_entity" not in migration_contents
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text("drop extension if exists unaccent;"))
+
+
 def test_plpgsql_colon_esacpe(engine) -> None:
     # PGFunction.__init__ overrides colon escapes for plpgsql
     # because := should not be escaped for sqlalchemy.text

@@ -1,12 +1,12 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List, Type
+from typing import List, Sequence, Type
 
 from parse import parse
 from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from alembic_utils.exceptions import SQLParseFailure
-from alembic_utils.replaceable_entity import ReplaceableEntity
+from alembic_utils.replaceable_entity import ReplaceableEntity, T
 from alembic_utils.statement import (
     escape_colon_for_plpgsql,
     escape_colon_for_sql,
@@ -103,26 +103,10 @@ class PGProcedure(ReplaceableEntity):
         )
 
     @classmethod
-    def from_database(  # type: ignore[override]
+    def from_database(
         cls: Type["PGProcedure"], sess: Session, schema="%"
-    ) -> List["PGProcedure"]:
+    ) -> Sequence["PGProcedure"]:
         """Get a list of all procedures defined in the db"""
-
-        # Prior to postgres 11, pg_proc had different columns
-        # https://github.com/olirice/alembic_utils/issues/12
-        PG_GTE_11 = """
-            and p.prokind = 'p'
-        """
-
-        PG_LT_11 = """
-            and not p.proisagg
-            and not p.proiswindow
-            and case
-                    when l.lanname = 'internal' then p.prosrc
-                    else pg_get_functiondef(p.oid)
-                end similar to '%CREATE PROCEDURE|CREATE OR REPLACE PROCEDURE%'
-        """
-
         # Retrieve the postgres server version e.g. 90603 for 9.6.3 or 120003 for 12.3
         pg_version_str = sess.execute(sql_text("show server_version_num")).fetchone()[0]
         pg_version = int(pg_version_str)
@@ -162,12 +146,16 @@ class PGProcedure(ReplaceableEntity):
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
             and n.nspname = :schema
+            and p.prokind = 'p'
         """
-            + (PG_GTE_11 if pg_version >= 110000 else PG_LT_11)
         )
 
-        rows = sess.execute(sql, {"schema": schema}).fetchall()
-        db_functions = [cls.from_sql(x[3]) for x in rows]
+
+        # Procedures are only supported in version 13 and greater
+        db_functions: Sequence["PGProcedure"] = []
+        if pg_version >= 130000:
+            rows = sess.execute(sql, {"schema": schema}).fetchall()
+            db_functions = [cls.from_sql(x[3]) for x in rows]
 
         for func in db_functions:
             assert func is not None
