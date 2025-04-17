@@ -2,6 +2,7 @@ import pytest
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_function import PGFunction
+from alembic_utils.pg_procedure import PGProcedure
 from alembic_utils.testbase import TEST_RESOURCE_ROOT
 
 
@@ -32,3 +33,24 @@ def test_pg_function_from_sql_file_invalid() -> None:
     """
     with pytest.raises(SQLParseFailure):
         PGFunction.from_sql(SQL)
+
+
+def test_pg_procedure_from_sql_file_valid() -> None:
+    SQL = """
+CREATE OR REPLACE PROCEDURE public.to_upper(some_text text)
+AS
+$$
+    begin execute format('set application_name= %L', UPPER(some_text)); end
+$$ language PLPGSQL;
+    """
+
+    func = PGProcedure.from_sql(SQL)
+    assert func.schema == "public"
+
+
+def test_pg_procedure_from_sql_file_invalid() -> None:
+    SQL = """
+    NO VALID SQL TO BE FOUND HERE
+    """
+    with pytest.raises(SQLParseFailure):
+        PGProcedure.from_sql(SQL)

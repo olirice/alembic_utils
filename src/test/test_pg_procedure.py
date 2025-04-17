@@ -2,17 +2,16 @@ from typing import List
 
 from sqlalchemy import text
 
-from alembic_utils.pg_function import PGFunction
+from alembic_utils.pg_procedure import PGProcedure
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
-TO_UPPER = PGFunction(
+TO_UPPER = PGProcedure(
     schema="public",
     signature="toUpper (some_text text default 'my text!')",
     definition="""
-        returns text
         as
-        $$ begin return upper(some_text) || 'abc'; end; $$ language PLPGSQL;
+        $$ begin execute format('set application_name= %L', UPPER(some_text)); end; $$ language PLPGSQL;
         """,
 )
 
@@ -31,7 +30,7 @@ def test_trailing_whitespace_stripped():
 
 
 def test_create_revision(engine) -> None:
-    register_entities([TO_UPPER], entity_types=[PGFunction])
+    register_entities([TO_UPPER], entity_types=[PGProcedure])
 
     run_alembic_command(
         engine=engine,
@@ -47,7 +46,7 @@ def test_create_revision(engine) -> None:
     assert "op.create_entity" in migration_contents
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
-    assert "from alembic_utils.pg_function import PGFunction" in migration_contents
+    assert "from alembic_utils.pg_procedure import PGProcedure" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
@@ -60,16 +59,16 @@ def test_update_revision(engine) -> None:
         connection.execute(TO_UPPER.to_sql_statement_create())
 
     # Update definition of TO_UPPER
-    UPDATED_TO_UPPER = PGFunction(
+    UPDATED_TO_UPPER = PGProcedure(
         TO_UPPER.schema,
         TO_UPPER.signature,
-        r'''returns text as
+        r'''as
     $$
-    select upper(some_text) || 'def'  -- """ \n \\
-    $$ language SQL immutable strict;''',
+    begin execute format('set application_name= %L', LOWER(some_text)); end;
+    $$ language PLPGSQL;''',
     )
 
-    register_entities([UPDATED_TO_UPPER], entity_types=[PGFunction])
+    register_entities([UPDATED_TO_UPPER], entity_types=[PGProcedure])
 
     # Autogenerate a new migration
     # It should detect the change we made and produce a "replace_function" statement
@@ -87,7 +86,7 @@ def test_update_revision(engine) -> None:
     assert "op.replace_entity" in migration_contents
     assert "op.create_entity" not in migration_contents
     assert "op.drop_entity" not in migration_contents
-    assert "from alembic_utils.pg_function import PGFunction" in migration_contents
+    assert "from alembic_utils.pg_procedure import PGProcedure" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
@@ -100,7 +99,7 @@ def test_noop_revision(engine) -> None:
     with engine.begin() as connection:
         connection.execute(TO_UPPER.to_sql_statement_create())
 
-    register_entities([TO_UPPER], entity_types=[PGFunction])
+    register_entities([TO_UPPER], entity_types=[PGProcedure])
 
     output = run_alembic_command(
         engine=engine,
@@ -129,7 +128,7 @@ def test_drop(engine) -> None:
         connection.execute(TO_UPPER.to_sql_statement_create())
 
     # Register no functions locally
-    register_entities([], schemas=["public"], entity_types=[PGFunction])
+    register_entities([], schemas=["public"], entity_types=[PGProcedure])
 
     run_alembic_command(
         engine=engine,
@@ -157,18 +156,17 @@ def test_has_no_parameters(engine) -> None:
     # Error was occuring in drop statement when function had no parameters
     # related to parameter parsing to drop default statements
 
-    SIDE_EFFECT = PGFunction(
+    SIDE_EFFECT = PGProcedure(
         schema="public",
         signature="side_effect()",
         definition="""
-            returns integer
             as
-            $$ select 1; $$ language SQL;
+            $$ set application_name='side_effect'; $$ language SQL;
             """,
     )
 
     # Register no functions locally
-    register_entities([SIDE_EFFECT], schemas=["public"], entity_types=[PGFunction])
+    register_entities([SIDE_EFFECT], schemas=["public"], entity_types=[PGProcedure])
 
     run_alembic_command(
         engine=engine,
@@ -196,7 +194,7 @@ def test_ignores_extension_functions(engine) -> None:
     try:
         with engine.begin() as connection:
             connection.execute(text("create extension if not exists unaccent;"))
-        register_entities([], schemas=["public"], entity_types=[PGFunction])
+        register_entities([], schemas=["public"], entity_types=[PGProcedure])
         run_alembic_command(
             engine=engine,
             command="revision",
@@ -214,14 +212,14 @@ def test_ignores_extension_functions(engine) -> None:
             connection.execute(text("drop extension if exists unaccent;"))
 
 
-def test_ignores_procedures(engine) -> None:
-    # Procedures should be handled separately from functions
+def test_ignores_functions(engine) -> None:
+    # Functions should be handled separately from procedures
     # Unless they are excluded, every autogenerate migration will produce
     # drop statements for those functions
     try:
         with engine.begin() as connection:
-            connection.execute(text("create procedure toUpper (some_text text default 'my text!') as $$ begin execute format('set application_name= %L', UPPER(some_text)); end; $$ language PLPGSQL;"))
-        register_entities([], schemas=["public"], entity_types=[PGFunction])
+            connection.execute(text("create function toUpper (some_text text default 'my text!') returns text as $$ begin return upper(some_text) || 'abc'; end; $$ language PLPGSQL;"))
+        register_entities([], schemas=["public"], entity_types=[PGProcedure])
         run_alembic_command(
             engine=engine,
             command="revision",
@@ -240,28 +238,27 @@ def test_ignores_procedures(engine) -> None:
 
 
 def test_plpgsql_colon_esacpe(engine) -> None:
-    # PGFunction.__init__ overrides colon escapes for plpgsql
+    # PGProcedure.__init__ overrides colon escapes for plpgsql
     # because := should not be escaped for sqlalchemy.text
     # if := is escaped, an exception would be raised
 
-    PLPGSQL_FUNC = PGFunction(
+    PLPGSQL_FUNC = PGProcedure(
         schema="public",
         signature="some_func(some_text text)",
         definition="""
-            returns text
             as
             $$
             declare
                 copy_o_text text;
             begin
                 copy_o_text := some_text;
-                return copy_o_text;
+                execute format('set application_name= %L', UPPER(copy_o_text));
             end;
             $$ language plpgsql
             """,
     )
 
-    register_entities([PLPGSQL_FUNC], entity_types=[PGFunction])
+    register_entities([PLPGSQL_FUNC], entity_types=[PGProcedure])
 
     run_alembic_command(
         engine=engine,
@@ -277,7 +274,7 @@ def test_plpgsql_colon_esacpe(engine) -> None:
     assert "op.create_entity" in migration_contents
     assert "op.drop_entity" in migration_contents
     assert "op.replace_entity" not in migration_contents
-    assert "from alembic_utils.pg_function import PGFunction" in migration_contents
+    assert "from alembic_utils.pg_procedure import PGProcedure" in migration_contents
 
     # Execute upgrade
     run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})

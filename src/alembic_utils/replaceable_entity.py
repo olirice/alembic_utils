@@ -8,6 +8,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Type,
     TypeVar,
@@ -79,7 +80,7 @@ class ReplaceableEntity:
         return cls.from_sql(sql)
 
     @classmethod
-    def from_database(cls, sess: Session, schema="%") -> List[T]:
+    def from_database(cls: Type[T], sess: Session, schema="%") -> Sequence[T]:
         """Collect existing entities from the database for given schema"""
         raise NotImplementedError()
 
@@ -158,7 +159,7 @@ class ReplaceableEntity:
     ) -> Optional[ReversibleOp]:
         """Get the migration operation required for autogenerate"""
         # All entities in the database for self's schema
-        entities_in_database: List[T] = self.from_database(sess, schema=self.schema)
+        entities_in_database: Sequence[T] = self.from_database(sess, schema=self.schema)
 
         db_def = self.get_database_definition(sess, dependencies=dependencies)
 
@@ -369,7 +370,7 @@ def compare_registered_entities(
             # Entities within the schemas that are live
             for schema in observed_schemas:
 
-                db_entities: List[ReplaceableEntity] = entity_class.from_database(
+                db_entities: Sequence[ReplaceableEntity] = entity_class.from_database(
                     sess, schema=schema
                 )
 
