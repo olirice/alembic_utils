@@ -8,43 +8,38 @@ from alembic_utils.pg_policy import PGPolicy
 from alembic_utils.replaceable_entity import register_entities
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
-TEST_POLICY = PGPolicy(
-    schema="public",
-    signature="some_policy",
-    on_entity="some_tab",  # schema omitted intentionally
-    definition="""
-    for all
-    to anon_user
-    using (true)
-    with check (true);
-    """,
-)
 
-
-@pytest.fixture()
-def schema_setup(engine) -> Generator[None, None, None]:
+@pytest.fixture(params=["some_tab", "Some_Tab"])
+def schema_setup(request, engine) -> Generator[PGPolicy, None, None]:
     with engine.begin() as connection:
         connection.execute(
-            text(
-                """
-        create table public.some_tab (
-            id serial primary key,
-            name text
-        );
-
-        create user anon_user;
-        """
-            )
+            text(f"""
+                create table public."{request.param}" (
+                    id serial primary key,
+                    name text
+                );
+                create user anon_user;
+            """)
         )
-    yield
+
+    yield PGPolicy(
+        schema="public",
+        signature="some_policy",
+        on_entity=request.param,  # schema omitted intentionally
+        definition="""
+        for all
+        to anon_user
+        using (true)
+        with check (true);
+        """,
+    )
+
     with engine.begin() as connection:
         connection.execute(
-            text(
-                """
-        drop table public.some_tab;
-        drop user anon_user;
-        """
-            )
+            text(f"""
+                drop table public."{request.param}";
+                drop user anon_user;
+            """)
         )
 
 
@@ -69,9 +64,9 @@ def test_parse_without_schema_on_entity() -> None:
 
 
 def test_create_revision(engine, schema_setup) -> None:
-    register_entities([TEST_POLICY], entity_types=[PGPolicy])
+    register_entities([schema_setup], entity_types=[PGPolicy])
 
-    output = run_alembic_command(
+    run_alembic_command(
         engine=engine,
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "1", "message": "create"},
@@ -96,13 +91,13 @@ def test_create_revision(engine, schema_setup) -> None:
 def test_update_revision(engine, schema_setup) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_POLICY.to_sql_statement_create())
+        connection.execute(schema_setup.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TEST_POLICY = PGPolicy(
-        schema=TEST_POLICY.schema,
-        signature=TEST_POLICY.signature,
-        on_entity=TEST_POLICY.on_entity,
+        schema=schema_setup.schema,
+        signature=schema_setup.signature,
+        on_entity=schema_setup.on_entity,
         definition="""
         for update
         to anon_user
@@ -139,9 +134,9 @@ def test_update_revision(engine, schema_setup) -> None:
 def test_noop_revision(engine, schema_setup) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_POLICY.to_sql_statement_create())
+        connection.execute(schema_setup.to_sql_statement_create())
 
-    register_entities([TEST_POLICY], entity_types=[PGPolicy])
+    register_entities([schema_setup], entity_types=[PGPolicy])
 
     # Create a third migration without making changes.
     # This should result in no create, drop or replace statements
@@ -176,8 +171,9 @@ def test_drop_revision(engine, schema_setup) -> None:
 
     # Manually create a SQL function
     with engine.begin() as connection:
-        connection.execute(TEST_POLICY.to_sql_statement_create())
-    output = run_alembic_command(
+        connection.execute(schema_setup.to_sql_statement_create())
+
+    run_alembic_command(
         engine=engine,
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "1", "message": "drop"},
@@ -187,8 +183,6 @@ def test_drop_revision(engine, schema_setup) -> None:
 
     with migration_create_path.open() as migration_file:
         migration_contents = migration_file.read()
-
-    # import pdb; pdb.set_trace()
 
     assert "op.drop_entity" in migration_contents
     assert "op.create_entity" in migration_contents
