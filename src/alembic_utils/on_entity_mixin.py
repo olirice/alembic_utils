@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from alembic_utils.statement import coerce_to_unquoted
+from alembic_utils.statement import coerce_to_unquoted, coerce_to_quoted
 
 if TYPE_CHECKING:
     from alembic_utils.replaceable_entity import ReplaceableEntity
@@ -29,6 +29,11 @@ class OnEntityMixin(_Base):
         Overriding default to add the "on table" clause
         """
         return f"{self.__class__.__name__}: {self.schema}.{self.signature} {self.on_entity}"
+
+    @property
+    def sql_on_entity(self) -> str:
+        """The SQL representation of the entity that the trigger is defined on"""
+        return coerce_to_quoted(self.on_entity)
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""

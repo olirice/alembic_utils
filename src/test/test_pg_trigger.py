@@ -5,26 +5,33 @@ from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
 from alembic_utils.replaceable_entity import register_entities
+from alembic_utils.statement import coerce_to_quoted
 from alembic_utils.testbase import TEST_VERSIONS_ROOT, run_alembic_command
 
 
-@pytest.fixture(scope="function")
-def sql_setup(engine):
+@pytest.fixture(scope="function", params=['account', 'Account'])
+def sql_setup(request, engine):
     with engine.begin() as connection:
         connection.execute(
-            text(
-                """
-        create table public.account (
-            id serial primary key,
-            email text not null
-        );
-        """
-            )
+            text(f"""
+                create table public."{request.param}" (
+                    id serial primary key,
+                    email text not null
+                );
+            """)
         )
 
-    yield
+    yield PGTrigger(
+        schema="public",
+        signature="lower_account_EMAIL",
+        on_entity=f"public.{request.param}",
+        definition=f"""
+            BEFORE INSERT ON public."{request.param}"
+            FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
+        """,
+    )
     with engine.begin() as connection:
-        connection.execute(text("drop table public.account cascade"))
+        connection.execute(text(f'drop table public."{request.param}" cascade'))
 
 
 FUNC = PGFunction.from_sql(
@@ -36,22 +43,12 @@ $$ language plpgsql;
 """
 )
 
-TRIG = PGTrigger(
-    schema="public",
-    signature="lower_account_EMAIL",
-    on_entity="public.account",
-    definition="""
-        BEFORE INSERT ON public.account
-        FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
-    """,
-)
-
 
 def test_create_revision(sql_setup, engine) -> None:
     with engine.begin() as connection:
         connection.execute(FUNC.to_sql_statement_create())
 
-    register_entities([FUNC, TRIG], entity_types=[PGTrigger])
+    register_entities([FUNC, sql_setup], entity_types=[PGTrigger])
     run_alembic_command(
         engine=engine,
         command="revision",
@@ -79,14 +76,14 @@ def test_create_revision(sql_setup, engine) -> None:
 def test_trig_update_revision(sql_setup, engine) -> None:
     with engine.begin() as connection:
         connection.execute(FUNC.to_sql_statement_create())
-        connection.execute(TRIG.to_sql_statement_create())
+        connection.execute(sql_setup.to_sql_statement_create())
 
     UPDATED_TRIG = PGTrigger(
-        schema=TRIG.schema,
-        signature=TRIG.signature,
-        on_entity=TRIG.on_entity,
-        definition="""
-            AFTER INSERT ON public.account
+        schema=sql_setup.schema,
+        signature=sql_setup.signature,
+        on_entity=sql_setup.on_entity,
+        definition=f"""
+            AFTER INSERT ON {coerce_to_quoted(sql_setup.on_entity)}
             FOR EACH ROW EXECUTE PROCEDURE public.downcase_email()
         """,
     )
@@ -121,11 +118,11 @@ def test_trig_update_revision(sql_setup, engine) -> None:
 def test_noop_revision(sql_setup, engine) -> None:
     with engine.begin() as connection:
         connection.execute(FUNC.to_sql_statement_create())
-        connection.execute(TRIG.to_sql_statement_create())
+        connection.execute(sql_setup.to_sql_statement_create())
 
-    register_entities([FUNC, TRIG], entity_types=[PGTrigger])
+    register_entities([FUNC, sql_setup], entity_types=[PGTrigger])
 
-    output = run_alembic_command(
+    run_alembic_command(
         engine=engine,
         command="revision",
         command_kwargs={"autogenerate": True, "rev_id": "3", "message": "do_nothing"},
@@ -150,7 +147,7 @@ def test_drop(sql_setup, engine) -> None:
     # Manually create a SQL function
     with engine.begin() as connection:
         connection.execute(FUNC.to_sql_statement_create())
-        connection.execute(TRIG.to_sql_statement_create())
+        connection.execute(sql_setup.to_sql_statement_create())
 
     # Register no functions locally
     register_entities([], schemas=["public"], entity_types=[PGTrigger])
@@ -189,9 +186,9 @@ def test_on_entity_schema_not_qualified() -> None:
 
 def test_fail_create_sql_statement_create():
     trig = PGTrigger(
-        schema=TRIG.schema,
-        signature=TRIG.signature,
-        on_entity=TRIG.on_entity,
+        schema="public",
+        signature="lower_account_EMAIL",
+        on_entity="accountr",
         definition="INVALID DEF",
     )
 
