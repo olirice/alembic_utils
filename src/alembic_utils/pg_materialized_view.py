@@ -58,7 +58,7 @@ class PGMaterializedView(ReplaceableEntity):
             result = parse(template, sql, case_sensitive=False)
 
             if result is not None:
-                with_data = not "no_data" in result
+                with_data = not "no_data" in result.named
 
                 # If the signature includes column e.g. my_view (col1, col2, col3) remove them
                 signature = result["signature"].split("(")[0]
