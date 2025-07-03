@@ -168,8 +168,6 @@ def test_drop_revision(engine) -> None:
     with migration_create_path.open() as migration_file:
         migration_contents = migration_file.read()
 
-    # import pdb; pdb.set_trace()
-
     assert "op.drop_entity" in migration_contents
     assert "op.create_entity" in migration_contents
     assert "from alembic_utils" in migration_contents
