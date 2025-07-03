@@ -5,13 +5,14 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Generator
+from typing import Callable, Generator
 
 import pytest
 from parse import parse
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.replaceable_entity import registry
 from alembic_utils.testbase import TEST_VERSIONS_ROOT
@@ -134,3 +135,12 @@ def sess(engine) -> Generator[Session, None, None]:
     sess.rollback()
     sess.expire_all()
     sess.close()
+
+ExecuteAll = Callable[[Engine | Session, Generator[TextClause, None, None]], None]
+@pytest.fixture(scope="session")
+def execute_all() -> ExecuteAll:
+    def _execute_all(connection: Engine | Session,  stmts: Generator[TextClause, None, None]):
+        for stmt in stmts:
+            connection.execute(stmt)
+
+    return _execute_all

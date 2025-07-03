@@ -44,9 +44,13 @@ def simulate_entity(
             did_drop = False
             inner_transaction = sess.begin_nested()
             try:
-                sess.execute(entity.to_sql_statement_drop(cascade=True))
+                for stmt in entity.to_sql_statement_drop(cascade=True):
+                    sess.execute(stmt)
                 did_drop = True
-                sess.execute(entity.to_sql_statement_create())
+
+                for stmt in entity.to_sql_statement_create():
+                    sess.execute(stmt)
+
                 yield sess
             except:
                 if did_drop:
@@ -59,7 +63,10 @@ def simulate_entity(
                 # a does not exist error
                 inner_transaction.rollback()
                 inner_transaction = sess.begin_nested()
-                sess.execute(entity.to_sql_statement_create())
+
+                for stmt in entity.to_sql_statement_create():
+                    sess.execute(stmt)
+
                 yield sess
             finally:
                 inner_transaction.rollback()

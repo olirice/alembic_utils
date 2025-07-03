@@ -93,10 +93,10 @@ def test_create_revision(engine, schema_setup) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine, schema_setup) -> None:
+def test_update_revision(engine, schema_setup, execute_all) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_POLICY.to_sql_statement_create())
+        execute_all(connection, TEST_POLICY.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TEST_POLICY = PGPolicy(
@@ -136,10 +136,10 @@ def test_update_revision(engine, schema_setup) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_noop_revision(engine, schema_setup) -> None:
+def test_noop_revision(engine, schema_setup, execute_all) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_POLICY.to_sql_statement_create())
+        execute_all(connection, TEST_POLICY.to_sql_statement_create())
 
     register_entities([TEST_POLICY], entity_types=[PGPolicy])
 
@@ -169,14 +169,14 @@ def test_noop_revision(engine, schema_setup) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop_revision(engine, schema_setup) -> None:
+def test_drop_revision(engine, schema_setup, execute_all) -> None:
 
     # Register no functions locally
     register_entities([], schemas=["public"], entity_types=[PGPolicy])
 
     # Manually create a SQL function
     with engine.begin() as connection:
-        connection.execute(TEST_POLICY.to_sql_statement_create())
+        execute_all(connection, TEST_POLICY.to_sql_statement_create())
     output = run_alembic_command(
         engine=engine,
         command="revision",

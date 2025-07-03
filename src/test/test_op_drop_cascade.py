@@ -18,11 +18,11 @@ B_A = PGView(
 )
 
 
-def test_drop_fails_without_cascade(engine) -> None:
+def test_drop_fails_without_cascade(engine, execute_all) -> None:
 
     with engine.begin() as connection:
-        connection.execute(A.to_sql_statement_create())
-        connection.execute(B_A.to_sql_statement_create())
+        execute_all(connection, A.to_sql_statement_create())
+        execute_all(connection, B_A.to_sql_statement_create())
 
     register_entities([B_A], schemas=["DEV"], entity_types=[PGView])
 
@@ -47,11 +47,11 @@ def test_drop_fails_without_cascade(engine) -> None:
         run_alembic_command(engine=engine, command="upgrade", command_kwargs={"revision": "head"})
 
 
-def test_drop_fails_with_cascade(engine, sess) -> None:
+def test_drop_fails_with_cascade(engine, sess, execute_all) -> None:
 
     with engine.begin() as connection:
-        connection.execute(A.to_sql_statement_create())
-        connection.execute(B_A.to_sql_statement_create())
+        execute_all(connection, A.to_sql_statement_create())
+        execute_all(connection, B_A.to_sql_statement_create())
 
     register_entities([B_A], schemas=["DEV"], entity_types=[PGView])
 

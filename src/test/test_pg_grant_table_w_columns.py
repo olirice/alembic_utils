@@ -72,9 +72,9 @@ def test_create_revision(sql_setup, engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_replace_revision(sql_setup, engine) -> None:
+def test_replace_revision(sql_setup, engine, execute_all) -> None:
     with engine.begin() as connection:
-        connection.execute(TEST_GRANT.to_sql_statement_create())
+        execute_all(connection, TEST_GRANT.to_sql_statement_create())
 
     UPDATED_GRANT = PGGrantTable(
         schema="public",
@@ -109,10 +109,10 @@ def test_replace_revision(sql_setup, engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_noop_revision(sql_setup, engine) -> None:
+def test_noop_revision(sql_setup, engine, execute_all) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_GRANT.to_sql_statement_create())
+        execute_all(connection, TEST_GRANT.to_sql_statement_create())
 
     register_entities([TEST_GRANT], entity_types=[PGGrantTable])
 
@@ -141,14 +141,14 @@ def test_noop_revision(sql_setup, engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop_revision(sql_setup, engine) -> None:
+def test_drop_revision(sql_setup, engine, execute_all) -> None:
 
     # Register no functions locally
     register_entities([], schemas=["public"], entity_types=[PGGrantTable])
 
     # Manually create a SQL function
     with engine.begin() as connection:
-        connection.execute(TEST_GRANT.to_sql_statement_create())
+        execute_all(connection, TEST_GRANT.to_sql_statement_create())
 
     output = run_alembic_command(
         engine=engine,

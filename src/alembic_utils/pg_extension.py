@@ -28,14 +28,14 @@ class PGExtension(ReplaceableEntity):
         # database and we want to detect schema changes and emit alter schema
         self.definition: str = f"{self.__class__.__name__}: {self.schema} {self.signature}"
 
-    def to_sql_statement_create(self) -> TextClause:
+    def to_sql_statement_create(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create extension" statement"""
-        return sql_text(f'CREATE EXTENSION "{self.signature}" WITH SCHEMA {self.literal_schema};')
+        yield sql_text(f'CREATE EXTENSION "{self.signature}" WITH SCHEMA {self.literal_schema};')
 
-    def to_sql_statement_drop(self, cascade=False) -> TextClause:
+    def to_sql_statement_drop(self, cascade=False) -> Generator[TextClause, None, None]:
         """Generates a SQL "drop extension" statement"""
         cascade = "CASCADE" if cascade else ""
-        return sql_text(f'DROP EXTENSION "{self.signature}" {cascade}')
+        yield sql_text(f'DROP EXTENSION "{self.signature}" {cascade}')
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates SQL equivalent to "create or replace" statement"""

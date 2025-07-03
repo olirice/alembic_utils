@@ -1,8 +1,9 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
-from typing import List
+from typing import Generator, List
 
 from parse import parse
 from sqlalchemy import text as sql_text
+from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.replaceable_entity import ReplaceableEntity
@@ -67,13 +68,13 @@ class PGFunction(ReplaceableEntity):
         name, remainder = self.signature.split("(", 1)
         return '"' + name.strip() + '"(' + remainder
 
-    def to_sql_statement_create(self):
+    def to_sql_statement_create(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create function" statement for PGFunction"""
-        return sql_text(
+        yield sql_text(
             f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
         )
 
-    def to_sql_statement_drop(self, cascade=False):
+    def to_sql_statement_drop(self, cascade=False) -> Generator[TextClause, None, None]:
         """Generates a SQL "drop function" statement for PGFunction"""
         cascade = "cascade" if cascade else ""
         template = "{function_name}({parameters})"
@@ -92,11 +93,11 @@ class PGFunction(ReplaceableEntity):
         parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
-        return sql_text(
+        yield sql_text(
             f'DROP FUNCTION {self.literal_schema}."{function_name}"({drop_params}) {cascade}'
         )
 
-    def to_sql_statement_create_or_replace(self):
+    def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create or replace function" statement for PGFunction"""
         yield sql_text(
             f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"

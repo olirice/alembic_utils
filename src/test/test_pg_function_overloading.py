@@ -48,10 +48,10 @@ def test_create_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine) -> None:
+def test_update_revision(engine, execute_all) -> None:
     with engine.begin() as connection:
-        connection.execute(TO_FLOAT_FROM_INT.to_sql_statement_create())
-        connection.execute(TO_FLOAT_FROM_TEXT.to_sql_statement_create())
+        execute_all(connection, TO_FLOAT_FROM_INT.to_sql_statement_create())
+        execute_all(connection, TO_FLOAT_FROM_TEXT.to_sql_statement_create())
 
     UPDATE = PGFunction(
         schema="public",

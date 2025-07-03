@@ -50,16 +50,16 @@ class PGView(ReplaceableEntity):
 
         raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
 
-    def to_sql_statement_create(self) -> TextClause:
+    def to_sql_statement_create(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create view" statement"""
-        return sql_text(
+        yield sql_text(
             f'CREATE VIEW {self.literal_schema}."{self.signature}" AS {self.definition};'
         )
 
-    def to_sql_statement_drop(self, cascade=False) -> TextClause:
+    def to_sql_statement_drop(self, cascade=False) -> Generator[TextClause, None, None]:
         """Generates a SQL "drop view" statement"""
         cascade = "cascade" if cascade else ""
-        return sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}" {cascade}')
+        yield sql_text(f'DROP VIEW {self.literal_schema}."{self.signature}" {cascade}')
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create or replace view" statement

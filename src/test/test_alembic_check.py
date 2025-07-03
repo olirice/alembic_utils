@@ -31,9 +31,9 @@ def test_check_diff_create(engine) -> None:
     assert e_info.value.args[0] == exp
 
 
-def test_check_diff_upgrade(engine) -> None:
+def test_check_diff_upgrade(engine, execute_all) -> None:
     with engine.begin() as connection:
-        connection.execute(TEST_VIEW_before.to_sql_statement_create())
+        execute_all(connection, TEST_VIEW_before.to_sql_statement_create())
 
     register_entities([TEST_VIEW_after])
 
@@ -45,9 +45,9 @@ def test_check_diff_upgrade(engine) -> None:
     )
 
 
-def test_check_diff_drop(engine) -> None:
+def test_check_diff_drop(engine, execute_all) -> None:
     with engine.begin() as connection:
-        connection.execute(TEST_VIEW_before.to_sql_statement_create())
+        execute_all(connection, TEST_VIEW_before.to_sql_statement_create())
 
     register_entities([])
 

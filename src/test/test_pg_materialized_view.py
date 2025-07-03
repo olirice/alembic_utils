@@ -77,10 +77,10 @@ def test_create_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine) -> None:
+def test_update_revision(engine, execute_all) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_MAT_VIEW.to_sql_statement_create())
+        execute_all(connection, TEST_MAT_VIEW.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TEST_MAT_VIEW = PGMaterializedView(
@@ -116,10 +116,10 @@ def test_update_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_noop_revision(engine) -> None:
+def test_noop_revision(engine, execute_all) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_MAT_VIEW.to_sql_statement_create())
+        execute_all(connection, TEST_MAT_VIEW.to_sql_statement_create())
 
     register_entities([TEST_MAT_VIEW], entity_types=[PGMaterializedView])
 
@@ -148,14 +148,14 @@ def test_noop_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop_revision(engine) -> None:
+def test_drop_revision(engine, execute_all) -> None:
 
     # Register no functions locally
     register_entities([], schemas=["DEV"], entity_types=[PGMaterializedView])
 
     # Manually create a SQL function
     with engine.begin() as connection:
-        connection.execute(TEST_MAT_VIEW.to_sql_statement_create())
+        execute_all(connection, TEST_MAT_VIEW.to_sql_statement_create())
 
     output = run_alembic_command(
         engine=engine,

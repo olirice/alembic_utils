@@ -53,7 +53,11 @@ class CreateOp(ReversibleOp):
         return DropOp(self.target)
 
     def to_diff_tuple(self) -> Tuple[Any, ...]:
-        return "create_entity", self.target.identity, str(self.target.to_sql_statement_create())
+        return (
+            "create_entity",
+            self.target.identity,
+            "".join(str(x) for x in self.target.to_sql_statement_create()),
+        )
 
 
 @Operations.register_operation("drop_entity", "invoke_for_target_optional_cascade")
@@ -101,13 +105,15 @@ class RevertOp(ReversibleOp):
 @Operations.implementation_for(CreateOp)
 def create_entity(operations, operation):
     target: "ReplaceableEntity" = operation.target
-    operations.execute(target.to_sql_statement_create())
+    for stmt in target.to_sql_statement_create():
+        operations.execute(stmt)
 
 
 @Operations.implementation_for(DropOp)
 def drop_entity(operations, operation):
     target: "ReplaceableEntity" = operation.target
-    operations.execute(target.to_sql_statement_drop(cascade=operation.cascade))
+    for stmt in target.to_sql_statement_drop(cascade=operation.cascade):
+        operations.execute(stmt)
 
 
 @Operations.implementation_for(ReplaceOp)

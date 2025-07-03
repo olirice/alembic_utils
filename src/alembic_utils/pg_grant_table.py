@@ -209,21 +209,21 @@ class PGGrantTable(ReplaceableEntity):
             grants.append(grant)
         return grants
 
-    def to_sql_statement_create(self) -> TextClause:
+    def to_sql_statement_create(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create view" statement"""
         with_grant_option = " WITH GRANT OPTION" if self.with_grant_option else ""
         maybe_columns_clause = f'( {", ".join(self.columns)} )' if self.columns else ""
-        return sql_text(
+        yield sql_text(
             f"GRANT {self.grant} {maybe_columns_clause} ON {self.literal_schema}.{coerce_to_quoted(self.table)} TO {coerce_to_quoted(self.role)} {with_grant_option}"
         )
 
-    def to_sql_statement_drop(self, cascade=False) -> TextClause:
+    def to_sql_statement_drop(self, cascade=False) -> Generator[TextClause, None, None]:
         """Generates a SQL "drop view" statement"""
         # cascade has no impact
-        return sql_text(
+        yield sql_text(
             f"REVOKE {self.grant} ON {self.literal_schema}.{coerce_to_quoted(self.table)} FROM {coerce_to_quoted(self.role)}"
         )
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
-        yield self.to_sql_statement_drop()
-        yield self.to_sql_statement_create()
+        yield from self.to_sql_statement_drop()
+        yield from self.to_sql_statement_create()

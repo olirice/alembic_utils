@@ -130,7 +130,8 @@ def recreate_dropped(connection) -> Generator[Session, None, None]:
 
     # Attempt to recreate the missing entities in the specified order
     for ent in ordered_unresolved:
-        sess.execute(ent.to_sql_statement_create())
+        for stmt in ent.to_sql_statement_create():
+            sess.execute(stmt)
 
     # Sanity check that everything is now fine
     sanity_check = collect_all_db_entities(sess)

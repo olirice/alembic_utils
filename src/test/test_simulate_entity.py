@@ -13,8 +13,8 @@ TEST_VIEW = PGView(
 )
 
 
-def test_simulate_entity_shows_user_code_error(sess: Session) -> None:
-    sess.execute(TEST_VIEW.to_sql_statement_create())
+def test_simulate_entity_shows_user_code_error(sess: Session, execute_all) -> None:
+    execute_all(sess, TEST_VIEW.to_sql_statement_create())
 
     with pytest.raises(DataError):
         with simulate_entity(sess, TEST_VIEW):

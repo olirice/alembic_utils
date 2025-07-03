@@ -83,11 +83,11 @@ class ReplaceableEntity:
         """Collect existing entities from the database for given schema"""
         raise NotImplementedError()
 
-    def to_sql_statement_create(self) -> TextClause:
+    def to_sql_statement_create(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create function" statement for PGFunction"""
         raise NotImplementedError()
 
-    def to_sql_statement_drop(self, cascade=False) -> TextClause:
+    def to_sql_statement_drop(self, cascade=False) -> Generator[TextClause, None, None]:
         """Generates a SQL "drop function" statement for PGFunction"""
         raise NotImplementedError()
 
@@ -101,7 +101,8 @@ class ReplaceableEntity:
         """Creates the entity in the database, retrieves its 'rendered' then rolls it back"""
         with simulate_entity(sess, self, dependencies) as sess:
             # Drop self
-            sess.execute(self.to_sql_statement_drop())
+            for stmt in self.to_sql_statement_drop():
+                sess.execute(stmt)
 
             # collect all remaining entities
             db_entities: List[T] = sorted(

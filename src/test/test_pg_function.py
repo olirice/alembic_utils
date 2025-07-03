@@ -19,9 +19,9 @@ TO_UPPER = PGFunction(
 
 def test_trailing_whitespace_stripped():
     sql_statements: List[str] = [
-        str(TO_UPPER.to_sql_statement_create()),
+        str(next(iter(TO_UPPER.to_sql_statement_create()))),
         str(next(iter(TO_UPPER.to_sql_statement_create_or_replace()))),
-        str(TO_UPPER.to_sql_statement_drop()),
+        str(next(iter(TO_UPPER.to_sql_statement_drop()))),
     ]
 
     for statement in sql_statements:
@@ -55,9 +55,9 @@ def test_create_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_update_revision(engine) -> None:
+def test_update_revision(engine, execute_all) -> None:
     with engine.begin() as connection:
-        connection.execute(TO_UPPER.to_sql_statement_create())
+        execute_all(connection, TO_UPPER.to_sql_statement_create())
 
     # Update definition of TO_UPPER
     UPDATED_TO_UPPER = PGFunction(
@@ -96,9 +96,9 @@ def test_update_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_noop_revision(engine) -> None:
+def test_noop_revision(engine, execute_all) -> None:
     with engine.begin() as connection:
-        connection.execute(TO_UPPER.to_sql_statement_create())
+        execute_all(connection, TO_UPPER.to_sql_statement_create())
 
     register_entities([TO_UPPER], entity_types=[PGFunction])
 
@@ -123,10 +123,10 @@ def test_noop_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop(engine) -> None:
+def test_drop(engine, execute_all) -> None:
     # Manually create a SQL function
     with engine.begin() as connection:
-        connection.execute(TO_UPPER.to_sql_statement_create())
+        execute_all(connection, TO_UPPER.to_sql_statement_create())
 
     # Register no functions locally
     register_entities([], schemas=["public"], entity_types=[PGFunction])

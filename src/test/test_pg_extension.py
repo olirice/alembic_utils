@@ -37,14 +37,14 @@ def test_create_or_replace_raises():
         TEST_EXT.to_sql_statement_create_or_replace()
 
 
-def test_update_is_unreachable(engine) -> None:
+def test_update_is_unreachable(engine, execute_all) -> None:
     # Updates are not possible. The only parameter that may change is
     # schema, and that will result in a drop and create due to schema
     # scoping assumptions made for all other entities
 
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_EXT.to_sql_statement_create())
+        execute_all(connection, TEST_EXT.to_sql_statement_create())
 
     UPDATED_TEST_EXT = PGExtension("DEV", TEST_EXT.signature)
 
@@ -67,10 +67,10 @@ def test_update_is_unreachable(engine) -> None:
     assert "from alembic_utils.pg_extension import PGExtension" in migration_contents
 
 
-def test_noop_revision(engine) -> None:
+def test_noop_revision(engine, execute_all) -> None:
     # Create the view outside of a revision
     with engine.begin() as connection:
-        connection.execute(TEST_EXT.to_sql_statement_create())
+        execute_all(connection, TEST_EXT.to_sql_statement_create())
 
     register_entities([TEST_EXT], entity_types=[PGExtension])
 
@@ -99,13 +99,13 @@ def test_noop_revision(engine) -> None:
     run_alembic_command(engine=engine, command="downgrade", command_kwargs={"revision": "base"})
 
 
-def test_drop_revision(engine) -> None:
+def test_drop_revision(engine, execute_all) -> None:
     # Register no functions locally
     register_entities([], entity_types=[PGExtension])
 
     # Manually create a SQL function
     with engine.begin() as connection:
-        connection.execute(TEST_EXT.to_sql_statement_create())
+        execute_all(connection, TEST_EXT.to_sql_statement_create())
 
     output = run_alembic_command(
         engine=engine,

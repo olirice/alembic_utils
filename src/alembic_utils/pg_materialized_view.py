@@ -73,20 +73,20 @@ class PGMaterializedView(ReplaceableEntity):
 
         raise SQLParseFailure(f'Failed to parse SQL into PGView """{sql}"""')
 
-    def to_sql_statement_create(self) -> TextClause:
+    def to_sql_statement_create(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create view" statement"""
 
         # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
         definition = self.definition.rstrip().rstrip(";")
 
-        return sql_text(
+        yield sql_text(
             f'CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA;'
         )
 
-    def to_sql_statement_drop(self, cascade=False) -> TextClause:
+    def to_sql_statement_drop(self, cascade=False) -> Generator[TextClause, None, None]:
         """Generates a SQL "drop view" statement"""
         cascade = "cascade" if cascade else ""
-        return sql_text(
+        yield sql_text(
             f'DROP MATERIALIZED VIEW {self.literal_schema}."{self.signature}" {cascade}'
         )
 

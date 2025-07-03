@@ -1,5 +1,8 @@
+from typing import Generator
+
 from parse import parse
 from sqlalchemy import text as sql_text
+from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.on_entity_mixin import OnEntityMixin
@@ -43,17 +46,17 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
             )
         raise SQLParseFailure(f'Failed to parse SQL into PGPolicy """{sql}"""')
 
-    def to_sql_statement_create(self):
+    def to_sql_statement_create(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create poicy" statement for PGPolicy"""
 
-        return sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition}")
+        yield sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition}")
 
-    def to_sql_statement_drop(self, cascade=False):
+    def to_sql_statement_drop(self, cascade=False) -> Generator[TextClause, None, None]:
         """Generates a SQL "drop policy" statement for PGPolicy"""
         cascade = "cascade" if cascade else ""
-        return sql_text(f"DROP POLICY {self.signature} on {self.on_entity} {cascade}")
+        yield sql_text(f"DROP POLICY {self.signature} on {self.on_entity} {cascade}")
 
-    def to_sql_statement_create_or_replace(self):
+    def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Not implemented, postgres policies do not support replace."""
         yield sql_text(f"DROP POLICY IF EXISTS {self.signature} on {self.on_entity};")
         yield sql_text(f"CREATE POLICY {self.signature} on {self.on_entity} {self.definition};")
