@@ -134,6 +134,10 @@ class ReplaceableEntity:
     definition={repr(escaped_definition)}
 )\n"""
 
+    # Default to no additional operations.
+    def render_post_create_entity(self, _autogen_context: AutogenContext) -> str:
+        return ""
+
     @classmethod
     def render_import_statement(cls) -> str:
         """Render a string that is valid python code to import current class"""

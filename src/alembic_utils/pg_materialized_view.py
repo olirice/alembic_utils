@@ -3,8 +3,11 @@
 
 from typing import Generator
 
+from alembic.autogenerate.api import AutogenContext
+from alembic.autogenerate.render import _add_index as render_add_index
+from alembic.operations.ops import CreateIndexOp
 from parse import parse
-from sqlalchemy import text as sql_text
+from sqlalchemy import Index, text as sql_text
 from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import SQLParseFailure
@@ -28,15 +31,20 @@ class PGMaterializedView(ReplaceableEntity):
     * **signature** - *str*: A SQL view's call signature
     * **definition** - *str*: The SQL select statement body of the view
     * **with_data** - *bool*: Should create and replace statements populate data
+    * **indexes** - *list[Index]*: Specifies SqlAlchemy indexes to be created on MaterializedView.
     """
 
     type_ = "materialized_view"
 
-    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True):
+    def __init__(self, schema: str, signature: str, definition: str, with_data: bool = True, indexes: list[Index] = None):
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = strip_terminating_semicolon(definition)
         self.with_data = with_data
+
+        # We must specify name so that index.table.name can access this value.
+        self.name = self.signature
+        self.indexes = indexes
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGMaterializedView":
@@ -92,15 +100,10 @@ class PGMaterializedView(ReplaceableEntity):
 
     def to_sql_statement_create_or_replace(self) -> Generator[TextClause, None, None]:
         """Generates a SQL "create or replace view" statement"""
-        # Remove possible semicolon from definition because we're adding a "WITH DATA" clause
-        definition = self.definition.rstrip().rstrip(";")
-
         yield sql_text(
             f"""DROP MATERIALIZED VIEW IF EXISTS {self.literal_schema}."{self.signature}"; """
         )
-        yield sql_text(
-            f"""CREATE MATERIALIZED VIEW {self.literal_schema}."{self.signature}" AS {definition} WITH {"NO" if not self.with_data else ""} DATA"""
-        )
+        yield from self.to_sql_statement_create()
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
@@ -114,6 +117,15 @@ class PGMaterializedView(ReplaceableEntity):
             definition={repr(escaped_definition)},
             with_data={repr(self.with_data)}
         )\n\n"""
+
+    def render_post_create_entity(self, autogen_context: AutogenContext) -> str:
+        index_ops = []
+        for index in self.indexes if self.indexes else []:
+            index.table = self
+            index_op = render_add_index(autogen_context, CreateIndexOp.from_index(index))
+            index_ops.append(index_op)
+
+        return "\n" + "\n".join(index_ops) + "\n" if index_ops else ""
 
     @classmethod
     def from_database(cls, sess, schema):

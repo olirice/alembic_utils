@@ -134,7 +134,11 @@ def render_create_entity(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
-    return target.render_self_for_migration() + f"op.create_entity({variable_name})\n"
+    return (
+        target.render_self_for_migration() +
+        f"op.create_entity({variable_name})\n" +
+        target.render_post_create_entity(autogen_context)
+    )
 
 
 @renderers.dispatch_for(DropOp)
@@ -153,7 +157,11 @@ def render_replace_entity(autogen_context, op):
     target = op.target
     autogen_context.imports.add(target.render_import_statement())
     variable_name = target.to_variable_name()
-    return target.render_self_for_migration() + f"op.replace_entity({variable_name})\n"
+    return (
+        target.render_self_for_migration() +
+        f"op.replace_entity({variable_name})\n" +
+        target.render_post_create_entity(autogen_context)
+    )
 
 
 @renderers.dispatch_for(RevertOp)
