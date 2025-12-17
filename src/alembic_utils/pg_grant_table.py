@@ -9,7 +9,7 @@ from sqlalchemy.sql.elements import TextClause
 
 from alembic_utils.exceptions import BadInputException
 from alembic_utils.replaceable_entity import ReplaceableEntity
-from alembic_utils.statement import coerce_to_quoted, coerce_to_unquoted
+from alembic_utils.statement import coerce_to_quoted, coerce_to_unquoted, sanitize_python_identifier
 
 
 class PGGrantTableChoice(str, Enum):
@@ -116,11 +116,15 @@ class PGGrantTable(ReplaceableEntity):
         return str(self)
 
     def to_variable_name(self) -> str:
-        """A deterministic variable name based on PGFunction's contents"""
-        schema_name = self.schema.lower()
-        table_name = self.table.lower()
-        role_name = self.role.lower()
-        return f"{schema_name}_{table_name}_{role_name}_{str(self.grant)}".lower()
+        """A deterministic variable name based on PGFunction's contents.
+
+        Variable names are sanitized to ensure they are valid Python identifiers,
+        even when role names, table names, or schema names contain characters
+        like hyphens that are invalid in Python identifiers.
+        """
+        # Construct the base name from components
+        base_name = f"{self.schema}_{self.table}_{self.role}_{str(self.grant)}".lower()
+        return sanitize_python_identifier(base_name)
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""

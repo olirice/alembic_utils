@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from alembic_utils.statement import coerce_to_unquoted
+from alembic_utils.statement import coerce_to_unquoted, sanitize_python_identifier
 
 if TYPE_CHECKING:
     from alembic_utils.replaceable_entity import ReplaceableEntity
@@ -44,8 +44,12 @@ class OnEntityMixin(_Base):
 )\n"""
 
     def to_variable_name(self) -> str:
-        """A deterministic variable name based on PGFunction's contents"""
+        """A deterministic variable name based on PGFunction's contents.
+
+        Variable names are sanitized to ensure they are valid Python identifiers.
+        """
         schema_name = self.schema.lower()
         object_name = self.signature.split("(")[0].strip().lower()
         _, _, unqualified_entity_name = self.on_entity.lower().partition(".")
-        return f"{schema_name}_{unqualified_entity_name}_{object_name}"
+        base_name = f"{schema_name}_{unqualified_entity_name}_{object_name}"
+        return sanitize_python_identifier(base_name)

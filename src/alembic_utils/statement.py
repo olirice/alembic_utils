@@ -1,4 +1,26 @@
+import hashlib
+import re
 from uuid import uuid4
+
+
+def sanitize_python_identifier(name: str) -> str:
+    """Sanitize a string to be a valid Python identifier.
+
+    - Replaces invalid characters (hyphens, spaces, etc.) with underscores
+    - Ensures the identifier does not start with a digit
+    - Appends a short deterministic hash to avoid collisions from sanitization
+
+    Examples:
+        sanitize_python_identifier('reporting-readonly') => 'reporting_readonly_a1b2c3'
+        sanitize_python_identifier('123_role') => '_123_role_d4e5f6'
+        sanitize_python_identifier('valid_name') => 'valid_name_g7h8i9'
+    """
+    original = name
+    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+    if sanitized and sanitized[0].isdigit():
+        sanitized = "_" + sanitized
+    hash_suffix = hashlib.md5(original.encode()).hexdigest()[:6]
+    return f"{sanitized}_{hash_suffix}"
 
 
 def normalize_whitespace(text, base_whitespace: str = " ") -> str:

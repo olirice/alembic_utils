@@ -28,6 +28,7 @@ from alembic_utils.reversible_op import (
     ReplaceOp,
     ReversibleOp,
 )
+from alembic_utils.statement import sanitize_python_identifier
 from alembic_utils.simulate import simulate_entity
 from alembic_utils.statement import (
     coerce_to_quoted,
@@ -146,10 +147,14 @@ class ReplaceableEntity:
         return f"{self.__class__.__name__}: {self.schema}.{self.signature}"
 
     def to_variable_name(self) -> str:
-        """A deterministic variable name based on PGFunction's contents"""
+        """A deterministic variable name based on PGFunction's contents.
+
+        Variable names are sanitized to ensure they are valid Python identifiers.
+        """
         schema_name = self.schema.lower()
-        object_name = self.signature.split("(")[0].strip().lower().replace("-", "_")
-        return f"{schema_name}_{object_name}"
+        object_name = self.signature.split("(")[0].strip().lower()
+        base_name = f"{schema_name}_{object_name}"
+        return sanitize_python_identifier(base_name)
 
     _version_to_replace: Optional[T] = None  # type: ignore
 
