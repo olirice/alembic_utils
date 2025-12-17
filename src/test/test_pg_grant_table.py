@@ -41,6 +41,96 @@ def test_repr():
     assert go.__repr__() == "'TRUNCATE'"
 
 
+def test_to_variable_name_with_hyphenated_role() -> None:
+    """Test that role names with hyphens produce valid Python identifiers (issue #167)."""
+    grant = PGGrantTable(
+        schema="public",
+        table="account",
+        role="reporting-readonly",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    var_name = grant.to_variable_name()
+    assert var_name.isidentifier(), f"Variable name '{var_name}' is not a valid Python identifier"
+    assert "-" not in var_name
+
+
+def test_to_variable_name_with_hyphenated_table() -> None:
+    """Test that table names with hyphens produce valid Python identifiers."""
+    grant = PGGrantTable(
+        schema="public",
+        table="my-table",
+        role="anon_user",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    var_name = grant.to_variable_name()
+    assert var_name.isidentifier(), f"Variable name '{var_name}' is not a valid Python identifier"
+    assert "-" not in var_name
+
+
+def test_to_variable_name_with_hyphenated_schema() -> None:
+    """Test that schema names with hyphens produce valid Python identifiers."""
+    grant = PGGrantTable(
+        schema="my-schema",
+        table="account",
+        role="anon_user",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    var_name = grant.to_variable_name()
+    assert var_name.isidentifier(), f"Variable name '{var_name}' is not a valid Python identifier"
+    assert "-" not in var_name
+
+
+def test_to_variable_name_deterministic() -> None:
+    """Test that the same grant always produces the same variable name."""
+    grant1 = PGGrantTable(
+        schema="public",
+        table="account",
+        role="reporting-readonly",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    grant2 = PGGrantTable(
+        schema="public",
+        table="account",
+        role="reporting-readonly",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    assert grant1.to_variable_name() == grant2.to_variable_name()
+
+
+def test_to_variable_name_collision_avoidance() -> None:
+    """Test that similar names after sanitization don't collide due to hash."""
+    grant1 = PGGrantTable(
+        schema="public",
+        table="account",
+        role="role-a",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    grant2 = PGGrantTable(
+        schema="public",
+        table="account",
+        role="role_a",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    # These would have the same sanitized base, but hashes differ
+    assert grant1.to_variable_name() != grant2.to_variable_name()
+
+
+def test_render_self_for_migration_with_hyphenated_role() -> None:
+    """Test that render_self_for_migration produces valid Python with hyphenated roles."""
+    grant = PGGrantTable(
+        schema="public",
+        table="account",
+        role="reporting-readonly",
+        grant=PGGrantTableChoice.DELETE,
+    )
+    rendered = grant.render_self_for_migration()
+    # Verify the rendered code is valid Python by compiling it
+    try:
+        compile(rendered, "<string>", "exec")
+    except SyntaxError as e:
+        pytest.fail(f"Rendered migration code is not valid Python: {e}\nCode:\n{rendered}")
+
+
 def test_bad_input():
 
     with pytest.raises(BadInputException):
