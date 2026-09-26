@@ -28,13 +28,17 @@ class PGFunction(ReplaceableEntity):
 
     def __init__(self, schema: str, signature: str, definition: str):
         super().__init__(schema, signature, definition)
-        # Detect if function uses plpgsql and update escaping rules to not escape ":="
-        is_plpgsql: bool = "language plpgsql" in normalize_whitespace(definition).lower().replace(
+        # Keep SQLAlchemy escapes out of rendered migrations and reflected definitions.
+        self.definition = strip_terminating_semicolon(definition)
+
+    @property
+    def _escaped_definition(self) -> str:
+        # Preserve PL/pgSQL assignment syntax and already escaped legacy migrations.
+        is_plpgsql = "language plpgsql" in normalize_whitespace(self.definition).lower().replace(
             "'", ""
         )
         escaping_callable = escape_colon_for_plpgsql if is_plpgsql else escape_colon_for_sql
-        # Override definition with correct escaping rules
-        self.definition: str = escaping_callable(strip_terminating_semicolon(definition))
+        return escaping_callable(self.definition)
 
     @classmethod
     def from_sql(cls, sql: str) -> "PGFunction":
@@ -70,7 +74,7 @@ class PGFunction(ReplaceableEntity):
     def to_sql_statement_create(self):
         """Generates a SQL "create function" statement for PGFunction"""
         return sql_text(
-            f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+            f"CREATE FUNCTION {self.literal_schema}.{self.literal_signature} {self._escaped_definition}"
         )
 
     def to_sql_statement_drop(self, cascade=False):
@@ -99,7 +103,7 @@ class PGFunction(ReplaceableEntity):
     def to_sql_statement_create_or_replace(self):
         """Generates a SQL "create or replace function" statement for PGFunction"""
         yield sql_text(
-            f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self.definition}"
+            f"CREATE OR REPLACE FUNCTION {self.literal_schema}.{self.literal_signature} {self._escaped_definition}"
         )
 
     @classmethod

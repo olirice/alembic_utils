@@ -215,7 +215,7 @@ def test_ignores_extension_functions(engine) -> None:
 
 
 def test_plpgsql_colon_esacpe(engine) -> None:
-    # PGFunction.__init__ overrides colon escapes for plpgsql
+    # PGFunction preserves PL/pgSQL assignment syntax when building SQL
     # because := should not be escaped for sqlalchemy.text
     # if := is escaped, an exception would be raised
 
