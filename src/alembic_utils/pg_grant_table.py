@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Generator, List, Optional, Union
@@ -44,7 +45,7 @@ C = PGGrantTableChoice
 class SchemaTableRole:
     schema: str
     table: str
-    role: str
+    role: Optional[str]
     grant: PGGrantTableChoice
     with_grant_option: str  # 'YES' or 'NO'
 
@@ -65,7 +66,7 @@ class PGGrantTable(ReplaceableEntity):
     * **schema** - *str*: A SQL schema name
     * **table** - *str*: The table to grant access to
     * **columns** - *Optional[List[str]]*: Column names, or None/[] for a table-level grant
-    * **role** - *str*: The role to grant access to
+    * **role** - *Optional[str]*: A named role, or None for the PUBLIC pseudo-role
     * **grant** - *Union[Grant, str]*: On of SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
     * **with_grant_option** - *bool*: Can the role grant access to other roles
     """
@@ -73,7 +74,7 @@ class PGGrantTable(ReplaceableEntity):
     schema: str
     table: str
     columns: List[str]
-    role: str
+    role: Optional[str]
     grant: PGGrantTableChoice
     with_grant_option: bool
 
@@ -83,7 +84,7 @@ class PGGrantTable(ReplaceableEntity):
         self,
         schema: str,
         table: str,
-        role: str,
+        role: Optional[str],
         grant: Union[PGGrantTableChoice, str],
         columns: Optional[List[str]] = None,
         with_grant_option=False,
@@ -93,8 +94,8 @@ class PGGrantTable(ReplaceableEntity):
         self.columns: List[str] = (
             sorted({_unquote_identifier(column) for column in columns}) if columns else []
         )
-        # PUBLIC is the pseudo-role; an explicitly quoted "PUBLIC" is a real role.
-        self.role: str = role if role == '"PUBLIC"' else _unquote_identifier(role)
+        # Strings retain their historical meaning as named roles, including PUBLIC.
+        self.role: Optional[str] = _unquote_identifier(role) if role is not None else None
         self.grant: PGGrantTableChoice = PGGrantTableChoice(grant)
         self.with_grant_option: bool = with_grant_option
         self.signature = self.identity
@@ -114,7 +115,9 @@ class PGGrantTable(ReplaceableEntity):
         # One entity manages a privilege for a grantee on a relation. Keep this
         # stable when columns change: replacement revokes before granting. Separate
         # create/drop identities would let a table REVOKE erase the new column grant.
-        return f"{self.__class__.__name__}: {self.schema}.{self.table}.{self.role}.{self.grant}"
+        identity = f"{self.__class__.__name__}: {self.schema}.{self.table}.{self.role}.{self.grant}"
+        # Keep named-role identities stable, without colliding with a role named None.
+        return identity + " [PUBLIC]" if self.role is None else identity
 
     @property
     def definition(self) -> str:  # type: ignore
@@ -122,17 +125,30 @@ class PGGrantTable(ReplaceableEntity):
 
     def to_variable_name(self) -> str:
         """A deterministic variable name based on PGFunction's contents"""
-        schema_name = self.schema.lower()
-        table_name = self.table.lower()
-        role_name = self.role.lower().replace('"', "")
-        return f"{schema_name}_{table_name}_{role_name}_{str(self.grant)}".lower()
+        role_name = self.role if self.role is not None else "public"
+        name = re.sub(
+            r"\W",
+            "_",
+            f"{self.schema}_{self.table}_{role_name}_{self.grant}".lower(),
+            flags=re.ASCII,
+        )
+        return name if name.isidentifier() else "grant_" + name
 
     def render_self_for_migration(self, omit_definition=False) -> str:
         """Render a string that is valid python code to reconstruct self in a migration"""
         var_name = self.to_variable_name()
         class_name = self.__class__.__name__
 
-        return f"""{var_name} = {self}\n"""
+        # Stored names are raw identifiers. Delimit them before reconstruction so
+        # the constructor does not consume literal leading/trailing quote characters.
+        quote = dialect().identifier_preparer.quote_identifier
+        columns = [quote(column) for column in self.columns]
+        role = quote(self.role) if self.role is not None else None
+        return (
+            f"{var_name} = {class_name}(schema={quote(self.schema)!r}, "
+            f"table={quote(self.table)!r}, role={role!r}, grant={self.grant!r}, "
+            f"columns={columns!r}, with_grant_option={self.with_grant_option!r})\n"
+        )
 
     @classmethod
     def from_database(cls, sess: Session, schema: str = "%"):
@@ -161,8 +177,7 @@ class PGGrantTable(ReplaceableEntity):
                   AND a.attnum > 0 AND NOT a.attisdropped
             )
             SELECT g.nspname, g.relname,
-                   CASE WHEN g.grantee = 0 THEN 'PUBLIC'
-                        WHEN pr.rolname = 'PUBLIC' THEN '"PUBLIC"'
+                   CASE WHEN g.grantee = 0 THEN NULL
                         ELSE pr.rolname END AS role_name,
                    g.privilege_type,
                    CASE WHEN bool_or(g.is_grantable) THEN 'YES' ELSE 'NO' END,
@@ -194,7 +209,9 @@ class PGGrantTable(ReplaceableEntity):
             cls(
                 schema=dialect().identifier_preparer.quote_identifier(key.schema),
                 table=dialect().identifier_preparer.quote_identifier(key.table),
-                role=key.role,
+                role=dialect().identifier_preparer.quote_identifier(key.role)
+                if key.role is not None
+                else None,
                 grant=key.grant,
                 with_grant_option=key.with_grant_option == "YES",
                 columns=[]
@@ -226,11 +243,7 @@ class PGGrantTable(ReplaceableEntity):
         columns = (
             f' ({", ".join(quote(column) for column in self.columns)})' if self.columns else ""
         )
-        role = (
-            "PUBLIC"
-            if self.role == "PUBLIC"
-            else quote("PUBLIC" if self.role == '"PUBLIC"' else self.role)
-        )
+        role = "PUBLIC" if self.role is None else quote(self.role)
         return sql_text(
             escape_colon_for_sql(
                 f"GRANT {self.grant}{columns} ON {quote(self.schema)}.{quote(self.table)} "
@@ -248,11 +261,7 @@ class PGGrantTable(ReplaceableEntity):
         # One entity owns all columns for this schema/table/role/privilege identity.
         # Revoke the complete privilege so replacement also removes old columns.
         quote = dialect().identifier_preparer.quote_identifier
-        role = (
-            "PUBLIC"
-            if self.role == "PUBLIC"
-            else quote("PUBLIC" if self.role == '"PUBLIC"' else self.role)
-        )
+        role = "PUBLIC" if self.role is None else quote(self.role)
         return sql_text(
             escape_colon_for_sql(
                 f"REVOKE {self.grant} ON {quote(self.schema)}.{quote(self.table)} FROM {role}"
