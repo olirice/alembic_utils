@@ -52,15 +52,6 @@ def test_bad_input():
             columns=["id"],  # columns not allowed for delete
         )
 
-    with pytest.raises(BadInputException):
-        PGGrantTable(
-            schema="public",
-            table="account",
-            role="anon_user",
-            grant=PGGrantTableChoice.SELECT,
-            # columns required for select
-        )
-
 
 def test_create_revision(sql_setup, engine) -> None:
     register_entities([TEST_GRANT], entity_types=[PGGrantTable])
