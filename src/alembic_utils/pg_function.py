@@ -10,6 +10,7 @@ from alembic_utils.statement import (
     escape_colon_for_plpgsql,
     escape_colon_for_sql,
     normalize_whitespace,
+    split_top_level_commas,
     strip_terminating_semicolon,
 )
 
@@ -87,8 +88,7 @@ class PGFunction(ReplaceableEntity):
             function_name = result["function_name"].strip()
             parameters_str = ""
 
-        # NOTE: Will fail if a text field has a default and that deafult contains a comma...
-        parameters: List[str] = parameters_str.split(",")
+        parameters: List[str] = split_top_level_commas(parameters_str)
         parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)

@@ -1,3 +1,4 @@
+from typing import List
 from uuid import uuid4
 
 
@@ -73,3 +74,28 @@ def coerce_to_unquoted(text: str) -> str:
         coerce_to_unquoted('"public".table') => 'public.table'
     """
     return "".join(text.split('"'))
+
+
+def split_top_level_commas(text: str) -> List[str]:
+    """Splits on commas that are not inside brackets, parentheses or quotes"""
+    parts: List[str] = []
+    current = ""
+    depth = 0
+    quote = ""
+    for char in text:
+        if quote:
+            if char == quote:
+                quote = ""
+        elif char in "'\"":
+            quote = char
+        elif char in "([":
+            depth += 1
+        elif char in ")]":
+            depth -= 1
+        elif char == "," and depth == 0:
+            parts.append(current)
+            current = ""
+            continue
+        current += char
+    parts.append(current)
+    return parts

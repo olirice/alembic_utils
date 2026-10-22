@@ -30,6 +30,32 @@ def test_trailing_whitespace_stripped():
         assert not '"toUpper "' in statement
 
 
+def test_drop_handles_commas_inside_array_default(engine) -> None:
+    # A comma inside an array default is not a parameter separator
+    commas = PGFunction(
+        schema="public",
+        signature=(
+            "commas(id_columns text[], "
+            "ignore_columns text[] default array ['branch_id', 'commit_id_from'], "
+            "out table_diff jsonb)"
+        ),
+        definition="""
+            language sql
+            as
+            $$ select '{}'::jsonb $$;
+            """,
+    )
+
+    with engine.begin() as connection:
+        connection.execute(commas.to_sql_statement_create())
+        connection.execute(commas.to_sql_statement_drop())
+        remaining = connection.execute(
+            text("select count(*) from pg_proc where proname = 'commas'")
+        ).scalar()
+
+    assert remaining == 0
+
+
 def test_create_revision(engine) -> None:
     register_entities([TO_UPPER], entity_types=[PGFunction])
 
