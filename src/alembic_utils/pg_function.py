@@ -1,4 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
+import re
 from typing import List
 
 from parse import parse
@@ -89,7 +90,7 @@ class PGFunction(ReplaceableEntity):
 
         # NOTE: Will fail if a text field has a default and that deafult contains a comma...
         parameters: List[str] = parameters_str.split(",")
-        parameters = [x[: len(x.lower().split("default")[0])] for x in parameters]
+        parameters = [re.split(r"\bdefault\b|=", x, flags=re.IGNORECASE)[0] for x in parameters]
         parameters = [x.strip() for x in parameters]
         drop_params = ", ".join(parameters)
         return sql_text(

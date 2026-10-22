@@ -30,6 +30,26 @@ def test_trailing_whitespace_stripped():
         assert not '"toUpper "' in statement
 
 
+def test_drop_keeps_parameter_names_containing_default():
+    # Parameter names such as default_arr contain "default" and must survive the drop statement
+    defaulted = PGFunction(
+        schema="public",
+        signature="defaulted(default_arr jsonb, default_text text = 'x', arr jsonb default '[]')",
+        definition="""
+            returns integer
+            as
+            $$ select 1; $$ language SQL;
+            """,
+    )
+
+    statement = str(defaulted.to_sql_statement_drop())
+
+    assert (
+        'DROP FUNCTION "public"."defaulted"(default_arr jsonb, default_text text, arr jsonb)'
+        in statement
+    )
+
+
 def test_create_revision(engine) -> None:
     register_entities([TO_UPPER], entity_types=[PGFunction])
 
